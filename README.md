@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portfolio di Vito Piccolini
 
-## Getting Started
+Un sito portfolio moderno e reattivo costruito con Next.js, TypeScript, Tailwind CSS e Framer Motion.
 
-First, run the development server:
+## Caratteristiche
+
+- 🌓 Tema chiaro/scuro con persistenza
+- 📱 Design completamente responsive
+- 🎯 Animazioni fluide con Framer Motion
+- 📊 Barre di progresso animate per le competenze
+- 📝 Modulo di contatto funzionante
+- 🔄 CI/CD con GitHub Actions per deploy automatico su Vercel
+- ⚡ Ottimizzazione delle performance con code splitting, lazy loading e immagini ottimizzate
+
+## Struttura del Progetto
+
+- `/src/components`: Componenti riutilizzabili
+- `/src/app`: Pagine dell'applicazione (routing basato su cartelle)
+- `/src/styles`: Fogli di stile globali
+- `/public`: Asset statici
+
+## Sviluppo Locale
 
 ```bash
+# Clona il repository
+git clone https://github.com/username/portfolio.git
+cd portfolio
+
+# Installa le dipendenze
+npm install
+
+# Avvia il server di sviluppo
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ora puoi visitare `http://localhost:3000` nel tuo browser per vedere il sito in azione.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Script Disponibili
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run dev`: Avvia il server di sviluppo con hot reload
+- `npm run build`: Crea una build ottimizzata per la produzione
+- `npm run start`: Avvia il server di produzione con la build
+- `npm run lint`: Esegue il linting del codice
 
-## Learn More
+## Ottimizzazioni Performance
 
-To learn more about Next.js, take a look at the following resources:
+Il sito include numerose ottimizzazioni per la performance:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Lazy Loading**: Componenti caricati dinamicamente con `next/dynamic`
+- **Immagini Ottimizzate**: Utilizzo di `next/image` per ottimizzazione automatica
+- **Code Splitting**: Caricamento del codice on-demand
+- **Minificazione**: CSS e JS minificati in produzione
+- **Prefetching**: Prefetching automatico di pagine per navigazione istantanea
+- **Animazioni efficienti**: Utilizzo di Framer Motion con animazioni hardware-accelerated
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+Il sito è configurato per il deployment automatico su Vercel attraverso GitHub Actions.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Per eseguire un deploy manuale:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+# Installa Vercel CLI (se non già installato)
+npm install -g vercel
+
+# Login su Vercel
+vercel login
+
+# Deploy in modalità produzione
+vercel --prod
+```
+
+In alternativa, è possibile utilizzare Netlify:
+
+```bash
+# Installa Netlify CLI (se non già installato)
+npm install -g netlify-cli
+
+# Login su Netlify
+netlify login
+
+# Deploy in modalità produzione
+netlify deploy --prod
+```
+
+## Tecnologie Utilizzate
+
+- [Next.js](https://nextjs.org/) - Framework React
+- [TypeScript](https://www.typescriptlang.org/) - JavaScript tipizzato
+- [Tailwind CSS](https://tailwindcss.com/) - Framework CSS utility-first
+- [Framer Motion](https://www.framer.com/motion/) - Libreria di animazioni
+- [React Intersection Observer](https://github.com/thebuilder/react-intersection-observer) - Animazioni on-scroll
+
+## Contatti
+
+Vito Piccolini - [contatto@example.com](mailto:contatto@example.com)
