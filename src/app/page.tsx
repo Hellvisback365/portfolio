@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef } from 'react';
-import { motion } from 'framer-motion';
 import Layout from '@/components/Layout';
 import dynamic from 'next/dynamic';
 import HeroSection from '@/components/sections/HeroSection';

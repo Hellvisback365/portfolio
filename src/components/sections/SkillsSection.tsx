@@ -1,6 +1,7 @@
+/* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { useInView } from 'react-intersection-observer';
+import { InView } from 'react-intersection-observer';
 import { motion } from 'framer-motion';
 
 export default function SkillsSection() {
@@ -53,46 +54,46 @@ export default function SkillsSection() {
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
-        {skills.map((skillGroup, groupIndex) => {
-          const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
-          return (
-            <motion.div
-              key={groupIndex}
-              ref={ref}
-              initial={{ opacity: 0, y: 30 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: groupIndex * 0.1 }}
-              className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md"
-            >
-              <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white text-center">
-                {skillGroup.category}
-              </h2>
+        {skills.map((skillGroup, groupIndex) => (
+          <InView key={groupIndex} triggerOnce threshold={0.1}>
+            {({ ref, inView }) => (
+              <motion.div
+                ref={ref}
+                initial={{ opacity: 0, y: 30 }}
+                animate={inView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.6, delay: groupIndex * 0.1 }}
+                className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md"
+              >
+                <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white text-center">
+                  {skillGroup.category}
+                </h2>
 
-              <div className="space-y-6">
-                {skillGroup.items.map((skill, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-gray-800 dark:text-gray-200">
-                        {skill.name}
-                      </span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {skill.level}%
-                      </span>
+                <div className="space-y-6">
+                  {skillGroup.items.map((skill, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-gray-800 dark:text-gray-200">
+                          {skill.name}
+                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          {skill.level}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={inView ? { width: `${skill.level}%` } : {}}
+                          transition={{ duration: 1, delay: index * 0.1 + 0.3 }}
+                          className="h-2.5 rounded-full bg-primary-light dark:bg-primary-dark"
+                        ></motion.div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={inView ? { width: `${skill.level}%` } : {}}
-                        transition={{ duration: 1, delay: index * 0.1 + 0.3 }}
-                        className="h-2.5 rounded-full bg-primary-light dark:bg-primary-dark"
-                      ></motion.div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          );
-        })}
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </InView>
+        ))}
       </div>
     </section>
   );

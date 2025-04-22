@@ -1,6 +1,6 @@
 'use client';
 
-import { useInView } from 'react-intersection-observer';
+import { InView } from 'react-intersection-observer';
 import { motion } from 'framer-motion';
 
 export default function AboutSection() {
@@ -48,54 +48,50 @@ export default function AboutSection() {
         <div className="absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-primary-light dark:bg-primary-dark"></div>
 
         {/* Timeline items */}
-        {timelineItems.map((item, index) => {
-          const [ref, inView] = useInView({
-            triggerOnce: true,
-            threshold: 0.2,
-          });
-
-          return (
-            <motion.div
-              key={item.id}
-              ref={ref}
-              initial={{ opacity: 0, x: index % 2 === 0 ? -30 : 30 }}
-              animate={inView ? { opacity: 1, x: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className={`relative mb-12 ${index % 2 === 0 ? 'left-timeline' : 'right-timeline'}`}
-            >
-              <div
-                className={`flex items-center ${
-                  index % 2 === 0
-                    ? 'flex-row-reverse md:flex-row'
-                    : 'flex-row-reverse'
-                }`}
+        {timelineItems.map((item, index) => (
+          <InView key={item.id} triggerOnce threshold={0.2}>
+            {({ ref, inView }) => (
+              <motion.div
+                ref={ref}
+                initial={{ opacity: 0, x: index % 2 === 0 ? -30 : 30 }}
+                animate={inView ? { opacity: 1, x: 0 } : {}}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className={`relative mb-12 ${index % 2 === 0 ? 'left-timeline' : 'right-timeline'}`}
               >
-                <div className="w-full md:w-1/2"></div>
+                <div
+                  className={`flex items-center ${
+                    index % 2 === 0
+                      ? 'flex-row-reverse md:flex-row'
+                      : 'flex-row-reverse'
+                  }`}
+                >
+                  <div className="w-full md:w-1/2"></div>
 
-                {/* Timeline dot */}
-                <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-4 w-4 h-4 rounded-full bg-primary-light dark:bg-primary-dark border-4 border-white dark:border-gray-900"></div>
+                  {/* Timeline dot */}
+                  <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-4 w-4 h-4 rounded-full bg-primary-light dark:bg-primary-dark border-4 border-white dark:border-gray-900"></div>
 
-                {/* Content */}
-                <div className="w-full md:w-1/2 mt-1 md:mt-0 md:px-6">
-                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-                    <span className="text-sm font-medium text-primary-light dark:text-primary-dark">
-                      {item.date}
-                    </span>
-                    <h3 className="text-xl font-bold mb-1 text-gray-900 dark:text-white">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      {item.location}
-                    </p>
-                    <p className="text-gray-700 dark:text-gray-300">
-                      {item.description}
-                    </p>
+                  {/* Content */}
+                  <div className="w-full md:w-1/2 mt-1 md:mt-0 md:px-6">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                      <span className="text-sm font-medium text-primary-light dark:text-primary-dark">
+                        {item.date}
+                      </span>
+                      <h3 className="text-xl font-bold mb-1 text-gray-900 dark:text-white">
+                        {item.title}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        {item.location}
+                      </p>
+                      <p className="text-gray-700 dark:text-gray-300">
+                        {item.description}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          );
-        })}
+              </motion.div>
+            )}
+          </InView>
+        ))}
       </div>
     </div>
   );
