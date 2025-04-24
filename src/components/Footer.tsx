@@ -15,7 +15,7 @@ export default function Footer() {
           
           <div className="flex space-x-6">
             <a
-              href="https://github.com"
+              href="https://github.com/Hellvisback365"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-600 dark:text-gray-400 hover:text-primary-light dark:hover:text-primary-dark transition-colors"
@@ -30,7 +30,7 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="https://linkedin.com"
+              href="https://www.linkedin.com/in/vito-p-9120028a/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-600 dark:text-gray-400 hover:text-primary-light dark:hover:text-primary-dark transition-colors"
@@ -41,7 +41,7 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="mailto:contact@example.com"
+              href="mailto:vitopiccolini@live.it"
               className="text-gray-600 dark:text-gray-400 hover:text-primary-light dark:hover:text-primary-dark transition-colors"
               aria-label="Email"
             >

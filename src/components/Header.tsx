@@ -2,22 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 
 export default function Header() {
   const [darkMode, setDarkMode] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const pathname = usePathname();
 
   // Navigation links
   const navItems = [
-    { name: 'Home', href: '/' },
-    { name: 'About', href: '/about' },
-    { name: 'Skills', href: '/skills' },
-    { name: 'Projects', href: '/projects' },
-    { name: 'Contact', href: '/contact' },
+    { name: 'Home', href: '#hero' },
+    { name: 'About', href: '#about' },
+    { name: 'Skills', href: '#skills' },
+    { name: 'Projects', href: '#projects' },
+    { name: 'Contact', href: '#contact' },
   ];
 
   // Initialize component and check for dark mode preference
@@ -85,11 +83,7 @@ export default function Header() {
             <Link
               key={item.name}
               href={item.href}
-              className={`transition-colors duration-200 hover:text-blue-500 dark:hover:text-blue-400 ${
-                pathname === item.href 
-                  ? 'text-blue-500 dark:text-blue-400 font-medium' 
-                  : 'text-gray-600 dark:text-gray-300'
-              }`}
+              className="transition-colors duration-200 hover:text-blue-500 dark:hover:text-blue-400 text-gray-600 dark:text-gray-300"
             >
               {item.name}
             </Link>
@@ -145,11 +139,7 @@ export default function Header() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`py-2 transition-colors duration-200 hover:text-primary-light dark:hover:text-primary-dark ${
-                  pathname === item.href 
-                    ? 'text-primary-light dark:text-primary-dark font-medium' 
-                    : 'text-gray-600 dark:text-gray-300'
-                }`}
+                className="py-2 transition-colors duration-200 hover:text-primary-light dark:hover:text-primary-dark text-gray-600 dark:text-gray-300"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {item.name}

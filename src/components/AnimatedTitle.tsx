@@ -3,9 +3,13 @@ import { motion } from 'framer-motion';
 
 interface AnimatedTitleProps {
   text: string;
+  /** index from which to apply highlightClass */
+  highlightFrom?: number;
+  /** Tailwind classes to apply for highlighted chars */
+  highlightClass?: string;
 }
 
-const AnimatedTitle: React.FC<AnimatedTitleProps> = ({ text }) => {
+const AnimatedTitle: React.FC<AnimatedTitleProps> = ({ text, highlightFrom = 0, highlightClass = '' }) => {
   const letters = React.useMemo(() => Array.from(text), [text]);
   const [displayed, setDisplayed] = useState<string[]>([]);
 
@@ -23,12 +27,13 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({ text }) => {
 
   return (
     <h1 className="text-4xl md:text-6xl font-bold text-white whitespace-pre-wrap">
-      {displayed.map((char, idx) => 
+      {displayed.map((char, idx) =>
         char === '\n' ? (
           <br key={idx} />
         ) : (
           <motion.span
             key={idx}
+            className={idx >= highlightFrom ? highlightClass : ''}
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 500, damping: 30, delay: idx * 0.05 }}

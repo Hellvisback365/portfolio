@@ -17,47 +17,61 @@ export default function ScrollToTopButton() {
     };
 
     window.addEventListener('scroll', toggleVisibility);
-    
-    // Clean up the event listener
     return () => window.removeEventListener('scroll', toggleVisibility);
   }, []);
 
   // Scroll to top function
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Framer Motion variants for wow effect
+  const buttonVariants = {
+    hidden: { opacity: 0, scale: 0.5, rotate: -45 },
+    visible: { opacity: 1, scale: 1, rotate: 0, transition: { type: 'spring', stiffness: 500, damping: 30 } },
+    hover: { scale: 1.1, rotate: 10, transition: { yoyo: Infinity, duration: 0.4 } },
+    tap: { scale: 0.9, rotate: -10, transition: { duration: 0.1 } },
+    exit: { opacity: 0, scale: 0.5, transition: { duration: 0.2 } }
   };
 
   return (
     <AnimatePresence>
       {isVisible && (
         <motion.button
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          transition={{ duration: 0.2 }}
+          initial="hidden"
+          animate="visible"
+          whileHover="hover"
+          whileTap="tap"
+          exit="exit"
+          variants={buttonVariants}
           onClick={scrollToTop}
           aria-label="Scroll to top"
-          className="fixed bottom-6 right-6 p-3 rounded-full bg-primary-light dark:bg-primary-dark text-white shadow-md hover:shadow-lg transition-shadow z-50"
+          className="fixed bottom-18 right-8 p-4 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 shadow-2xl backdrop-blur-lg text-white z-50"
+          style={{
+            width: '56px',
+            height: '56px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
         >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-6 w-6" 
-            fill="none" 
-            viewBox="0 0 24 24" 
+          <motion.svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
             stroke="currentColor"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-6 w-6"
+            initial={{ y: 0 }}
+            animate={{ y: [0, -5, 0] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
           >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M5 10l7-7m0 0l7 7m-7-7v18" 
-            />
-          </svg>
+            <path d="M5 15l7-7 7 7" />
+          </motion.svg>
         </motion.button>
       )}
     </AnimatePresence>
   );
-} 
+}
