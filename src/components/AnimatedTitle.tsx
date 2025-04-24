@@ -15,7 +15,7 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({ text, highlightFrom = 0, 
 
   useEffect(() => {
     setDisplayed([]); // reset before starting
-    let timeoutIds: NodeJS.Timeout[] = [];
+    const timeoutIds: NodeJS.Timeout[] = [];
     letters.forEach((_, index) => {
       const timeoutId = setTimeout(() => {
         setDisplayed((prev) => [...prev, letters[index]]);
@@ -23,7 +23,7 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({ text, highlightFrom = 0, 
       timeoutIds.push(timeoutId);
     });
     return () => timeoutIds.forEach(clearTimeout);
-  }, [text]);
+  }, [text, letters]);
 
   return (
     <h1 className="text-4xl md:text-6xl font-bold text-white whitespace-pre-wrap">
@@ -36,7 +36,7 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({ text, highlightFrom = 0, 
             className={idx >= highlightFrom ? highlightClass : ''}
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 30, delay: idx * 0.05 }}
+            transition={{ type: 'tween', duration: 0.1, ease: 'easeOut' }}
           >
             {char}
           </motion.span>

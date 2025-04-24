@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
@@ -26,6 +26,26 @@ interface Project {
 
 export default function ProjectsSection() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Check if dark mode is active
+    const checkDarkMode = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+
+    // Initial check
+    checkDarkMode();
+
+    // Set up a mutation observer to detect dark mode changes
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const projects: Project[] = [
     {
@@ -38,7 +58,7 @@ export default function ProjectsSection() {
         "L'app utilizza tecnologie React per il frontend e Node.js per il backend, con supporto di modelli linguistici avanzati per fornire feedback " +
         "personalizzati e adattivi. La soluzione è stata progettata con un focus sull'accessibilità e sulla facilità d'uso.",
       tags: ['React', 'Node.js', 'AI', 'Accessibilità', 'LangChain'],
-      link: 'https://github.com',
+      link: 'https://github.com/Hellvisback365/BeFluentVITO.git',
     },
     {
       id: 2,
@@ -50,7 +70,7 @@ export default function ProjectsSection() {
         "Il sistema è progettato per garantire la sicurezza dei dati utente end-to-end, con crittografia avanzata e controlli di accesso granulari. " +
         "La piattaforma include funzionalità per la gestione del consenso degli utenti e strumenti per l'analisi dell'impatto sulla privacy.",
       tags: ['Privacy', 'GDPR', 'MVC', 'Sicurezza', 'Python'],
-      link: 'https://github.com',
+
     },
   ];
 
@@ -63,10 +83,16 @@ export default function ProjectsSection() {
           transition={{ duration: 0.5 }}
           className="mb-12 text-center"
         >
-          <h1 className="text-3xl md:text-4xl font-bold mb-6 text-gray-900 dark:text-white">
+          <h1 
+            className="text-3xl md:text-4xl font-bold mb-6" 
+            style={{ color: isDarkMode ? 'white' : 'black' }}
+          >
             I Miei Progetti
           </h1>
-          <p className="text-lg text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">
+          <p 
+            className="text-lg max-w-3xl mx-auto"
+            style={{ color: isDarkMode ? 'white' : 'black' }}
+          >
             Una selezione dei progetti su cui ho lavorato, focalizzati su integrazione AI, privacy e user experience.
           </p>
         </motion.div>

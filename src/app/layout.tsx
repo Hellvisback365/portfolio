@@ -1,6 +1,8 @@
+import ThemeProviderWrapper from '@/components/ThemeProviderWrapper';
 import type { Metadata } from "next";
 import "./globals.css";
 import PerformanceMonitor from "@/components/PerformanceMonitor";
+import AnimatedBackground from '@/components/AnimatedBackground';
 
 export const metadata: Metadata = {
   title: "Vito Piccolini - Sviluppatore AI",
@@ -20,34 +22,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="it" suppressHydrationWarning>
       <head>
-        {/* Reset tema e debug */}
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            try {
-              // RESETTA COMPLETAMENTE IL TEMA
-              console.log("[THEME-RESET] Resetting theme completely");
-              document.documentElement.classList.remove('dark');
-              localStorage.removeItem('darkMode');
-              
-              console.log("[THEME-RESET] Theme reset completed");
-            } catch (e) {
-              console.error("[THEME-RESET] Error:", e);
-            }
-          `
-        }} />
+        {/* Metadata handled by Next.js App Router */}
       </head>
-      {/* Body styling: transparent background to show Animated Background */}
-      <body className="bg-transparent text-black dark:text-white" >
-        {children}
-        {process.env.NODE_ENV === 'production' && <PerformanceMonitor />}
+      <body className="bg-transparent dark:text-white transition-colors">
+        <ThemeProviderWrapper>
+          <AnimatedBackground />
+          {children}
+          {process.env.NODE_ENV === 'production' && <PerformanceMonitor />}
+        </ThemeProviderWrapper>
       </body>
     </html>
   );

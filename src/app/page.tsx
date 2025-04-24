@@ -8,7 +8,6 @@ import AboutSection from '@/components/sections/AboutSection';
 import ProjectsSection from '@/components/sections/ProjectsSection';
 import SkillsSection from '@/components/sections/SkillsSection';
 import ContactSection from '@/components/sections/ContactSection';
-import AnimatedNebulaBackground from '@/components/AnimatedNebulaBackground';
 
 // Lazy load non-critical components
 const TechStack = dynamic(() => import('@/components/TechStack'), {
@@ -21,34 +20,31 @@ export default function Home() {
   const scrollToAbout = () => aboutRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   return (
-    <>
-      <AnimatedNebulaBackground />
-      <Layout>
-        <HeroSection onScrollToAbout={scrollToAbout} />
-        
-        {/* Tech Stack Section (lazy loaded) */}
-        <TechStack />
-        
-        {/* About Section */}
-        <div ref={aboutRef} id="about">
-          <AboutSection />
-        </div>
+    <Layout>
+      <HeroSection onScrollToAbout={scrollToAbout} />
+      
+      {/* Tech Stack Section (lazy loaded) */}
+      <TechStack />
+      
+      {/* About Section */}
+      <div ref={aboutRef} id="about">
+        <AboutSection />
+      </div>
 
-        {/* Projects Section */}
-        <section id="projects">
-          <ProjectsSection />
-        </section>
+      {/* Projects Section */}
+      <section id="projects">
+        <ProjectsSection />
+      </section>
 
-        {/* Skills Section */}
-        <section id="skills">
-          <SkillsSection />
-        </section>
+      {/* Skills Section */}
+      <section id="skills">
+        <SkillsSection />
+      </section>
 
-        {/* Contact Section */}
-        <section id="contact">
-          <ContactSection />
-        </section>
-      </Layout>
-    </>
+      {/* Contact Section */}
+      <section id="contact">
+        <ContactSection />
+      </section>
+    </Layout>
   );
 }

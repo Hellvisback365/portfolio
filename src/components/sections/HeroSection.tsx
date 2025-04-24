@@ -11,15 +11,7 @@ const startPiccolini = text.indexOf("Piccolini");
 export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
   return (
     <section id="hero" className="relative min-h-[calc(100vh-5rem)] overflow-hidden">
-      {/* Video background for seamless nebula loop */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        src="/videos/nebulosa-loop.mp4"
-      />
+
 
       {/* Dark overlay for contrast */}
       <div className="absolute inset-0 bg-black/50 z-0" />
@@ -58,18 +50,40 @@ export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
 
         {/* Call-to-action buttons */}
         <div className="flex gap-4 mb-10">
-          <a
+          <motion.a
             href="#contact"
-            className="px-6 py-3 bg-primary-light text-white rounded-md hover:bg-primary-dark transition-colors"
+            className="relative overflow-hidden px-6 py-3 bg-gradient-to-r from-primary-light to-primary-dark text-white rounded-md"
+            style={{ backgroundSize: '200% 200%' }}
+            initial={{ backgroundPosition: '0% 50%' }}
+            animate={{ backgroundPosition: '100% 50%' }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+            whileHover={{ scale: 1.05, boxShadow: '0px 8px 15px rgba(0, 0, 0, 0.3)' }}
+            whileTap={{ scale: 0.95 }}
           >
             Contattami
-          </a>
-          <a
+            <motion.span
+              className="absolute top-0 left-[-100%] w-16 h-full bg-white opacity-20"
+              initial={{ x: '-100%' }}
+              whileHover={{ x: '200%' }}
+              transition={{ duration: 0.8, ease: 'easeInOut' }}
+            />
+          </motion.a>
+          <motion.a
             href="#projects"
-            className="px-6 py-3 border-2 border-primary-light text-primary-light rounded-md hover:bg-primary-light hover:text-white transition-colors"
+            className="relative overflow-hidden px-6 py-3 border-2 border-primary-light text-primary-light rounded-md"
+            initial={{ borderColor: '#3B82F6', scale: 1 }}
+            animate={{ borderColor: ['#3B82F6', '#2563EB', '#3B82F6'], scale: [1, 1.02, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            whileHover={{ scale: 1.05, borderColor: '#1D4ED8', color: '#1D4ED8', boxShadow: '0px 8px 15px rgba(37, 99, 235, 0.3)' }}
+            whileTap={{ scale: 0.95 }}
           >
             Vedi i miei progetti
-          </a>
+            <motion.span
+              className="absolute inset-0 bg-primary-light opacity-0"
+              whileHover={{ opacity: 0.1 }}
+              transition={{ duration: 0.5, repeat: Infinity, repeatType: 'mirror' }}
+            />
+          </motion.a>
         </div>
 
         {/* Animated scroll-down indicator */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 interface FormData {
@@ -25,6 +25,48 @@ export default function ContactSection() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  
+  // Dark mode detection
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Check if dark mode is active on initial load
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+    
+    // Set up a MutationObserver to watch for class changes on the html element
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          setIsDarkMode(document.documentElement.classList.contains('dark'));
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, { attributes: true });
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  const headingStyle = {
+    color: isDarkMode ? '#ffffff' : '#000000',  // white in dark mode, black in light mode
+  };
+  
+  const textStyle = {
+    color: isDarkMode ? '#d1d5db' : '#000000',  // gray-300 in dark mode, black in light mode
+  };
+
+  // Force white color style for input fields
+  const inputStyle = {
+    color: '#ffffff !important',
+    backgroundColor: isDarkMode ? '#374151' : '#4B5563', // gray-700 or gray-600
+  };
+
+  // Force white color for form labels
+  const labelStyle = {
+    color: '#ffffff',
+  };
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -86,10 +128,10 @@ export default function ContactSection() {
         transition={{ duration: 0.5 }}
         className="mb-12 text-center"
       >
-        <h1 className="text-3xl md:text-4xl font-bold mb-6 text-gray-900 dark:text-white">
+        <h1 className="text-3xl md:text-4xl font-bold mb-6" style={headingStyle}>
           Contattami
         </h1>
-        <p className="text-lg text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">
+        <p className="text-lg max-w-3xl mx-auto" style={textStyle}>
           Hai un progetto AI in mente o vuoi semplicemente dirmi ciao? Compila il form sottostante e ti risponderò al più presto.
         </p>
       </motion.div>
@@ -99,9 +141,9 @@ export default function ContactSection() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8 p-4 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-md"
+            className="mb-8 p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-md"
           >
-            Messaggio inviato con successo! Ti risponderò il prima possibile.
+            !!!IN FASE DI SVILUPPO!!!
           </motion.div>
         )}
         {submitError && (
@@ -121,7 +163,7 @@ export default function ContactSection() {
           className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md"
         >
           <div className="mb-6">
-            <label htmlFor="name" className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-200">
+            <label htmlFor="name" className="block mb-2 text-sm font-medium text-white" style={labelStyle}>
               Nome
             </label>
             <input
@@ -130,13 +172,14 @@ export default function ContactSection() {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-md border ${errors.name ? 'border-red-500 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'} focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
+              className="w-full px-4 py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
               placeholder="Il tuo nome"
+              style={inputStyle}
             />
             {errors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name}</p>}
           </div>
           <div className="mb-6">
-            <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-200">
+            <label htmlFor="email" className="block mb-2 text-sm font-medium text-white" style={labelStyle}>
               Email
             </label>
             <input
@@ -145,13 +188,14 @@ export default function ContactSection() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-md border ${errors.email ? 'border-red-500 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'} focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
+              className="w-full px-4 py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
               placeholder="La tua email"
+              style={inputStyle}
             />
             {errors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email}</p>}
           </div>
           <div className="mb-6">
-            <label htmlFor="message" className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-200">
+            <label htmlFor="message" className="block mb-2 text-sm font-medium text-white" style={labelStyle}>
               Messaggio
             </label>
             <textarea
@@ -160,8 +204,9 @@ export default function ContactSection() {
               value={formData.message}
               onChange={handleChange}
               rows={5}
-              className={`w-full px-4 py-3 rounded-md border ${errors.message ? 'border-red-500 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'} focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
+              className="w-full px-4 py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
               placeholder="Il tuo messaggio"
+              style={inputStyle}
             />
             {errors.message && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.message}</p>}
           </div>

@@ -2,12 +2,45 @@
 
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import { useEffect, useState } from 'react';
 
 export default function TechStack() {
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
   });
+
+  // Dark mode detection
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Check if dark mode is active on initial load
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+    
+    // Set up a MutationObserver to watch for class changes on the html element
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          setIsDarkMode(document.documentElement.classList.contains('dark'));
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, { attributes: true });
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  const headingStyle = {
+    color: isDarkMode ? '#ffffff' : '#000000',  // white in dark mode, black in light mode
+  };
+  
+  // Force white color for tech stack items
+  const whiteTextStyle = {
+    color: '#ffffff',
+  };
 
   const technologies = [
     { name: 'Python', icon: '🐍' },
@@ -38,7 +71,7 @@ export default function TechStack() {
   return (
     <section className="py-16 bg-transparent dark:bg-transparent transition-colors duration-200">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl md:text-3xl font-bold mb-12 text-center text-gray-900 dark:text-white">
+        <h2 className="text-2xl md:text-3xl font-bold mb-12 text-center" style={headingStyle}>
           Stack Tecnologico
         </h2>
         
@@ -55,10 +88,10 @@ export default function TechStack() {
               variants={item}
               className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow w-28"
             >
-              <span className="text-3xl mb-2" role="img" aria-label={tech.name}>
+              <span className="text-3xl mb-2 text-white" style={whiteTextStyle} role="img" aria-label={tech.name}>
                 {tech.icon}
               </span>
-              <span className="text-gray-800 dark:text-gray-200 font-medium text-sm text-center">
+              <span className="font-medium text-sm text-center text-white" style={whiteTextStyle}>
                 {tech.name}
               </span>
             </motion.div>
