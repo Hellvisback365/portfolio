@@ -3,6 +3,8 @@
 import { InView } from 'react-intersection-observer';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { FaGraduationCap, FaBrain, FaLanguage, FaShieldAlt, FaGithub, FaLinkedin, FaEnvelope } from 'react-icons/fa';
 
 // Define interfaces for our state
 interface Star {
@@ -82,10 +84,6 @@ export default function AboutSection() {
     };
   }, []);
 
-  const textStyle = {
-    color: isDarkMode ? '#d1d5db' : '#000000',  // dark:text-gray-300 in light mode, black in light mode
-  };
-  
   const headingStyle = {
     color: isDarkMode ? '#ffffff' : '#000000',  // white in dark mode, black in light mode
   };
@@ -119,24 +117,134 @@ export default function AboutSection() {
 
   return (
     <div className="container mx-auto px-4 py-16">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-16 text-center"
-      >
-        <h1 className="text-3xl md:text-4xl font-bold mb-6" style={headingStyle}>
-          Chi Sono
-        </h1>
-        <p className="text-lg max-w-3xl mx-auto" style={textStyle}>
+      {/* Chi Sono Section */}
+      <div className="mb-20">
+        <div className="flex items-center mb-2">
+          <h1 className="text-3xl md:text-4xl font-bold" style={{ color: '#60A5FA' }}>
+            Chi
+          </h1>
+          <h1 className="text-3xl md:text-4xl font-bold ml-3 text-white">
+            Sono
+          </h1>
+        </div>
+        
+        <div className="w-20 h-1 bg-blue-400 mb-10"></div>
+        
+        {/* Card with profile image and info */}
+        <div className="flex flex-col lg:flex-row gap-8 max-w-6xl mx-auto">
+          {/* Image Card */}
+          <div className="w-full lg:w-2/5">
+            <motion.div 
+              className="w-full h-[500px] relative rounded-lg overflow-hidden shadow-xl bg-gradient-to-b from-slate-800 to-slate-900"
+              whileHover={{ y: -5, boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.25)' }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Professional frame around image */}
+              <div className="absolute inset-3 z-10 rounded border border-blue-400/30"></div>
+              
+              {/* Profile Image */}
+              <div className="absolute inset-4 overflow-hidden">
+                <Image 
+                  src="/me.png" 
+                  alt="Profile Image" 
+                  fill 
+                  sizes="(max-width: 768px) 100vw, 40vw"
+                  className="object-cover scale-[1.02] filter saturate-[1.05] contrast-[1.02]"
+                  style={{ 
+                    objectPosition: "center 15%" 
+                  }}
+                  priority
+                />
+              </div>
+              
+              {/* Subtle overlay for professional look */}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-slate-900/20 z-20"></div>
+              
+              {/* Professional accent elements */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-bl-full z-10 backdrop-blur-sm"></div>
+              <div className="absolute top-4 right-4 w-20 h-1 bg-blue-400/40 z-10"></div>
+              <div className="absolute top-8 right-4 w-10 h-1 bg-blue-400/40 z-10"></div>
+              
+              {/* Name and Title with improved styling */}
+              <div className="absolute bottom-0 left-0 p-8 w-full z-30">
+                <div className="relative">
+                  <h2 className="text-2xl font-bold text-white mb-1">Vito Piccolini</h2>
+                  <p className="text-blue-400 font-medium tracking-wide mb-1">AI Developer</p>
+                  <div className="w-12 h-0.5 bg-blue-400 mb-4"></div>
+                  
+                  {/* Social Icons with improved styling */}
+                  <div className="flex space-x-4 mt-6">
+                    <a href="https://github.com/Hellvisback365" target="_blank" rel="noopener noreferrer" 
+                       className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-800/80 hover:bg-blue-500 transition-colors duration-300 backdrop-blur-sm">
+                      <FaGithub className="text-white" />
+                    </a>
+                    <a href="https://www.linkedin.com/in/vito-p-9120028a/" target="_blank" rel="noopener noreferrer" 
+                       className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-800/80 hover:bg-blue-500 transition-colors duration-300 backdrop-blur-sm">
+                      <FaLinkedin className="text-white" />
+                    </a>
+                    <a href="mailto:vitopiccolini@live.it" 
+                       className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-800/80 hover:bg-blue-500 transition-colors duration-300 backdrop-blur-sm">
+                      <FaEnvelope className="text-white" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
           
-        Sviluppatore Al in formazione, con esperienza nella progettazione e prototipazione di applicazioni basate su modelli linguistici di ultima generazione.
-        Durante il mio tirocinio accademico ho integrato LLM locali (LLaMA, Mistral) in sistemi di raccomandazione conversazionale, migliorando le performance attraverso tecniche di caching, chaining e prompt tuning.
-
-        Solide competenze in Python, LangChain, NLP e architettura di backend (Node.js, MongoDB).
-        Cerco un&apos;opportunità per contribuire allo sviluppo di soluzioni Al orientate all&apos;utente, sfruttando l&apos;ecosistema open-source e le potenzialità dei modelli generativi.
-        </p>
-      </motion.div>
+          {/* Info Card */}
+          <div className="w-full lg:w-3/5 flex flex-col">
+            {/* Description */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold mb-4 text-white">Sviluppatore IA con passione per l&apos;innovazione</h2>
+              <div className="text-gray-300">
+                <p className="mb-4">
+                  Sviluppatore Al in formazione, con esperienza nella progettazione e prototipazione di applicazioni basate su modelli linguistici di ultima generazione.
+                  Durante il mio tirocinio accademico ho integrato LLM locali (LLaMA, Mistral) in sistemi di raccomandazione conversazionale, migliorando le performance attraverso tecniche di caching, chaining e prompt tuning.
+                </p>
+                <p>
+                  Solide competenze in Python, LangChain, NLP e architettura di backend (Node.js, MongoDB).
+                  Cerco un&apos;opportunità per contribuire allo sviluppo di soluzioni Al orientate all&apos;utente, sfruttando l&apos;ecosistema open-source e le potenzialità dei modelli generativi.
+                </p>
+              </div>
+            </div>
+            
+            {/* Formazione e Interessi */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Formazione */}
+              <div>
+                <h3 className="text-xl font-medium mb-4 text-blue-400">Formazione</h3>
+                <div className="flex items-start">
+                  <FaGraduationCap className="text-blue-400 text-xl mt-1 mr-3" />
+                  <div>
+                    <h4 className="text-white font-medium">Università di Bari Aldo Moro</h4>
+                    <p className="text-gray-400">Informatica</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Interessi */}
+              <div>
+                <h3 className="text-xl font-medium mb-4 text-blue-400">Interessi</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <FaBrain className="text-blue-400 text-xl mr-3" />
+                    <span className="text-white">Intelligenza Artificiale</span>
+                  </div>
+                  <div className="flex items-center">
+                    <FaLanguage className="text-blue-400 text-xl mr-3" />
+                    <span className="text-white">Natural Language Processing</span>
+                  </div>
+                  <div className="flex items-center">
+                    <FaShieldAlt className="text-blue-400 text-xl mr-3" />
+                    <span className="text-white">Privacy e GDPR</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center" style={headingStyle}>
         Il Mio Percorso
