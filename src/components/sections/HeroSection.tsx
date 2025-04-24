@@ -20,7 +20,7 @@ export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="relative z-10 max-w-3xl p-16"
+        className="relative z-10 max-w-3xl px-6 py-8 md:p-16"
       >
         {/* Title with highlight */}
         <AnimatedTitle
@@ -33,7 +33,7 @@ export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
-          className="text-xl md:text-2xl mb-6 text-white"
+          className="text-xl md:text-2xl mb-4 md:mb-6 text-white"
         >
           Sviluppatore <span className="text-primary-light">IA emergente</span>
         </motion.h2>
@@ -42,17 +42,17 @@ export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.5 }}
-          className="text-lg text-white/70 mb-8 max-w-2xl"
+          className="text-base md:text-lg text-white/70 mb-6 md:mb-8 max-w-2xl"
         >
           Focalizzato su modelli linguistici e sistemi di raccomandazione. Cerco opportunità per applicare Python,
           LangChain e NLP a progetti sfidanti. Guarda cosa so fare.
         </motion.p>
 
         {/* Call-to-action buttons */}
-        <div className="flex gap-4 mb-10">
+        <div className="flex flex-col sm:flex-row gap-4 mb-8 md:mb-10">
           <motion.a
             href="#contact"
-            className="relative overflow-hidden px-6 py-3 bg-gradient-to-r from-primary-light to-primary-dark text-white rounded-md"
+            className="relative overflow-hidden px-6 py-3 bg-gradient-to-r from-primary-light to-primary-dark text-white rounded-md text-center"
             style={{ backgroundSize: '200% 200%' }}
             initial={{ backgroundPosition: '0% 50%' }}
             animate={{ backgroundPosition: '100% 50%' }}
@@ -70,7 +70,7 @@ export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
           </motion.a>
           <motion.a
             href="#projects"
-            className="relative overflow-hidden px-6 py-3 border-2 border-primary-light text-primary-light rounded-md"
+            className="relative overflow-hidden px-6 py-3 border-2 border-primary-light text-primary-light rounded-md text-center"
             initial={{ borderColor: '#3B82F6', scale: 1 }}
             animate={{ borderColor: ['#3B82F6', '#2563EB', '#3B82F6'], scale: [1, 1.02, 1] }}
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}

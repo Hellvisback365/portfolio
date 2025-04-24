@@ -1,6 +1,7 @@
 /* Importazioni prima di tutto il resto */
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "../styles/breakpoints.css";
 
 /* Stili base e debug */
 body {
@@ -8,6 +9,8 @@ body {
   /* background transparent to allow custom backgrounds */
   background-color: transparent;
   color: black;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
 }
 
 /* TEMA SCURO - COLORI DI DEBUG */
@@ -19,6 +22,28 @@ html.dark body {
 /* Aggiungo una transizione per rendere visibile il cambiamento */
 body {
   transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* Responsive text sizing */
+html {
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+}
+
+/* Fix for iOS input zooming */
+input, select, textarea {
+  font-size: 16px;
 }
 
 /* Rimuovi le variabili :root e .dark se non strettamente necessarie */

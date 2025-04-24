@@ -1,0 +1,70 @@
+/* Mobile first approach with breakpoints */
+
+/* 
+  Breakpoints:
+  - xs: 0px and up (default, no media query needed)
+  - sm: 640px and up
+  - md: 768px and up
+  - lg: 1024px and up
+  - xl: 1280px and up
+  - 2xl: 1536px and up
+
+  Usage with Tailwind CSS:
+  - Default (mobile): text-sm
+  - Small screens: sm:text-base
+  - Medium screens: md:text-lg
+  - Large screens: lg:text-xl
+  - Extra large screens: xl:text-2xl
+*/
+
+:root {
+  /* Responsive spacing variables */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  
+  /* Base mobile padding */
+  --container-padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --container-padding: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --container-padding: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --container-padding: 3rem;
+  }
+}
+
+/* Mobile-specific fixes */
+@media (max-width: 640px) {
+  /* Prevent unwanted zoom on inputs in iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  
+  /* Improve tap targets for mobile */
+  button, 
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+} 

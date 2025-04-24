@@ -1,9 +1,15 @@
 import ThemeProviderWrapper from '@/components/ThemeProviderWrapper';
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PerformanceMonitor from "@/components/PerformanceMonitor";
 import AnimatedBackground from '@/components/AnimatedBackground';
-import { Analytics } from "@vercel/analytics/react"
+import { Analytics } from "@vercel/analytics/react";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
   title: "Vito Piccolini - Sviluppatore AI",
@@ -34,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AnimatedBackground />
           {children}
           {process.env.NODE_ENV === 'production' && <PerformanceMonitor />}
+          <Analytics />
         </ThemeProviderWrapper>
       </body>
     </html>

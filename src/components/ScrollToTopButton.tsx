@@ -46,10 +46,10 @@ export default function ScrollToTopButton() {
           variants={buttonVariants}
           onClick={scrollToTop}
           aria-label="Scroll to top"
-          className="fixed bottom-18 right-8 p-4 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 shadow-2xl backdrop-blur-lg text-white z-50"
+          className="fixed bottom-6 right-4 sm:bottom-8 sm:right-8 p-3 sm:p-4 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 shadow-2xl backdrop-blur-lg text-white z-50"
           style={{
-            width: '56px',
-            height: '56px',
+            width: '46px',
+            height: '46px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -63,7 +63,7 @@ export default function ScrollToTopButton() {
             strokeWidth={2.5}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-6 w-6"
+            className="h-5 w-5 sm:h-6 sm:w-6"
             initial={{ y: 0 }}
             animate={{ y: [0, -5, 0] }}
             transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}

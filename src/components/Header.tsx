@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
 
 export default function Header() {
@@ -25,6 +25,23 @@ export default function Header() {
     setMounted(true);
   }, []);
 
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMenuOpen) {
+        const header = document.querySelector('header');
+        if (header && !header.contains(event.target as Node)) {
+          setIsMenuOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
   // Toggle dark mode con debug avanzato
   const toggleDarkMode = () => {
     setTheme(isDark ? 'light' : 'dark');
@@ -37,13 +54,13 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-colors duration-300">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <Link href="/" className="text-2xl font-bold text-blue-500 dark:text-blue-400">
+      <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+        <Link href="/" className="text-xl md:text-2xl font-bold text-blue-500 dark:text-blue-400">
           Vito Piccolini
         </Link>
         
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex space-x-8">
+        <nav className="hidden md:flex space-x-6 lg:space-x-8">
           {navItems.map((item) => (
             <Link
               key={item.name}
@@ -91,28 +108,30 @@ export default function Header() {
       </div>
       
       {/* Mobile Navigation */}
-      {isMenuOpen && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.3 }}
-          className="md:hidden border-t border-gray-200 dark:border-gray-800"
-        >
-          <nav className="flex flex-col space-y-4 p-4">
-            {navItems.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="py-2 transition-colors duration-200 hover:text-primary-light dark:hover:text-primary-dark text-gray-600 dark:text-gray-300"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {item.name}
-              </Link>
-            ))}
-          </nav>
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="md:hidden border-t border-gray-200 dark:border-gray-800"
+          >
+            <nav className="flex flex-col w-full p-4">
+              {navItems.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="py-3 px-2 border-b border-gray-100 dark:border-gray-800 transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 font-medium text-center"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 } 

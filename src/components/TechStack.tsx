@@ -69,9 +69,9 @@ export default function TechStack() {
   };
 
   return (
-    <section className="py-16 bg-transparent dark:bg-transparent transition-colors duration-200">
+    <section className="py-10 md:py-16 bg-transparent dark:bg-transparent transition-colors duration-200">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl md:text-3xl font-bold mb-12 text-center" style={headingStyle}>
+        <h2 className="text-xl md:text-3xl font-bold mb-8 md:mb-12 text-center" style={headingStyle}>
           Stack Tecnologico
         </h2>
         
@@ -80,18 +80,18 @@ export default function TechStack() {
           variants={container}
           initial="hidden"
           animate={inView ? "show" : "hidden"}
-          className="flex flex-wrap justify-center gap-6"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6 justify-items-center"
         >
           {technologies.map((tech, index) => (
             <motion.div
               key={index}
               variants={item}
-              className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow w-28"
+              className="flex flex-col items-center p-3 md:p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow w-[90%] sm:w-28"
             >
-              <span className="text-3xl mb-2 text-white" style={whiteTextStyle} role="img" aria-label={tech.name}>
+              <span className="text-2xl md:text-3xl mb-1 md:mb-2 text-white" style={whiteTextStyle} role="img" aria-label={tech.name}>
                 {tech.icon}
               </span>
-              <span className="font-medium text-sm text-center text-white" style={whiteTextStyle}>
+              <span className="font-medium text-xs md:text-sm text-center text-white" style={whiteTextStyle}>
                 {tech.name}
               </span>
             </motion.div>

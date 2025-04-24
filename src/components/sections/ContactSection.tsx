@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import useResponsive from '@/hooks/useResponsive';
 
 interface FormData {
   name: string;
@@ -16,6 +17,7 @@ interface FormErrors {
 }
 
 export default function ContactSection() {
+  const { isMobile } = useResponsive();
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -121,17 +123,17 @@ export default function ContactSection() {
   };
 
   return (
-    <section id="contact" className="container mx-auto px-4 py-16">
+    <section id="contact" className="container mx-auto px-4 py-10 md:py-16">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="mb-12 text-center"
+        className="mb-8 md:mb-12 text-center"
       >
-        <h1 className="text-3xl md:text-4xl font-bold mb-6" style={headingStyle}>
+        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 md:mb-6" style={headingStyle}>
           Contattami
         </h1>
-        <p className="text-lg max-w-3xl mx-auto" style={textStyle}>
+        <p className="text-base md:text-lg max-w-3xl mx-auto" style={textStyle}>
           Hai un progetto AI in mente o vuoi semplicemente dirmi ciao? Compila il form sottostante e ti risponderò al più presto.
         </p>
       </motion.div>
@@ -141,7 +143,7 @@ export default function ContactSection() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8 p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-md"
+            className="mb-6 md:mb-8 p-3 md:p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-md text-sm md:text-base"
           >
             !!!IN FASE DI SVILUPPO!!!
           </motion.div>
@@ -150,7 +152,7 @@ export default function ContactSection() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8 p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-md"
+            className="mb-6 md:mb-8 p-3 md:p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-md text-sm md:text-base"
           >
             {submitError}
           </motion.div>
@@ -160,9 +162,9 @@ export default function ContactSection() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
           onSubmit={handleSubmit}
-          className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md"
+          className="bg-white dark:bg-gray-800 p-4 md:p-8 rounded-lg shadow-md"
         >
-          <div className="mb-6">
+          <div className="mb-4 md:mb-6">
             <label htmlFor="name" className="block mb-2 text-sm font-medium text-white" style={labelStyle}>
               Nome
             </label>
@@ -172,13 +174,13 @@ export default function ContactSection() {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
+              className="w-full px-3 md:px-4 py-2 md:py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
               placeholder="Il tuo nome"
               style={inputStyle}
             />
-            {errors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name}</p>}
+            {errors.name && <p className="mt-1 text-xs md:text-sm text-red-600 dark:text-red-400">{errors.name}</p>}
           </div>
-          <div className="mb-6">
+          <div className="mb-4 md:mb-6">
             <label htmlFor="email" className="block mb-2 text-sm font-medium text-white" style={labelStyle}>
               Email
             </label>
@@ -188,13 +190,13 @@ export default function ContactSection() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
+              className="w-full px-3 md:px-4 py-2 md:py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
               placeholder="La tua email"
               style={inputStyle}
             />
-            {errors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email}</p>}
+            {errors.email && <p className="mt-1 text-xs md:text-sm text-red-600 dark:text-red-400">{errors.email}</p>}
           </div>
-          <div className="mb-6">
+          <div className="mb-4 md:mb-6">
             <label htmlFor="message" className="block mb-2 text-sm font-medium text-white" style={labelStyle}>
               Messaggio
             </label>
@@ -203,17 +205,17 @@ export default function ContactSection() {
               name="message"
               value={formData.message}
               onChange={handleChange}
-              rows={5}
-              className="w-full px-4 py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
+              rows={isMobile ? 4 : 5}
+              className="w-full px-3 md:px-4 py-2 md:py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
               placeholder="Il tuo messaggio"
               style={inputStyle}
             />
-            {errors.message && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.message}</p>}
+            {errors.message && <p className="mt-1 text-xs md:text-sm text-red-600 dark:text-red-400">{errors.message}</p>}
           </div>
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full py-3 px-4 rounded-md bg-primary-light dark:bg-primary-dark text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-500 transition-colors ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+            className={`w-full py-2 md:py-3 px-4 rounded-md bg-primary-light dark:bg-primary-dark text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-500 transition-colors ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
             {isSubmitting ? 'Invio in corso...' : 'Invia Messaggio'}
           </button>
