@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import PerformanceMonitor from "@/components/PerformanceMonitor";
 import AnimatedBackground from '@/components/AnimatedBackground';
+import { Analytics } from "@vercel/analytics/react"
 
 export const metadata: Metadata = {
   title: "Vito Piccolini - Sviluppatore AI",
