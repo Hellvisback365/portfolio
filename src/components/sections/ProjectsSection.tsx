@@ -122,13 +122,11 @@ export default function ProjectsSection() {
                   }}
                   transition={{ duration: 0.3 }}
                 >
-                  <Image 
+                  {/* Temporary fallback to standard img tag for debugging */}
+                  <Image  
                     src={project.image} 
                     alt={project.title}
-                    fill
-                    className="object-contain p-2"
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    priority={index < 2}
+                    className="absolute inset-0 w-full h-full object-contain p-2"
                   />
                   <motion.div 
                     className="absolute inset-0 bg-gradient-to-r from-primary-light/40 to-blue-600/40 dark:from-primary-dark/40 dark:to-blue-500/40"

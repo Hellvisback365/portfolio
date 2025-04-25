@@ -85,13 +85,12 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             }}
             transition={{ duration: 0.6 }}
           >
-            <Image
+            {/* Temporary fallback to standard img tag for debugging */}
+            <Image 
               src={project.image}
               alt={project.title}
-              fill
-              className="object-contain p-3"
-              priority
-              onLoadingComplete={() => setImageLoaded(true)}
+              className="absolute inset-0 w-full h-full object-contain p-3"
+              onLoad={() => setImageLoaded(true)}
             />
           </motion.div>
           <motion.div 
