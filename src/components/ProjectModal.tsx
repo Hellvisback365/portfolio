@@ -89,7 +89,8 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             <Image 
               src={project.image}
               alt={project.title}
-              className="absolute inset-0 w-full h-full object-contain p-3"
+              className="absolute inset-0 object-contain p-3" // Adatta le classi se necessario
+              fill={true} // Aggiungi questa proprietà
               onLoad={() => setImageLoaded(true)}
             />
           </motion.div>

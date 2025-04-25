@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   keywords: ["AI", "Machine Learning", "LLM", "Developer", "Frontend", "React", "Next.js"],
   creator: "Vito Piccolini",
   icons: {
-    icon: '/favicon.ico',
+    icon: '/vp.svg',
     apple: '/apple-icon.png',
   },
   openGraph: {

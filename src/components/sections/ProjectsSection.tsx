@@ -126,7 +126,8 @@ export default function ProjectsSection() {
                   <Image  
                     src={project.image} 
                     alt={project.title}
-                    className="absolute inset-0 w-full h-full object-contain p-2"
+                    className="absolute inset-0 object-contain p-2" // Esempio, adatta le classi se necessario
+                    fill={true} // Aggiungi questa proprietà
                   />
                   <motion.div 
                     className="absolute inset-0 bg-gradient-to-r from-primary-light/40 to-blue-600/40 dark:from-primary-dark/40 dark:to-blue-500/40"
