@@ -145,7 +145,7 @@ export default function AboutSection() {
               {/* Profile Image */}
               <div className="absolute inset-4 overflow-hidden">
                 <Image 
-                  src="/me.png" 
+                  src="/me.jpg" 
                   alt="Profile Image" 
                   fill 
                   sizes="(max-width: 768px) 100vw, 40vw"
