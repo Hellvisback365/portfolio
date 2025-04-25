@@ -54,7 +54,7 @@ export default function ProjectsSection() {
       id: 1,
       title: 'BeFluent',
       description: 'Web app React+Node.js per bambini dislessici con supporto conversazionale AI.',
-      image: '/befluent_logo.png',
+      image: '/BeFluent_logo.png',
       longDescription:
         "BeFluent è un'applicazione web progettata per aiutare bambini con dislessia attraverso un'interfaccia conversazionale basata su AI. " +
         "L'app utilizza tecnologie React per il frontend e Node.js per il backend, con supporto di modelli linguistici avanzati per fornire feedback " +
@@ -66,7 +66,7 @@ export default function ProjectsSection() {
       id: 2,
       title: 'POSD System',
       description: 'Soluzione privacy-oriented conforme GDPR, architettura MVC.',
-      image: '/posd.png',
+      image: '/POSD.png',
       longDescription:
         "POSD System (Privacy-Oriented System Design) è una soluzione software che implementa un'architettura MVC con focus sulla conformità GDPR. " +
         "Il sistema è progettato per garantire la sicurezza dei dati utente end-to-end, con crittografia avanzata e controlli di accesso granulari. " +
