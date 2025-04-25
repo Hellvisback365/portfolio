@@ -10,6 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@getbrevo/brevo": "^2.2.0",
     "@headlessui/react": "^2.2.2",
     "@react-three/drei": "^10.0.6",
     "@react-three/fiber": "^9.1.2",

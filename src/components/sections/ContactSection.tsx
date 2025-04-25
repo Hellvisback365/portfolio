@@ -105,17 +105,34 @@ export default function ContactSection() {
     setIsSubmitting(true);
     setSubmitError('');
     try {
+      console.log('Invio form di contatto...');
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
+      
+      // Log della risposta completa
+      console.log('Risposta del server:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Errore invio del messaggio');
+      console.log('Dati risposta:', data);
+      
+      if (!response.ok) {
+        const errorMsg = data.error || 'Errore invio del messaggio';
+        console.error('Errore dal server:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
       setSubmitSuccess(true);
       setFormData({ name: '', email: '', message: '' });
       setTimeout(() => setSubmitSuccess(false), 5000);
     } catch (err) {
+      console.error('Errore completo:', err);
       setSubmitError(err instanceof Error ? err.message : 'Si è verificato un errore');
     } finally {
       setIsSubmitting(false);
@@ -143,9 +160,9 @@ export default function ContactSection() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 md:mb-8 p-3 md:p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-md text-sm md:text-base"
+            className="mb-6 md:mb-8 p-3 md:p-4 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-md text-sm md:text-base"
           >
-            !!!IN FASE DI SVILUPPO!!!
+            Grazie per il tuo messaggio! Ti risponderò al più presto.
           </motion.div>
         )}
         {submitError && (

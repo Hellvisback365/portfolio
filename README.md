@@ -90,7 +90,23 @@ netlify deploy --prod
 - [Tailwind CSS](https://tailwindcss.com/) - Framework CSS utility-first
 - [Framer Motion](https://www.framer.com/motion/) - Libreria di animazioni
 - [React Intersection Observer](https://github.com/thebuilder/react-intersection-observer) - Animazioni on-scroll
+- [Brevo](https://www.brevo.com/) - API per l'invio di email del form contatti
 
 ## Contatti
 
 Vito Piccolini - [contatto@example.com](mailto:contatto@example.com)
+
+## Modulo di Contatto con Brevo
+
+Il form di contatto utilizza [Brevo API](https://www.brevo.com/) per inviare le email. Per configurarlo:
+
+1. Crea un account gratuito su [Brevo](https://www.brevo.com/)
+2. Vai su SMTP & API e genera una nuova API key
+3. Crea un file `.env.local` nella radice del progetto con il seguente contenuto:
+   ```
+   BREVO_API_KEY=tua_api_key_qui
+   ```
+4. Registra un mittente verificato in Brevo o configura un dominio personalizzato
+5. Aggiorna l'email di destinazione in `src/app/api/contact/route.ts` con la tua email
+
+Se non hai accesso alla configurazione delle variabili d'ambiente (ad esempio su Vercel), aggiungile tramite il pannello di controllo del tuo provider di hosting.
