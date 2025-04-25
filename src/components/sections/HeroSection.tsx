@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import AnimatedTitle from '@/components/AnimatedTitle';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface HeroSectionProps {
   onScrollToAbout: () => void;
@@ -17,9 +17,26 @@ export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
   const [projectsMousePosition, setProjectsMousePosition] = useState({ x: 0, y: 0 });
   const [isContactHovering, setIsContactHovering] = useState(false);
   const [isProjectsHovering, setIsProjectsHovering] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Initial check
+    checkMobile();
+    
+    // Add window resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup listener
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleContactMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!contactBtnRef.current) return;
+    if (!contactBtnRef.current || isMobile) return;
     const rect = contactBtnRef.current.getBoundingClientRect();
     setContactMousePosition({
       x: e.clientX - rect.left,
@@ -28,7 +45,7 @@ export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
   };
 
   const handleProjectsMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!projectsBtnRef.current) return;
+    if (!projectsBtnRef.current || isMobile) return;
     const rect = projectsBtnRef.current.getBoundingClientRect();
     setProjectsMousePosition({
       x: e.clientX - rect.left,
@@ -89,13 +106,42 @@ export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
             whileTap={{ scale: 0.95 }}
           >
             Contattami
-            <div 
-              className="absolute inset-0 pointer-events-none rounded-md transition-opacity duration-300"
-              style={{
-                opacity: isContactHovering ? 1 : 0,
-                background: `radial-gradient(circle 120px at ${contactMousePosition.x}px ${contactMousePosition.y}px, rgba(37, 99, 235, 1), rgba(37, 99, 235, 0.4) 50%, rgba(59, 130, 246, 0) 100%)`
-              }}
-            />
+            {/* Desktop effect */}
+            {!isMobile && (
+              <div 
+                className="absolute inset-0 pointer-events-none rounded-md transition-opacity duration-300"
+                style={{
+                  opacity: isContactHovering ? 1 : 0,
+                  background: `radial-gradient(circle 120px at ${contactMousePosition.x}px ${contactMousePosition.y}px, rgba(37, 99, 235, 1), rgba(37, 99, 235, 0.4) 50%, rgba(59, 130, 246, 0) 100%)`
+                }}
+              />
+            )}
+            {/* Mobile effect */}
+            {isMobile && (
+              <motion.div 
+                className="absolute inset-0 pointer-events-none rounded-md"
+                initial={{ opacity: 0 }}
+                animate={isContactHovering 
+                  ? { 
+                      opacity: 1, 
+                      background: [
+                        'linear-gradient(90deg, rgba(37, 99, 235, 0.8) 0%, rgba(59, 130, 246, 0.4) 100%)',
+                        'linear-gradient(90deg, rgba(59, 130, 246, 0.4) 0%, rgba(37, 99, 235, 0.8) 100%)',
+                        'linear-gradient(90deg, rgba(37, 99, 235, 0.8) 0%, rgba(59, 130, 246, 0.4) 100%)'
+                      ] 
+                    }
+                  : { opacity: 0 }
+                }
+                transition={{ 
+                  opacity: { duration: 0.3 },
+                  background: { 
+                    duration: 2, 
+                    repeat: Infinity,
+                    ease: "linear"
+                  }
+                }}
+              />
+            )}
           </motion.a>
           <motion.a
             ref={projectsBtnRef}
@@ -113,13 +159,42 @@ export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
             whileTap={{ scale: 0.95 }}
           >
             Vedi i miei progetti
-            <div 
-              className="absolute inset-0 pointer-events-none rounded-md transition-opacity duration-300"
-              style={{
-                opacity: isProjectsHovering ? 1 : 0,
-                background: `radial-gradient(circle 120px at ${projectsMousePosition.x}px ${projectsMousePosition.y}px, rgba(191, 219, 254, 0.6), rgba(191, 219, 254, 0.2) 40%, rgba(191, 219, 254, 0) 70%)`
-              }}
-            />
+            {/* Desktop effect */}
+            {!isMobile && (
+              <div 
+                className="absolute inset-0 pointer-events-none rounded-md transition-opacity duration-300"
+                style={{
+                  opacity: isProjectsHovering ? 1 : 0,
+                  background: `radial-gradient(circle 120px at ${projectsMousePosition.x}px ${projectsMousePosition.y}px, rgba(191, 219, 254, 0.6), rgba(191, 219, 254, 0.2) 40%, rgba(191, 219, 254, 0) 70%)`
+                }}
+              />
+            )}
+            {/* Mobile effect */}
+            {isMobile && (
+              <motion.div 
+                className="absolute inset-0 pointer-events-none rounded-md"
+                initial={{ opacity: 0 }}
+                animate={isProjectsHovering 
+                  ? { 
+                      opacity: 1, 
+                      background: [
+                        'linear-gradient(90deg, rgba(191, 219, 254, 0.6) 0%, rgba(147, 197, 253, 0.2) 100%)',
+                        'linear-gradient(90deg, rgba(147, 197, 253, 0.2) 0%, rgba(191, 219, 254, 0.6) 100%)',
+                        'linear-gradient(90deg, rgba(191, 219, 254, 0.6) 0%, rgba(147, 197, 253, 0.2) 100%)'
+                      ] 
+                    }
+                  : { opacity: 0 }
+                }
+                transition={{ 
+                  opacity: { duration: 0.3 },
+                  background: { 
+                    duration: 2, 
+                    repeat: Infinity,
+                    ease: "linear"
+                  }
+                }}
+              />
+            )}
           </motion.a>
         </div>
 
