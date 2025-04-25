@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import AnimatedTitle from '@/components/AnimatedTitle';
+import { useState, useRef } from 'react';
 
 interface HeroSectionProps {
   onScrollToAbout: () => void;
@@ -9,6 +10,32 @@ interface HeroSectionProps {
 const text = `Ciao, mi chiamo\nVito Piccolini`;
 const startPiccolini = text.indexOf("Piccolini");
 export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
+  const contactBtnRef = useRef<HTMLAnchorElement>(null);
+  const projectsBtnRef = useRef<HTMLAnchorElement>(null);
+  
+  const [contactMousePosition, setContactMousePosition] = useState({ x: 0, y: 0 });
+  const [projectsMousePosition, setProjectsMousePosition] = useState({ x: 0, y: 0 });
+  const [isContactHovering, setIsContactHovering] = useState(false);
+  const [isProjectsHovering, setIsProjectsHovering] = useState(false);
+
+  const handleContactMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!contactBtnRef.current) return;
+    const rect = contactBtnRef.current.getBoundingClientRect();
+    setContactMousePosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  const handleProjectsMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!projectsBtnRef.current) return;
+    const rect = projectsBtnRef.current.getBoundingClientRect();
+    setProjectsMousePosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
   return (
     <section id="hero" className="relative min-h-[calc(100vh-5rem)] overflow-hidden">
 
@@ -51,37 +78,47 @@ export default function HeroSection({ onScrollToAbout }: HeroSectionProps) {
         {/* Call-to-action buttons */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8 md:mb-10">
           <motion.a
+            ref={contactBtnRef}
             href="#contact"
-            className="relative overflow-hidden px-6 py-3 bg-gradient-to-r from-primary-light to-primary-dark text-white rounded-md text-center"
-            style={{ backgroundSize: '200% 200%' }}
+            className="relative overflow-hidden px-6 py-3 bg-primary-dark text-white rounded-md text-center"
             initial={{ backgroundPosition: '0% 50%' }}
-            animate={{ backgroundPosition: '100% 50%' }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+            onMouseMove={handleContactMouseMove}
+            onMouseEnter={() => setIsContactHovering(true)}
+            onMouseLeave={() => setIsContactHovering(false)}
             whileHover={{ scale: 1.05, boxShadow: '0px 8px 15px rgba(0, 0, 0, 0.3)' }}
             whileTap={{ scale: 0.95 }}
           >
             Contattami
-            <motion.span
-              className="absolute top-0 left-[-100%] w-16 h-full bg-white opacity-20"
-              initial={{ x: '-100%' }}
-              whileHover={{ x: '200%' }}
-              transition={{ duration: 0.8, ease: 'easeInOut' }}
+            <div 
+              className="absolute inset-0 pointer-events-none rounded-md transition-opacity duration-300"
+              style={{
+                opacity: isContactHovering ? 1 : 0,
+                background: `radial-gradient(circle 120px at ${contactMousePosition.x}px ${contactMousePosition.y}px, rgba(37, 99, 235, 1), rgba(37, 99, 235, 0.4) 50%, rgba(59, 130, 246, 0) 100%)`
+              }}
             />
           </motion.a>
           <motion.a
+            ref={projectsBtnRef}
             href="#projects"
             className="relative overflow-hidden px-6 py-3 border-2 border-primary-light text-primary-light rounded-md text-center"
-            initial={{ borderColor: '#3B82F6', scale: 1 }}
-            animate={{ borderColor: ['#3B82F6', '#2563EB', '#3B82F6'], scale: [1, 1.02, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            whileHover={{ scale: 1.05, borderColor: '#1D4ED8', color: '#1D4ED8', boxShadow: '0px 8px 15px rgba(37, 99, 235, 0.3)' }}
+            onMouseMove={handleProjectsMouseMove}
+            onMouseEnter={() => setIsProjectsHovering(true)}
+            onMouseLeave={() => setIsProjectsHovering(false)}
+            whileHover={{ 
+              scale: 1.05, 
+              borderColor: '#1D4ED8', 
+              color: '#1D4ED8', 
+              boxShadow: '0px 8px 15px rgba(37, 99, 235, 0.3)'
+            }}
             whileTap={{ scale: 0.95 }}
           >
             Vedi i miei progetti
-            <motion.span
-              className="absolute inset-0 bg-primary-light opacity-0"
-              whileHover={{ opacity: 0.1 }}
-              transition={{ duration: 0.5, repeat: Infinity, repeatType: 'mirror' }}
+            <div 
+              className="absolute inset-0 pointer-events-none rounded-md transition-opacity duration-300"
+              style={{
+                opacity: isProjectsHovering ? 1 : 0,
+                background: `radial-gradient(circle 120px at ${projectsMousePosition.x}px ${projectsMousePosition.y}px, rgba(191, 219, 254, 0.6), rgba(191, 219, 254, 0.2) 40%, rgba(191, 219, 254, 0) 70%)`
+              }}
             />
           </motion.a>
         </div>
