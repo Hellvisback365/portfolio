@@ -123,7 +123,7 @@ export default function AboutSection() {
           <h1 className="text-3xl md:text-4xl font-bold" style={{ color: '#60A5FA' }}>
             Chi
           </h1>
-          <h1 className="text-3xl md:text-4xl font-bold ml-3 text-white">
+          <h1 className="text-3xl md:text-4xl font-bold ml-3" style={{ color: isDarkMode ? '#ffffff' : '#000000' }}>
             Sono
           </h1>
         </div>
@@ -193,16 +193,16 @@ export default function AboutSection() {
           </div>
           
           {/* Info Card */}
-          <div className="w-full lg:w-3/5 flex flex-col">
+          <div className="w-full lg:w-3/5 flex flex-col" style={{ backgroundColor: isDarkMode ? 'transparent' : 'rgba(255, 255, 255, 0.9)', padding: '1.5rem', borderRadius: '0.5rem' }}>
             {/* Description */}
             <div className="mb-8">
-              <h2 className="text-2xl font-bold mb-4 text-white">Sviluppatore IA con passione per l&apos;innovazione</h2>
-              <div className="text-gray-300">
-                <p className="mb-4">
+              <h2 className="text-2xl font-bold mb-4" style={{ color: isDarkMode ? '#ffffff' : '#000000' }}>Sviluppatore IA con passione per l&apos;innovazione</h2>
+              <div style={{ color: isDarkMode ? '#ffffff' : '#000000' }}>
+                <p className="mb-4" style={{ color: isDarkMode ? '#ffffff' : '#000000' }}>
                   Sviluppatore Al in formazione, con esperienza nella progettazione e prototipazione di applicazioni basate su modelli linguistici di ultima generazione.
                   Durante il mio tirocinio accademico ho integrato LLM locali (LLaMA, Mistral) in sistemi di raccomandazione conversazionale, migliorando le performance attraverso tecniche di caching, chaining e prompt tuning.
                 </p>
-                <p>
+                <p style={{ color: isDarkMode ? '#ffffff' : '#000000' }}>
                   Solide competenze in Python, LangChain, NLP e architettura di backend (Node.js, MongoDB).
                   Cerco un&apos;opportunità per contribuire allo sviluppo di soluzioni Al orientate all&apos;utente, sfruttando l&apos;ecosistema open-source e le potenzialità dei modelli generativi.
                 </p>
@@ -217,8 +217,8 @@ export default function AboutSection() {
                 <div className="flex items-start">
                   <FaGraduationCap className="text-blue-400 text-xl mt-1 mr-3" />
                   <div>
-                    <h4 className="text-white font-medium">Università di Bari Aldo Moro</h4>
-                    <p className="text-gray-400">Informatica</p>
+                    <h4 className="font-medium" style={{ color: isDarkMode ? '#ffffff' : '#000000' }}>Università di Bari Aldo Moro</h4>
+                    <p style={{ color: isDarkMode ? '#9ca3af' : '#000000' }}>Informatica</p>
                   </div>
                 </div>
               </div>
@@ -229,15 +229,15 @@ export default function AboutSection() {
                 <div className="space-y-3">
                   <div className="flex items-center">
                     <FaBrain className="text-blue-400 text-xl mr-3" />
-                    <span className="text-white">Intelligenza Artificiale</span>
+                    <span style={{ color: isDarkMode ? '#ffffff' : '#000000' }}>Intelligenza Artificiale</span>
                   </div>
                   <div className="flex items-center">
                     <FaLanguage className="text-blue-400 text-xl mr-3" />
-                    <span className="text-white">Natural Language Processing</span>
+                    <span style={{ color: isDarkMode ? '#ffffff' : '#000000' }}>Natural Language Processing</span>
                   </div>
                   <div className="flex items-center">
                     <FaShieldAlt className="text-blue-400 text-xl mr-3" />
-                    <span className="text-white">Privacy e GDPR</span>
+                    <span style={{ color: isDarkMode ? '#ffffff' : '#000000' }}>Privacy e GDPR</span>
                   </div>
                 </div>
               </div>
