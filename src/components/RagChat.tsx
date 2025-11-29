@@ -173,11 +173,10 @@ export default function RagChat() {
           return (
             <div key={message.id} className={`flex flex-col ${isAssistant ? 'items-start' : 'items-end'}`}>
               <div
-                className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  isAssistant
+                className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isAssistant
                     ? 'bg-white/10 text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)]'
-                    : 'bg-neural-cyan text-black shadow-[0_10px_25px_rgba(0,0,0,0.4)]'
-                }`}
+                    : 'bg-white/20 text-white shadow-[0_10px_25px_rgba(0,0,0,0.4)]'
+                  }`}
               >
                 <p className="mb-1 text-[0.65rem] uppercase tracking-[0.4em] opacity-70">
                   {isAssistant ? 'Copilot' : 'Tu'}
@@ -226,7 +225,9 @@ export default function RagChat() {
             onChange={(event) => setInput(event.target.value)}
             placeholder="Scrivi la tua domanda..."
             rows={3}
-            className="h-28 w-full resize-none bg-transparent px-4 py-3 text-sm text-white/90 placeholder-white/50 outline-none"
+            // Forzo colore e caret per evitare override di CSS globali
+            className="h-28 w-full resize-none bg-black/60 px-4 py-3 text-sm text-white placeholder-white/50 outline-none caret-white selection:bg-neural-cyan selection:text-black"
+            style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff', caretColor: '#ffffff' }}
           />
           <div className="flex items-center justify-between px-4 pb-3">
             {error && <p className="text-xs text-red-400">{error}</p>}
@@ -240,6 +241,6 @@ export default function RagChat() {
           </div>
         </div>
       </form>
-    </div>
+    </div >
   );
 }
