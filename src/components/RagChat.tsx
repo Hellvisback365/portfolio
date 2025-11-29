@@ -131,7 +131,14 @@ export default function RagChat() {
       isMounted.current = true;
       return;
     }
-    scrollAnchor.current?.scrollIntoView({ behavior: 'smooth' });
+    // Solo scroll se l'ancora non è visibile nel viewport
+    if (scrollAnchor.current) {
+      const rect = scrollAnchor.current.getBoundingClientRect();
+      const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      if (!isVisible) {
+        scrollAnchor.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
   }, [messages, isLoading]);
 
   return (
@@ -174,8 +181,8 @@ export default function RagChat() {
             <div key={message.id} className={`flex flex-col ${isAssistant ? 'items-start' : 'items-end'}`}>
               <div
                 className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isAssistant
-                    ? 'bg-white/10 text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)]'
-                    : 'bg-white/20 text-white shadow-[0_10px_25px_rgba(0,0,0,0.4)]'
+                  ? 'bg-white/10 text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)]'
+                  : 'bg-white/20 text-white shadow-[0_10px_25px_rgba(0,0,0,0.4)]'
                   }`}
               >
                 <p className="mb-1 text-[0.65rem] uppercase tracking-[0.4em] opacity-70">
@@ -223,7 +230,13 @@ export default function RagChat() {
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Scrivi la tua domanda..."
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendQuestion();
+              }
+            }}
+            placeholder="Scrivi la tua domanda... (Invio per inviare, Shift+Invio per andare a capo)"
             rows={3}
             // Forzo colore e caret per evitare override di CSS globali
             className="h-28 w-full resize-none bg-black/60 px-4 py-3 text-sm text-white placeholder-white/50 outline-none caret-white selection:bg-neural-cyan selection:text-black"
