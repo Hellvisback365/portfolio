@@ -1,168 +1,184 @@
-/* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { InView } from 'react-intersection-observer';
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
-import { 
-  SiPython, 
-  SiJavascript, 
-  SiTypescript, 
-  SiTensorflow, 
-  SiPytorch, 
-  SiScikitlearn, 
-  SiReact, 
-  SiNodedotjs, 
-  SiMongodb, 
-  SiTailwindcss, 
-  SiFramer 
+import type { ReactElement } from 'react';
+import {
+  SiPython,
+  SiJavascript,
+  SiTypescript,
+  SiTensorflow,
+  SiScikitlearn,
+  SiReact,
+  SiNodedotjs,
+  SiMongodb,
+  SiTailwindcss,
+  SiFramer,
 } from 'react-icons/si';
-import { BsRobot, BsTranslate } from 'react-icons/bs';
+import { BsRobot, BsTranslate, BsGlobe } from 'react-icons/bs';
 import { HiCode } from 'react-icons/hi';
 import { FaBrain } from 'react-icons/fa';
 import { TbWorldWww } from 'react-icons/tb';
+import SectionHeader from '@/components/ui/SectionHeader';
+import NeuralCard from '@/components/ui/NeuralCard';
+import Badge from '@/components/ui/Badge';
+import {
+  capabilityTracks,
+  toolHighlights,
+  languages,
+  type SkillIconKey,
+} from '@/data/skills';
 
 export default function SkillsSection() {
-  // Dark mode detection
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    // Check if dark mode is active on initial load
-    setIsDarkMode(document.documentElement.classList.contains('dark'));
-    
-    // Set up a MutationObserver to watch for class changes on the html element
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'class') {
-          setIsDarkMode(document.documentElement.classList.contains('dark'));
-        }
-      });
-    });
-    
-    observer.observe(document.documentElement, { attributes: true });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  const headingStyle = {
-    color: isDarkMode ? '#ffffff' : '#000000',  // white in dark mode, black in light mode
+  const iconMap: Record<SkillIconKey, ReactElement> = {
+    python: <SiPython className="text-lg" />,
+    javascript: <SiJavascript className="text-lg" />,
+    typescript: <SiTypescript className="text-lg" />,
+    tensorflow: <SiTensorflow className="text-lg" />,
+    scikitlearn: <SiScikitlearn className="text-lg" />,
+    llms: <BsRobot className="text-lg" />,
+    nlp: <BsTranslate className="text-lg" />,
+    react: <SiReact className="text-lg" />,
+    node: <SiNodedotjs className="text-lg" />,
+    mongodb: <SiMongodb className="text-lg" />,
+    tailwind: <SiTailwindcss className="text-lg" />,
+    framer: <SiFramer className="text-lg" />,
+    code: <HiCode className="text-2xl" />,
+    brain: <FaBrain className="text-2xl" />,
+    web: <TbWorldWww className="text-2xl" />,
+    robot: <BsRobot className="text-lg" />,
+    translate: <BsTranslate className="text-lg" />,
+    globe: <BsGlobe className="text-2xl" />,
   };
-  
-  const textStyle = {
-    color: isDarkMode ? '#d1d5db' : '#000000',  // gray-300 in dark mode, black in light mode
-  };
-
-  // Unused variables commented out
-  // const skillNameStyle = {
-  //   color: isDarkMode ? '#e5e7eb' : '#000000',  // gray-200 in dark mode, black in light mode
-  // };
-
-  // const percentStyle = {
-  //   color: isDarkMode ? '#9ca3af' : '#000000',  // gray-400 in dark mode, black in light mode
-  // };
-
-  // Force white color for category titles and skill names
-  const whiteTextStyle = {
-    color: '#ffffff',
-  };
-
-  const skills = [
-    {
-      category: 'Linguaggi di Programmazione',
-      icon: <HiCode className="text-2xl mb-2" />,
-      items: [
-        { name: 'Python', level: 90, icon: <SiPython className="text-lg mr-2" /> },
-        { name: 'JavaScript', level: 85, icon: <SiJavascript className="text-lg mr-2" /> },
-        { name: 'TypeScript', level: 80, icon: <SiTypescript className="text-lg mr-2" /> },
-      ]
-    },
-    {
-      category: 'AI & Machine Learning',
-      icon: <FaBrain className="text-2xl mb-2" />,
-      items: [
-        { name: 'TensorFlow', level: 80, icon: <SiTensorflow className="text-lg mr-2" /> },
-        { name: 'PyTorch', level: 75, icon: <SiPytorch className="text-lg mr-2" /> },
-        { name: 'Scikit-learn', level: 85, icon: <SiScikitlearn className="text-lg mr-2" /> },
-        { name: 'LLMs', level: 90, icon: <BsRobot className="text-lg mr-2" /> },
-        { name: 'NLP', level: 85, icon: <BsTranslate className="text-lg mr-2" /> },
-      ]
-    },
-    {
-      category: 'Web Development',
-      icon: <TbWorldWww className="text-2xl mb-2" />,
-      items: [
-        { name: 'React', level: 85, icon: <SiReact className="text-lg mr-2" /> },
-        { name: 'Node.js', level: 80, icon: <SiNodedotjs className="text-lg mr-2" /> },
-        { name: 'MongoDB', level: 75, icon: <SiMongodb className="text-lg mr-2" /> },
-        { name: 'Tailwind CSS', level: 90, icon: <SiTailwindcss className="text-lg mr-2" /> },
-        { name: 'Framer Motion', level: 85, icon: <SiFramer className="text-lg mr-2" /> },
-      ]
-    }
-  ];
 
   return (
-    <section id="skills" className="container mx-auto px-4 py-16">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-12 text-center"
-      >
-        <h1 className="text-3xl md:text-4xl font-bold mb-6" style={headingStyle}>
-          Competenze Tecniche
-        </h1>
-        <p className="text-lg max-w-3xl mx-auto" style={textStyle}>
-          Le mie competenze spaziano dall'integrazione di LLM locali al frontend development, 
-          con un focus particolare sull'ottimizzazione delle performance.
-        </p>
-      </motion.div>
+    <section id="skills" className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+      <SectionHeader
+        eyebrow="Skill Matrix"
+        title="Capacità trasversali per prodotti AI-first"
+        description="Dal brief al roll-out: combino ricerca, orchestrazione LangGraph, UX spiegabile e automazioni n8n per ridurre il time-to-impact dei progetti AI."
+        align="center"
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
-        {skills.map((skillGroup, groupIndex) => (
-          <InView key={groupIndex} triggerOnce threshold={0.1}>
-            {({ ref, inView }) => (
-              <motion.div
-                ref={ref}
-                initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: groupIndex * 0.1 }}
-                className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md"
-              >
-                <h2 className="text-xl font-bold mb-6 text-center text-white flex flex-col items-center" style={whiteTextStyle}>
-                  {skillGroup.icon}
-                  {skillGroup.category}
-                </h2>
-
-                <div className="space-y-6">
-                  {skillGroup.items.map((skill, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-white flex items-center" style={whiteTextStyle}>
-                          {skill.icon}
-                          {skill.name}
-                        </span>
-                        <span className="text-sm text-white" style={whiteTextStyle}>
-                          {skill.level}%
-                        </span>
+      <div className="mt-12 grid gap-10 lg:grid-cols-[1.25fr,0.75fr]">
+        <div className="space-y-6">
+          {capabilityTracks.map((track, index) => (
+            <motion.div
+              key={track.title}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <NeuralCard padding="lg">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-neural-cyan">
+                        {iconMap[track.icon]}
                       </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={inView ? { width: `${skill.level}%` } : {}}
-                          transition={{ duration: 1, delay: index * 0.1 + 0.3 }}
-                          className="h-2.5 rounded-full bg-blue-500 dark:bg-blue-600"
-                        ></motion.div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.35em] text-white/60">Capability</p>
+                        <h3 className="text-2xl font-semibold text-white">{track.title}</h3>
                       </div>
                     </div>
-                  ))}
+                    <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.3em] text-white/50">
+                      {track.stack.map((tool) => (
+                        <span key={tool} className="rounded-full border border-white/15 px-3 py-1 text-white/70">
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-sm text-white/80">{track.description}</p>
+                  <div className="flex flex-wrap gap-3">
+                    {track.focusAreas.map((focus) => (
+                      <Badge key={focus} variant="outline" className="text-[0.65rem]">
+                        {focus}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </motion.div>
-            )}
-          </InView>
-        ))}
+              </NeuralCard>
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <NeuralCard padding="lg">
+              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Toolchain</p>
+              <div className="mt-6 space-y-5">
+                {toolHighlights.map((cluster) => (
+                  <div
+                    key={cluster.area}
+                    className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Badge variant="glow" className="text-[0.6rem]">
+                        {cluster.area}
+                      </Badge>
+                      <span className="text-xs uppercase tracking-[0.3em] text-white/50">
+                        {cluster.category}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm text-white/80">{cluster.description}</p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {cluster.tools.map((tool) => (
+                        <span
+                          key={tool}
+                          className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/60"
+                        >
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </NeuralCard>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <NeuralCard tone="primary" padding="lg">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-neural-cyan">
+                  <BsGlobe className="text-2xl" />
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-white/60">Competenze</p>
+                  <h3 className="text-2xl font-semibold text-white">Lingue</h3>
+                </div>
+              </div>
+              <div className="space-y-4">
+                {languages.map((lang) => (
+                  <div
+                    key={lang.name}
+                    className="rounded-2xl border border-white/15 bg-white/5 p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-lg font-semibold text-white">{lang.name}</p>
+                      <Badge variant="outline" className="text-[0.65rem]">
+                        {lang.level}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-sm text-white/70">{lang.description}</p>
+                  </div>
+                ))}
+              </div>
+            </NeuralCard>
+          </motion.div>
+        </div>
       </div>
     </section>
   );
-} 
+}

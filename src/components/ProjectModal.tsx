@@ -3,19 +3,12 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { useState } from 'react';
-
-interface Project {
-  id: number;
-  title: string;
-  description: string;
-  image: string;
-  longDescription: string;
-  tags: string[];
-  link?: string;
-}
+import type { ProjectData } from '@/data/projects';
+import Badge from '@/components/ui/Badge';
+import CTAButton from '@/components/ui/CTAButton';
 
 interface ProjectModalProps {
-  project: Project;
+  project: ProjectData;
   onClose: () => void;
 }
 
@@ -67,15 +60,15 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
       animate="visible"
       exit="exit"
       variants={backdropVariants}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur"
       onClick={onClose}
     >
       <motion.div
         variants={modalVariants}
-        className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl bg-[#05060d]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="h-40 md:h-64 bg-gradient-to-r from-primary-light to-blue-600 dark:from-primary-dark dark:to-blue-500 relative overflow-hidden">
+        <div className="relative h-48 overflow-hidden rounded-t-3xl border-b border-white/10">
           <motion.div 
             className="absolute inset-0 overflow-hidden"
             initial={{ scale: 1.1, opacity: 0 }}
@@ -85,89 +78,105 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             }}
             transition={{ duration: 0.6 }}
           >
-            {/* Temporary fallback to standard img tag for debugging */}
             <Image 
               src={project.image}
               alt={project.title}
-              className="absolute inset-0 object-contain p-3" // Adatta le classi se necessario
-              fill={true} // Aggiungi questa proprietà
+              className="object-contain p-4"
+              fill
               onLoad={() => setImageLoaded(true)}
             />
           </motion.div>
           <motion.div 
-            className="absolute inset-0 bg-gradient-to-r from-primary-light/30 to-blue-600/30 dark:from-primary-dark/30 dark:to-blue-500/30"
+            className="absolute inset-0 bg-gradient-to-r from-neural-cyan/30 to-neural-magenta/30"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-          ></motion.div>
+          />
         </div>
-        
-        <div className="p-4 md:p-6">
-          <motion.h2 
+
+        <div className="space-y-6 px-6 py-8">
+          <motion.div 
             custom={0}
             variants={contentVariants}
-            className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 text-gray-900 dark:text-white"
+            className="flex flex-col gap-2"
           >
-            {project.title}
-          </motion.h2>
-
-          <motion.div 
-            custom={1}
-            variants={contentVariants}
-            className="flex flex-wrap gap-2 mb-4"
-          >
-            {project.tags.map((tag, i) => (
-              <motion.span 
-                key={i} 
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ 
-                  delay: 0.3 + (i * 0.05),
-                  type: "spring",
-                  stiffness: 300
-                }}
-                className="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-                whileHover={{ scale: 1.05 }}
-              >
-                {tag}
-              </motion.span>
-            ))}
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">{project.timeline}</p>
+            <h2 className="text-3xl font-semibold text-white">{project.title}</h2>
+            <p className="text-base text-white/70">{project.subtitle}</p>
+            <Badge variant="glow" className="w-fit text-[0.65rem]">{project.role}</Badge>
           </motion.div>
           
           <motion.p 
-            custom={2}
+            custom={1}
             variants={contentVariants}
-            className="text-gray-700 dark:text-gray-300 mb-6 text-base md:text-lg"
+            className="text-base text-white/80"
           >
             {project.longDescription}
           </motion.p>
           
           <motion.div 
+            custom={2}
+            variants={contentVariants}
+            className="grid gap-4 sm:grid-cols-3"
+          >
+            {project.metrics.map((metric) => (
+              <div
+                key={`${project.id}-metric-${metric.label}`}
+                className="rounded-2xl border border-white/10 bg-white/5 p-4"
+              >
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">{metric.label}</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{metric.value}</p>
+                <p className="mt-1 text-xs text-white/70">{metric.caption}</p>
+              </div>
+            ))}
+          </motion.div>
+
+          <motion.div
             custom={3}
             variants={contentVariants}
-            className="flex flex-col sm:flex-row justify-between gap-3"
+            className="space-y-3"
           >
-            {project.link && (
-              <motion.a
-                href={project.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-primary-light dark:bg-primary-dark text-white font-medium rounded hover:bg-blue-600 dark:hover:bg-blue-500 transition-colors text-center"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                Visita Progetto
-              </motion.a>
-            )}
-            
-            <motion.button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-            >
+            <p className="text-xs uppercase tracking-[0.3em] text-white/60">Stack</p>
+            <div className="flex flex-wrap gap-2">
+              {project.stack.map((tool) => (
+                <span
+                  key={tool}
+                  className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/70"
+                >
+                  {tool}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+
+          <motion.div
+            custom={4}
+            variants={contentVariants}
+            className="space-y-3"
+          >
+            <p className="text-xs uppercase tracking-[0.3em] text-white/60">Focus</p>
+            <div className="flex flex-wrap gap-2">
+              {project.pillars.map((pillar) => (
+                <Badge key={pillar} variant="outline" className="text-[0.6rem]">
+                  {pillar}
+                </Badge>
+              ))}
+            </div>
+          </motion.div>
+
+          <motion.div
+            custom={5}
+            variants={contentVariants}
+            className="flex flex-wrap gap-3"
+          >
+            {project.links?.map((link) => (
+              <CTAButton key={link.href} href={link.href} variant="secondary">
+                {link.label}
+              </CTAButton>
+            ))}
+            <CTAButton variant="ghost" onClick={onClose}>
               Chiudi
-            </motion.button>
+            </CTAButton>
           </motion.div>
         </div>
       </motion.div>

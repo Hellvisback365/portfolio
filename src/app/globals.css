@@ -3,11 +3,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "../styles/breakpoints.css";
 
+/* Palette neurale globale */
+:root {
+  --neural-bg: radial-gradient(circle at 20% 20%, rgba(93, 224, 230, 0.2), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(192, 132, 252, 0.15), transparent 40%),
+    linear-gradient(120deg, #050812 0%, #0f172a 60%, #050812 100%);
+  --neural-card-bg: rgba(15, 23, 42, 0.75);
+  --neural-card-border: rgba(93, 224, 230, 0.25);
+  --neural-text: #e2e8f0;
+}
+
+html.dark {
+  --neural-bg: radial-gradient(circle at 15% 25%, rgba(93, 224, 230, 0.25), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(192, 132, 252, 0.18), transparent 40%),
+    linear-gradient(120deg, #020617 0%, #050812 60%, #020617 100%);
+  --neural-card-bg: rgba(15, 23, 42, 0.85);
+  --neural-card-border: rgba(93, 224, 230, 0.35);
+}
+
 /* Stili base e debug */
 body {
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  /* background transparent to allow custom backgrounds */
-  background-color: transparent;
+  background-image: var(--neural-bg);
+  background-attachment: fixed;
+  background-size: cover;
   color: black;
   overflow-x: hidden; /* Prevent horizontal scrolling */
   -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
@@ -15,7 +34,6 @@ body {
 
 /* TEMA SCURO - COLORI DI DEBUG */
 html.dark body {
-  background-color: transparent;
   color: white;
 }
 
@@ -53,6 +71,26 @@ input, select, textarea {
   .animate-blink {
     @apply inline-block;
     animation: blink-cursor 0.8s steps(2) infinite;
+  }
+
+  .glass-panel {
+    background-color: var(--neural-card-bg);
+    border: 1px solid var(--neural-card-border);
+    backdrop-filter: blur(16px);
+  }
+
+  .neural-grid-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(
+        rgba(93, 224, 230, 0.08) 1px,
+        transparent 1px
+      ),
+      linear-gradient(90deg, rgba(93, 224, 230, 0.08) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.25;
+    pointer-events: none;
   }
 }
 

@@ -1,0 +1,65 @@
+[
+  {
+    "id": "bio-vision",
+    "category": "bio",
+    "title": "Profilo professionale",
+    "summary": "Laureando magistrale in Computer Science - Artificial Intelligence, appassionato di IA e Machine Learning.",
+    "body": "Sono Vito Piccolini, laureando magistrale in Computer Science presso l'Università degli Studi di Bari Aldo Moro, con specializzazione in Artificial Intelligence. Ho esperienza nello sviluppo di sistemi di raccomandazione LLM-driven con Python, automazione workflow tramite n8n e Node.js, e prototipazione rapida in team multidisciplinari. Sono aperto a nuove sfide in ambito AI, con particolare interesse per LangGraph, LangChain e architetture multi-agente.",
+    "tags": ["ai", "machine-learning", "langgraph", "student"],
+    "updatedAt": "2025-11-29T00:00:00Z"
+  },
+  {
+    "id": "experience-bfuture",
+    "category": "experience",
+    "title": "B.Future Challenge 2025 – BOOM (CRIF)",
+    "summary": "Partecipante alla challenge aziendale con VAR Group: sviluppo di un assistente AI per consulenza enterprise.",
+    "body": "Da settembre a novembre 2025 ho partecipato alla B.Future Challenge 2025 con VAR Group (Bologna). Ho contribuito allo sviluppo in team di un assistente AI per consulenza enterprise, implementando un workflow automatizzato con n8n, Gemini e Ollama per ricerca pre-incontro, supporto live e reportistica istantanea. Il progetto ha posto particolare attenzione alla privacy dei dati (GDPR) e alle demo interattive aziendali, riducendo i tempi di generazione report da ore a secondi tramite AI generativa.",
+    "tags": ["challenge", "n8n", "gemini", "ollama", "gdpr", "var-group"],
+    "updatedAt": "2025-11-29T00:00:00Z"
+  },
+  {
+    "id": "experience-lacam",
+    "category": "experience",
+    "title": "Tirocinio curriculare LACAM-SWAP",
+    "summary": "Progetto di tesi: Orchestrazione di Agenti LLM per l'Ottimizzazione Multi-Metrica nei Sistemi di Raccomandazione.",
+    "body": "Da marzo a giugno 2025 ho svolto un tirocinio curriculare di 3 mesi presso il laboratorio LACAM-SWAP dell'Università di Bari. Il progetto, oggetto della tesi di laurea, ha affrontato il limite dei sistemi di raccomandazione tradizionali, spesso bloccati nel compromesso tra precisione e diversità (filter bubble). Ho implementato un'architettura multi-agente basata su LLM, orchestrata con LangGraph, creando tre agenti specializzati: Precision-Agent per massimizzare l'accuratezza, Coverage-Agent per aumentare la diversità e scoperta di contenuti di nicchia, e Aggregated-Agent per analizzare le proposte e generare una lista finale bilanciata con giustificazioni. Risultati: stessa precisione media dell'agente specializzato, +12% di diversità, +53% di precisione sulla prima raccomandazione (K=1).",
+    "tags": ["research", "langgraph", "multi-agent", "recsys", "explainability", "thesis"],
+    "updatedAt": "2025-11-29T00:00:00Z"
+  },
+  {
+    "id": "experience-work",
+    "category": "experience",
+    "title": "Esperienza lavorativa precedente",
+    "summary": "Operaio generico dal 2016 al 2022, esperienza che ha sviluppato resilienza e capacità di problem-solving.",
+    "body": "Dal 2016 al 2022 ho lavorato come operaio generico a Bari. Questa esperienza di 6 anni mi ha permesso di sviluppare soft skills fondamentali come la resilienza, la capacità di lavorare in team, la gestione del tempo e il problem-solving pratico, competenze che oggi applico nei progetti di sviluppo software e AI.",
+    "tags": ["work", "experience", "soft-skills"],
+    "updatedAt": "2025-11-29T00:00:00Z"
+  },
+  {
+    "id": "education-track",
+    "category": "education",
+    "title": "Percorso accademico",
+    "summary": "Laurea magistrale LM-18 in corso, laurea triennale L-31 con 107/110, diploma in Amministrazione, Finanza e Marketing.",
+    "body": "Da ottobre 2025 sono iscritto alla Laurea Magistrale LM-18 in Computer Science - Artificial Intelligence presso l'Università degli Studi di Bari Aldo Moro. Ho conseguito la Laurea Triennale L-31 in Informatica e Tecnologia per la Produzione del Software (settembre 2022 - luglio 2025) con votazione 107/110, sempre presso UniBa. In precedenza, ho ottenuto il Diploma di Scuola Superiore (2011-2016) presso l'I.I.S.S Alpi-Montale di Rutigliano (BA) con indirizzo Amministrazione, Finanza e Marketing.",
+    "tags": ["education", "uniba", "lm18", "l31", "diploma"],
+    "updatedAt": "2025-11-29T00:00:00Z"
+  },
+  {
+    "id": "services-stack",
+    "category": "services",
+    "title": "Competenze e servizi",
+    "summary": "Sviluppo AI/ML, web development, database e workflow automation.",
+    "body": "Le mie competenze tecniche includono: Programming Languages (Python, Java, C#, JavaScript, SQL, HTML/CSS); AI/ML & Data Science (LangGraph, LangChain, LLMs, Recommender Systems, Transformer, NLP); Web Development (React, Vite, Node.js, Express, Cors); Database (MySQL, MongoDB NoSQL); DevOps & Tools (GitHub, npm/yarn); Software Engineering (Agile/Scrum, VS Code, Eclipse); Workflow Automation (n8n, API Integration).",
+    "tags": ["skills", "python", "react", "n8n", "langchain"],
+    "updatedAt": "2025-11-29T00:00:00Z"
+  },
+  {
+    "id": "languages",
+    "category": "languages",
+    "title": "Competenze linguistiche",
+    "summary": "Italiano madrelingua, Inglese livello B1.",
+    "body": "Parlo italiano come lingua madre e ho una conoscenza base dell'inglese (livello B1), sufficiente per la lettura di documentazione tecnica, comunicazione scritta e partecipazione a meeting internazionali.",
+    "tags": ["languages", "italian", "english"],
+    "updatedAt": "2025-11-29T00:00:00Z"
+  }
+]

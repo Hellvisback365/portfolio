@@ -47,7 +47,7 @@ export default function TechStack() {
     { name: 'LLaMA', icon: '🦙' },
     { name: 'Mistral', icon: '🌪️' },
     { name: 'TensorFlow', icon: '📊' },
-    { name: 'PyTorch', icon: '🔥' },
+
     { name: 'React', icon: '⚛️' },
     { name: 'Node.js', icon: '🟢' },
     { name: 'LangChain', icon: '🔗' },

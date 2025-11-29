@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaCalendarAlt } from 'react-icons/fa';
 import useResponsive from '@/hooks/useResponsive';
 
 interface FormData {
@@ -16,6 +17,35 @@ interface FormErrors {
   message?: string;
 }
 
+const contactDetails = [
+  {
+    label: 'Email',
+    value: 'vitopiccolini@live.it',
+    helper: 'Preferita per brief strutturati (risposta entro 24h).',
+    icon: <FaEnvelope className='text-neural-cyan' />,
+    href: 'mailto:vitopiccolini@live.it',
+  },
+  {
+    label: 'Telefono',
+    value: '+39 3937382774',
+    helper: 'Disponibile 9:00–18:00, anche WhatsApp.',
+    icon: <FaPhoneAlt className='text-neural-cyan' />,
+    href: 'tel:+393937382774',
+  },
+  {
+    label: 'Base operativa',
+    value: 'Bari · Remote EU',
+    helper: 'Patente B, trasferte in giornata su richiesta.',
+    icon: <FaMapMarkerAlt className='text-neural-cyan' />,
+  },
+  {
+    label: 'Disponibilità',
+    value: 'Novembre 2025',
+    helper: 'Stage curriculare LM-18 o collaborazione AI-first.',
+    icon: <FaCalendarAlt className='text-neural-cyan' />,
+  },
+];
+
 export default function ContactSection() {
   const { isMobile } = useResponsive();
   const [formData, setFormData] = useState<FormData>({
@@ -27,48 +57,6 @@ export default function ContactSection() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  
-  // Dark mode detection
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    // Check if dark mode is active on initial load
-    setIsDarkMode(document.documentElement.classList.contains('dark'));
-    
-    // Set up a MutationObserver to watch for class changes on the html element
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'class') {
-          setIsDarkMode(document.documentElement.classList.contains('dark'));
-        }
-      });
-    });
-    
-    observer.observe(document.documentElement, { attributes: true });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  const headingStyle = {
-    color: isDarkMode ? '#ffffff' : '#000000',  // white in dark mode, black in light mode
-  };
-  
-  const textStyle = {
-    color: isDarkMode ? '#d1d5db' : '#000000',  // gray-300 in dark mode, black in light mode
-  };
-
-  // Force white color style for input fields
-  const inputStyle = {
-    color: '#ffffff !important',
-    backgroundColor: isDarkMode ? '#374151' : '#4B5563', // gray-700 or gray-600
-  };
-
-  // Force white color for form labels
-  const labelStyle = {
-    color: '#ffffff',
-  };
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -147,20 +135,48 @@ export default function ContactSection() {
         transition={{ duration: 0.5 }}
         className="mb-8 md:mb-12 text-center"
       >
-        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 md:mb-6" style={headingStyle}>
+        <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 md:mb-6 text-gray-900 dark:text-white">
           Contattami
-        </h1>
-        <p className="text-base md:text-lg max-w-3xl mx-auto" style={textStyle}>
-          Hai un progetto AI in mente o vuoi semplicemente dirmi ciao? Compila il form sottostante e ti risponderò al più presto.
+        </h2>
+        <p className="text-base md:text-lg max-w-3xl mx-auto text-gray-700 dark:text-gray-300">
+          Sto entrando nella Laurea Magistrale in Computer Science – AI (UniBa) e da novembre 2025 sono disponibile per stage, R&D o progetti che coinvolgono assistenti enterprise e workflow automation.
         </p>
       </motion.div>
+
+      <div className="mb-10 grid gap-4 md:grid-cols-2">
+        {contactDetails.map((item) => (
+          <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-neural-card">
+            <div className="flex items-center gap-3 text-white">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/40">
+                {item.icon}
+              </span>
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">{item.label}</p>
+                {item.href ? (
+                  <a
+                    href={item.href}
+                    className="text-lg font-semibold text-neural-cyan transition-colors hover:text-white"
+                  >
+                    {item.value}
+                  </a>
+                ) : (
+                  <p className="text-lg font-semibold">{item.value}</p>
+                )}
+              </div>
+            </div>
+            <p className="mt-3 text-sm text-white/70">{item.helper}</p>
+          </div>
+        ))}
+      </div>
 
       <div className="max-w-2xl mx-auto">
         {submitSuccess && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 md:mb-8 p-3 md:p-4 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-md text-sm md:text-base"
+            className="mb-6 md:mb-8 rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-300 md:p-4"
+            role="status"
+            aria-live="polite"
           >
             Grazie per il tuo messaggio! Ti risponderò al più presto.
           </motion.div>
@@ -169,7 +185,9 @@ export default function ContactSection() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 md:mb-8 p-3 md:p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-md text-sm md:text-base"
+            className="mb-6 md:mb-8 rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200 md:p-4"
+            role="alert"
+            aria-live="assertive"
           >
             {submitError}
           </motion.div>
@@ -179,10 +197,10 @@ export default function ContactSection() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
           onSubmit={handleSubmit}
-          className="bg-white dark:bg-gray-800 p-4 md:p-8 rounded-lg shadow-md"
+          className="glass-panel rounded-2xl p-4 shadow-neural-card md:p-8"
         >
           <div className="mb-4 md:mb-6">
-            <label htmlFor="name" className="block mb-2 text-sm font-medium text-white" style={labelStyle}>
+            <label htmlFor="name" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">
               Nome
             </label>
             <input
@@ -191,14 +209,20 @@ export default function ContactSection() {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="w-full px-3 md:px-4 py-2 md:py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
+              className="w-full px-3 md:px-4 py-2 md:py-3 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-light dark:focus-visible:ring-offset-gray-800 dark:focus-visible:ring-primary-dark"
               placeholder="Il tuo nome"
-              style={inputStyle}
+              aria-required="true"
+              aria-invalid={Boolean(errors.name)}
+              aria-describedby={errors.name ? 'name-error' : undefined}
             />
-            {errors.name && <p className="mt-1 text-xs md:text-sm text-red-600 dark:text-red-400">{errors.name}</p>}
+            {errors.name && (
+              <p id="name-error" className="mt-1 text-xs md:text-sm text-red-600 dark:text-red-400" role="alert">
+                {errors.name}
+              </p>
+            )}
           </div>
           <div className="mb-4 md:mb-6">
-            <label htmlFor="email" className="block mb-2 text-sm font-medium text-white" style={labelStyle}>
+            <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">
               Email
             </label>
             <input
@@ -207,14 +231,20 @@ export default function ContactSection() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-3 md:px-4 py-2 md:py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
+              className="w-full px-3 md:px-4 py-2 md:py-3 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-light dark:focus-visible:ring-offset-gray-800 dark:focus-visible:ring-primary-dark"
               placeholder="La tua email"
-              style={inputStyle}
+              aria-required="true"
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? 'email-error' : undefined}
             />
-            {errors.email && <p className="mt-1 text-xs md:text-sm text-red-600 dark:text-red-400">{errors.email}</p>}
+            {errors.email && (
+              <p id="email-error" className="mt-1 text-xs md:text-sm text-red-600 dark:text-red-400" role="alert">
+                {errors.email}
+              </p>
+            )}
           </div>
           <div className="mb-4 md:mb-6">
-            <label htmlFor="message" className="block mb-2 text-sm font-medium text-white" style={labelStyle}>
+            <label htmlFor="message" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">
               Messaggio
             </label>
             <textarea
@@ -223,16 +253,22 @@ export default function ContactSection() {
               value={formData.message}
               onChange={handleChange}
               rows={isMobile ? 4 : 5}
-              className="w-full px-3 md:px-4 py-2 md:py-3 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
+              className="w-full px-3 md:px-4 py-2 md:py-3 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-light dark:focus-visible:ring-offset-gray-800 dark:focus-visible:ring-primary-dark"
               placeholder="Il tuo messaggio"
-              style={inputStyle}
+              aria-required="true"
+              aria-invalid={Boolean(errors.message)}
+              aria-describedby={errors.message ? 'message-error' : undefined}
             />
-            {errors.message && <p className="mt-1 text-xs md:text-sm text-red-600 dark:text-red-400">{errors.message}</p>}
+            {errors.message && (
+              <p id="message-error" className="mt-1 text-xs md:text-sm text-red-600 dark:text-red-400" role="alert">
+                {errors.message}
+              </p>
+            )}
           </div>
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full py-2 md:py-3 px-4 rounded-md bg-primary-light dark:bg-primary-dark text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-500 transition-colors ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+            className={`w-full py-2 md:py-3 px-4 rounded-md bg-primary-light dark:bg-primary-dark text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-light dark:focus-visible:ring-offset-gray-800 dark:focus-visible:ring-primary-dark ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
             {isSubmitting ? 'Invio in corso...' : 'Invia Messaggio'}
           </button>

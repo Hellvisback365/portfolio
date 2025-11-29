@@ -2,49 +2,40 @@
 
 import { useRef } from 'react';
 import Layout from '@/components/Layout';
-import dynamic from 'next/dynamic';
 import HeroSection from '@/components/sections/HeroSection';
+import RagSection from '@/components/sections/RagSection';
 import AboutSection from '@/components/sections/AboutSection';
 import ProjectsSection from '@/components/sections/ProjectsSection';
 import SkillsSection from '@/components/sections/SkillsSection';
 import ContactSection from '@/components/sections/ContactSection';
 
-// Lazy load non-critical components
-const TechStack = dynamic(() => import('@/components/TechStack'), {
-  loading: () => <div className="h-12 w-full animate-pulse bg-gray-200 dark:bg-gray-700 rounded-md"></div>,
-  ssr: false,
-});
-
 export default function Home() {
-  const aboutRef = useRef<HTMLDivElement>(null);
-  const scrollToAbout = () => aboutRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const ragRef = useRef<HTMLDivElement>(null);
+  
+  const scrollToRag = () => ragRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   return (
     <Layout>
-      <HeroSection onScrollToAbout={scrollToAbout} />
-      
-      {/* Tech Stack Section (lazy loaded) */}
-      <TechStack />
+      <HeroSection onScrollToNext={scrollToRag} />
+
+      {/* RAG Copilot Section */}
+      <div ref={ragRef}>
+        <RagSection />
+      </div>
       
       {/* About Section */}
-      <div ref={aboutRef} id="about">
+      <div>
         <AboutSection />
       </div>
 
       {/* Projects Section */}
-      <section id="projects">
-        <ProjectsSection />
-      </section>
+      <ProjectsSection />
 
       {/* Skills Section */}
-      <section id="skills">
-        <SkillsSection />
-      </section>
+      <SkillsSection />
 
       {/* Contact Section */}
-      <section id="contact">
-        <ContactSection />
-      </section>
+      <ContactSection />
     </Layout>
   );
 }
