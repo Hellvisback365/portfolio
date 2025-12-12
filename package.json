@@ -11,7 +11,7 @@
     "rag:ingest": "tsx scripts/rag-ingest.ts"
   },
   "dependencies": {
-    "@getbrevo/brevo": "^2.2.0",
+    "@getbrevo/brevo": "^3.0.1",
     "@headlessui/react": "^2.2.2",
     "@langchain/core": "^1.1.0",
     "@langchain/langgraph": "^1.0.2",
