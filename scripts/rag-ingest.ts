@@ -4,20 +4,8 @@ import { Document } from '@langchain/core/documents';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { getProfileDocuments } from '@/lib/profileDocuments';
 import { createEmbeddings } from '@/services/rag/embeddings';
-import { getQdrantClient } from '@/services/rag/qdrantClient';
-import { getRagEnv } from '@/services/rag/env';
-
-async function recreateCollection(vectorSize: number) {
-  const client = getQdrantClient();
-  const { qdrantCollection } = getRagEnv();
-  console.log(`[RAG] Preparing collection ${qdrantCollection} (size ${vectorSize}).`);
-  await client.recreateCollection(qdrantCollection, {
-    vectors: {
-      size: vectorSize,
-      distance: 'Cosine',
-    },
-  });
-}
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 async function main() {
   const documents = getProfileDocuments();
@@ -54,15 +42,10 @@ async function main() {
   const embeddings = createEmbeddings();
   const chunkContents = splitDocs.map((doc) => doc.pageContent);
   const vectors = await embeddings.embedDocuments(chunkContents);
-  const vectorSize = vectors[0]?.length ?? 0;
-  if (!vectorSize) {
-    throw new Error('Embedding model returned empty vectors. Verify RAG_EMBEDDING_MODEL.');
-  }
+  
+  const vectorStorePath = path.join(process.cwd(), 'src', 'data', 'vectorStore.json');
+  await fs.mkdir(path.dirname(vectorStorePath), { recursive: true });
 
-  await recreateCollection(vectorSize);
-
-  const { qdrantCollection } = getRagEnv();
-  const client = getQdrantClient();
   const points = splitDocs.map((doc, idx) => {
     const metadata = {
       ...(doc.metadata ?? {}),
@@ -72,20 +55,13 @@ async function main() {
     return {
       id: randomUUID(),
       vector: vectors[idx],
-      payload: {
-        pageContent: doc.pageContent,
-        metadata,
-      },
+      pageContent: doc.pageContent,
+      metadata,
     };
   });
 
-  console.log(`[RAG] Upserting ${points.length} points...`);
-  await client.upsert(qdrantCollection, {
-    wait: true,
-    points,
-  });
-
-  console.log(`[RAG] Upserted ${points.length} chunks into ${qdrantCollection}.`);
+  await fs.writeFile(vectorStorePath, JSON.stringify(points, null, 2), 'utf-8');
+  console.log(`[RAG] Written ${points.length} chunks to ${vectorStorePath}.`);
 }
 
 main().catch((error) => {

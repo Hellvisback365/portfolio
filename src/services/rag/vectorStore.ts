@@ -1,105 +1,129 @@
 import { Document } from '@langchain/core/documents';
 import type { EmbeddingsInterface } from '@langchain/core/embeddings';
-import type { QdrantClient, Schemas } from '@qdrant/js-client-rest';
 import { createEmbeddings } from './embeddings';
-import { getQdrantClient } from './qdrantClient';
-import { getRagEnv } from './env';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import Fuse from 'fuse.js';
 
-type Retriever = {
-  invoke: (query: string) => Promise<Document[]>;
+export type VectorPoint = {
+  id: string;
+  vector: number[];
+  pageContent: string;
+  metadata: Record<string, unknown>;
 };
 
-type RetrieverOptions = {
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+// Reciprocal Rank Fusion
+function computeRRF(vectorRanks: Map<string, number>, keywordRanks: Map<string, number>, k = 60): Map<string, number> {
+  const rrfScores = new Map<string, number>();
+  const allIds = new Set([...vectorRanks.keys(), ...keywordRanks.keys()]);
+  
+  for (const id of allIds) {
+    let score = 0;
+    if (vectorRanks.has(id)) {
+      score += 1 / (k + vectorRanks.get(id)!);
+    }
+    if (keywordRanks.has(id)) {
+      score += 1 / (k + keywordRanks.get(id)!);
+    }
+    rrfScores.set(id, score);
+  }
+  return rrfScores;
+}
+
+export type RetrieverOptions = {
   k?: number;
-  scoreThreshold?: number;
 };
 
-type QdrantPayload = {
-  pageContent?: string;
-  metadata?: Record<string, unknown>;
-};
-
-class QdrantRetriever implements Retriever {
-  private readonly limit: number;
-  private readonly scoreThreshold?: number;
+export class HybridRetriever {
+  private fuse: Fuse<VectorPoint>;
 
   constructor(
     private readonly embeddings: EmbeddingsInterface,
-    private readonly client: QdrantClient,
-    private readonly collectionName: string,
-    options?: RetrieverOptions
+    private readonly points: VectorPoint[],
+    private readonly options?: RetrieverOptions
   ) {
-    this.limit = Math.max(1, options?.k ?? 4);
-    this.scoreThreshold = options?.scoreThreshold;
-  }
-
-  async invoke(query: string) {
-    const vector = await this.embeddings.embedQuery(query);
-    const results: Schemas['ScoredPoint'][] = await this.client.search(this.collectionName, {
-      vector,
-      limit: this.limit,
-      with_payload: true,
+    this.fuse = new Fuse(points, {
+      keys: ['pageContent', 'metadata.title', 'metadata.tags'],
+      includeScore: true,
+      threshold: 0.6,
     });
+  }
 
-    return results
-      .filter((point) => {
-        if (typeof this.scoreThreshold !== 'number') return true;
-        return (point.score ?? 0) >= this.scoreThreshold;
-      })
-      .map((point) => {
-        const payload = (point.payload ?? {}) as QdrantPayload;
-        const pageContent = typeof payload.pageContent === 'string' ? payload.pageContent : '';
-        if (!pageContent) {
-          return null;
-        }
+  async invoke(query: string): Promise<Document[]> {
+    const k = this.options?.k ?? 4;
+    
+    // 1. Vector Search
+    const queryVector = await this.embeddings.embedQuery(query);
+    const vectorResults = this.points
+      .map(point => ({
+        id: point.id,
+        score: cosineSimilarity(queryVector, point.vector)
+      }))
+      .sort((a, b) => b.score - a.score);
+    
+    const vectorRanks = new Map<string, number>();
+    vectorResults.forEach((res, idx) => vectorRanks.set(res.id, idx + 1));
 
-        return new Document({
-          pageContent,
-          metadata: payload.metadata ?? {},
-        });
-      })
-      .filter((doc): doc is Document => doc !== null);
+    // 2. Keyword Search
+    const keywordResults = this.fuse.search(query);
+    const keywordRanks = new Map<string, number>();
+    keywordResults.forEach((res, idx) => keywordRanks.set(res.item.id, idx + 1));
+
+    // 3. RRF Fusion
+    const rrfScores = computeRRF(vectorRanks, keywordRanks);
+    
+    // Sort by RRF
+    const finalIds = Array.from(rrfScores.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, k)
+      .map(entry => entry[0]);
+
+    return finalIds.map(id => {
+      const point = this.points.find(p => p.id === id)!;
+      return new Document({
+        pageContent: point.pageContent,
+        metadata: point.metadata,
+      });
+    });
   }
 }
 
-class LightweightQdrantVectorStore {
-  private retrieverCache = new Map<string, QdrantRetriever>();
+let pointsCache: VectorPoint[] | null = null;
+let retrieverCache: HybridRetriever | null = null;
 
-  constructor(
-    private readonly embeddings: EmbeddingsInterface,
-    private readonly client: QdrantClient,
-    private readonly collectionName: string
-  ) {}
-
-  asRetriever(options?: RetrieverOptions): Retriever {
-    const cacheKey = `${options?.k ?? '4'}:${options?.scoreThreshold ?? 'none'}`;
-    if (!this.retrieverCache.has(cacheKey)) {
-      this.retrieverCache.set(
-        cacheKey,
-        new QdrantRetriever(this.embeddings, this.client, this.collectionName, options)
-      );
+export async function getVectorStore(options?: { embeddings?: EmbeddingsInterface; k?: number }) {
+  if (!pointsCache) {
+    const filePath = path.join(process.cwd(), 'src', 'data', 'vectorStore.json');
+    try {
+      const data = await fs.readFile(filePath, 'utf-8');
+      pointsCache = JSON.parse(data) as VectorPoint[];
+    } catch (err) {
+      console.error('[RAG] Failed to load vectorStore.json', err);
+      pointsCache = [];
     }
-    return this.retrieverCache.get(cacheKey)!;
-  }
-}
-
-let vectorStorePromise: Promise<LightweightQdrantVectorStore> | null = null;
-
-export async function getVectorStore(options?: { embeddings?: EmbeddingsInterface }) {
-  if (!vectorStorePromise || options?.embeddings) {
-    const buildStore = async () => {
-      const embeddings = options?.embeddings ?? createEmbeddings();
-      const client = getQdrantClient();
-      const { qdrantCollection } = getRagEnv();
-      return new LightweightQdrantVectorStore(embeddings, client, qdrantCollection);
-    };
-
-    if (options?.embeddings) {
-      return buildStore();
-    }
-
-    vectorStorePromise = buildStore();
   }
 
-  return vectorStorePromise;
+  if (!retrieverCache || options?.k) {
+    const embeddings = options?.embeddings ?? createEmbeddings();
+    const retriever = new HybridRetriever(embeddings, pointsCache, { k: options?.k ?? 4 });
+    if (!options?.k || options.k === 4) {
+      retrieverCache = retriever;
+    }
+    return retriever;
+  }
+
+  return retrieverCache;
 }
