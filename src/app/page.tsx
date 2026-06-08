@@ -1,41 +1,47 @@
 'use client';
 
-import { useRef } from 'react';
-import Layout from '@/components/Layout';
-import HeroSection from '@/components/sections/HeroSection';
-import RagSection from '@/components/sections/RagSection';
-import AboutSection from '@/components/sections/AboutSection';
-import ProjectsSection from '@/components/sections/ProjectsSection';
-import SkillsSection from '@/components/sections/SkillsSection';
-import ContactSection from '@/components/sections/ContactSection';
+import { Canvas } from '@react-three/fiber';
+import { ScrollControls } from '@react-three/drei';
+import { Suspense, useState } from 'react';
+import Scene from '@/components/canvas/Scene';
+import HtmlOverlay from '@/components/overlay/HtmlOverlay';
+import RagChatOverlay from '@/components/overlay/RagChatOverlay';
+import NavigationOverlay from '@/components/overlay/NavigationOverlay';
 
+/**
+ * Main page — 3D immersive portfolio.
+ *
+ * Architecture:
+ * - Full-screen <Canvas> with ScrollControls (5 pages, damping 0.1)
+ * - Inside Canvas: Scene (3D elements) + HtmlOverlay (HTML sections via <Scroll html>)
+ * - Outside Canvas: RagChatOverlay (floating panel) + NavigationOverlay (dots + progress)
+ */
 export default function Home() {
-  const ragRef = useRef<HTMLDivElement>(null);
-  
-  const scrollToRag = () => ragRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const [pages, setPages] = useState(5);
 
   return (
-    <Layout>
-      <HeroSection onScrollToNext={scrollToRag} />
+    <div className="canvas-container">
+      <Canvas
+        camera={{ fov: 50, position: [0, 0, 20], near: 0.1, far: 150 }}
+        gl={{
+          antialias: true,
+          alpha: false,
+          powerPreference: 'high-performance',
+        }}
+        dpr={[1, 1.5]}
+        style={{ background: '#050505' }}
+      >
+        <ScrollControls pages={pages} damping={0.1}>
+          <Suspense fallback={null}>
+            <Scene />
+          </Suspense>
+          <HtmlOverlay setPages={setPages} />
+        </ScrollControls>
+      </Canvas>
 
-      {/* RAG Copilot Section */}
-      <div ref={ragRef}>
-        <RagSection />
-      </div>
-      
-      {/* About Section */}
-      <div>
-        <AboutSection />
-      </div>
-
-      {/* Projects Section */}
-      <ProjectsSection />
-
-      {/* Skills Section */}
-      <SkillsSection />
-
-      {/* Contact Section */}
-      <ContactSection />
-    </Layout>
+      {/* Overlays outside Canvas (fixed position, above everything) */}
+      <NavigationOverlay />
+      <RagChatOverlay />
+    </div>
   );
 }

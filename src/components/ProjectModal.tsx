@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ProjectData } from '@/data/projects';
 import Badge from '@/components/ui/Badge';
 import CTAButton from '@/components/ui/CTAButton';
@@ -54,13 +55,13 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
     })
   };
 
-  return (
+  const modalContent = (
     <motion.div
       initial="hidden"
       animate="visible"
       exit="exit"
       variants={backdropVariants}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur"
       onClick={onClose}
     >
       <motion.div
@@ -182,4 +183,7 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
       </motion.div>
     </motion.div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(modalContent, document.body);
 } 

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PerformanceMonitor from "@/components/PerformanceMonitor";
-import NeuralBackground from '@/components/NeuralBackground';
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -35,9 +34,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="it" className="dark" suppressHydrationWarning>
       <head>
         {/* Metadata handled by Next.js App Router */}
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
       </head>
-      <body className="bg-transparent text-white transition-colors">
-        <NeuralBackground />
+      <body className="bg-[#050505] text-white">
         {children}
         {process.env.NODE_ENV === 'production' && <PerformanceMonitor />}
         <Analytics />
