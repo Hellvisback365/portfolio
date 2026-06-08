@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         messages,
         system: "Sei l'assistente del portfolio di Vito Piccolini. Rispondi in modo amichevole, conciso e in italiano.",
       });
-      return result.toDataStreamResponse();
+      return result.toTextStreamResponse();
     }
 
     // Portfolio Query: RAG execution
@@ -81,7 +81,7 @@ ${context || 'Nessun contesto trovato.'}
       system: systemPrompt,
     });
 
-    return result.toDataStreamResponse({
+    return result.toTextStreamResponse({
       headers: {
         'x-rag-sources': Buffer.from(JSON.stringify(sources)).toString('base64'),
       }
