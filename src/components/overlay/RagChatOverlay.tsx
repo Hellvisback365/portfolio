@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import Badge from '@/components/ui/Badge';
 
 /* ─── Types ─── */
@@ -29,6 +30,7 @@ const initialAssistant = {
   id: 'welcome',
   role: 'assistant' as const,
   content: 'Ciao! Sono il copilot del portfolio. Posso raccontarti esperienze, metriche e focus di Vito. Chiedimi qualsiasi cosa sul suo percorso.',
+  parts: [{ type: 'text' as const, text: 'Ciao! Sono il copilot del portfolio. Posso raccontarti esperienze, metriche e focus di Vito. Chiedimi qualsiasi cosa sul suo percorso.' }],
 };
 
 function formatAnswer(text: string) {
@@ -64,32 +66,36 @@ export default function RagChatOverlay() {
   const [input, setInput] = useState('');
 
   const { messages, sendMessage, status, error } = useChat({
-    api: '/api/rag',
-    initialMessages: [initialAssistant],
-    onResponse: (response) => {
-      const sourcesHeader = response.headers.get('x-rag-sources');
-      if (sourcesHeader) {
-        try {
-          // Decode Base64 UTF-8 string
-          const decoded = decodeURIComponent(escape(atob(sourcesHeader)));
-          const sources = JSON.parse(decoded) as RagSource[];
-          if (sources && sources.length > 0) {
-            setSourcesList(sources);
-            setShowGlow(true);
-            setTimeout(() => setShowGlow(false), 5000); // Glow visibile per 5 secondi
-          } else {
-            setSourcesList([]);
+    transport: new DefaultChatTransport({
+      api: '/api/rag',
+      fetch: async (url, options) => {
+        const res = await fetch(url, options);
+        const sourcesHeader = res.headers?.get('x-rag-sources');
+        if (sourcesHeader) {
+          try {
+            const decoded = decodeURIComponent(escape(atob(sourcesHeader)));
+            const sources = JSON.parse(decoded) as RagSource[];
+            if (sources && sources.length > 0) {
+              setSourcesList(sources);
+              setShowGlow(true);
+              setTimeout(() => setShowGlow(false), 5000);
+            } else {
+              setSourcesList([]);
+            }
+          } catch (err) {
+            console.error('Error parsing sources from header:', err);
           }
-        } catch (err) {
-          console.error('Failed to parse sources', err);
+        } else {
+          setSourcesList([]);
         }
-      } else {
-        setSourcesList([]);
+        return res;
       }
-    },
-    onError: () => {
+    }),
+    messages: [initialAssistant],
+    onError: (err) => {
+      console.error('Chat error:', err);
       setSourcesList([]);
-    }
+    },
   });
 
   const isLoading = status !== 'ready';
@@ -222,7 +228,7 @@ export default function RagChatOverlay() {
                     onClick={() => {
                       cycleSuggestion(index);
                       setInput(suggestion);
-                      sendMessage({ role: 'user', content: suggestion });
+                      sendMessage({ text: suggestion });
                       setInput('');
                     }}
                     className="rounded-full border border-white/8 bg-white/5 px-2.5 py-1 text-[0.65rem] text-white/70 transition hover:border-[#5DE0E6]/40 hover:text-white"
@@ -296,7 +302,7 @@ export default function RagChatOverlay() {
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!input.trim() || isLoading) return;
-                sendMessage({ role: 'user', content: input });
+                sendMessage({ text: input });
                 setInput('');
               }} 
               className="border-t border-white/5 px-5 py-3"
@@ -309,7 +315,7 @@ export default function RagChatOverlay() {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       if (!input.trim() || isLoading) return;
-                      sendMessage({ role: 'user', content: input });
+                      sendMessage({ text: input });
                       setInput('');
                     }
                   }}
