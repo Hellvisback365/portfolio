@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useChat } from '@ai-sdk/react';
 import Badge from '@/components/ui/Badge';
 
 /* ─── Types ─── */
@@ -10,13 +11,6 @@ interface RagSource {
   title: string;
   summary?: string;
   tags?: string[];
-}
-
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  sources?: RagSource[];
 }
 
 const suggestionPool = [
@@ -31,9 +25,9 @@ const suggestionPool = [
   'Che risultati avete ottenuto con la B.Future Challenge 2025?',
 ];
 
-const initialAssistant: ChatMessage = {
+const initialAssistant = {
   id: 'welcome',
-  role: 'assistant',
+  role: 'assistant' as const,
   content: 'Ciao! Sono il copilot del portfolio. Posso raccontarti esperienze, metriche e focus di Vito. Chiedimi qualsiasi cosa sul suo percorso.',
 };
 
@@ -61,70 +55,55 @@ function getInitialSuggestions(count: number) {
 
 export default function RagChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([initialAssistant]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>(() => suggestionPool.slice(0, 3));
-  
   const scrollAnchor = useRef<HTMLDivElement | null>(null);
   const isMounted = useRef(false);
 
-  // Per conservare i sources (il header arriva alla prima risposta dello stream)
+  const [sourcesList, setSourcesList] = useState<RagSource[]>([]);
   const [showGlow, setShowGlow] = useState(false);
+  
+  const [inputVal, setInputVal] = useState('');
+
+  const { messages, append, status, error, setMessages } = useChat({
+    api: '/api/rag',
+    initialMessages: [initialAssistant],
+    onResponse: (response) => {
+      const sourcesHeader = response.headers.get('x-rag-sources');
+      if (sourcesHeader) {
+        try {
+          const decoded = decodeURIComponent(escape(atob(sourcesHeader)));
+          const sources = JSON.parse(decoded) as RagSource[];
+          if (sources && sources.length > 0) {
+            setSourcesList(sources);
+            setShowGlow(true);
+            setTimeout(() => setShowGlow(false), 5000);
+          } else {
+            setSourcesList([]);
+          }
+        } catch (err) {
+          console.error('Error parsing sources from header:', err);
+        }
+      } else {
+        setSourcesList([]);
+      }
+    },
+    onError: (err) => {
+      console.error('Chat error:', err);
+      setSourcesList([]);
+    },
+  });
+
+  const isLoading = status === 'submitted' || status === 'streaming';
 
   const sendQuestion = async (question?: string) => {
-    const prompt = (question ?? input).trim();
+    const prompt = (question ?? inputVal).trim();
     if (!prompt) return;
-    setError('');
-    setInput('');
+    setInputVal('');
     
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
+    append({
       role: 'user',
       content: prompt,
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
-    
-    try {
-      const response = await fetch('/api/rag', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: prompt }),
-      });
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Il copilot non è disponibile.');
-      }
-      
-      const assistantMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: data.answer,
-        sources: data.sources,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      
-      if (data.sources && data.sources.length > 0) {
-        setShowGlow(true);
-        setTimeout(() => setShowGlow(false), 5000);
-      }
-    } catch (err) {
-      const fallback: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content:
-          err instanceof Error
-            ? err.message
-            : 'Si è verificato un errore inatteso. Riprova fra qualche secondo.',
-      };
-      setMessages((prev) => [...prev, fallback]);
-      setError('Impossibile completare la richiesta.');
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   const cycleSuggestion = (index: number) => {
@@ -153,8 +132,6 @@ export default function RagChatOverlay() {
       }
     }
   }, [messages, isLoading]);
-
-  const latestSources = messages.filter(m => m.role === 'assistant' && m.sources && m.sources.length > 0).pop()?.sources || [];
 
   return (
     <>
@@ -227,7 +204,7 @@ export default function RagChatOverlay() {
                   Online
                 </div>
                 <AnimatePresence>
-                  {showGlow && latestSources.length > 0 && (
+                  {showGlow && sourcesList.length > 0 && (
                     <motion.div
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -237,7 +214,7 @@ export default function RagChatOverlay() {
                       <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
-                      Retrieved {latestSources.length} docs
+                      Retrieved {sourcesList.length} docs
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -269,8 +246,9 @@ export default function RagChatOverlay() {
 
             {/* Messages */}
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-4" style={{ maxHeight: '320px' }}>
-              {messages.map((message) => {
+              {messages.map((message, index) => {
                 const isAssistant = message.role === 'assistant';
+                const isLatestAssistant = isAssistant && index === messages.length - 1;
 
                 return (
                   <div
@@ -293,9 +271,9 @@ export default function RagChatOverlay() {
                         ))}
                       </div>
                     </div>
-                    {isAssistant && message.sources && message.sources.length > 0 && (
+                    {isLatestAssistant && sourcesList.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1 text-[0.5rem] text-white/50">
-                        {message.sources.map((source) => (
+                        {sourcesList.map((source) => (
                           <Badge
                             key={source.id}
                             variant="outline"
@@ -309,7 +287,7 @@ export default function RagChatOverlay() {
                   </div>
                 );
               })}
-              {isLoading && (
+              {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
                 <motion.div
                   className="flex items-center gap-2 text-xs text-white/50"
                   animate={{ opacity: [0.3, 1, 0.3] }}
@@ -332,8 +310,8 @@ export default function RagChatOverlay() {
             >
               <div className="rounded-xl border border-white/8 bg-white/5 focus-within:border-[#5DE0E6]/30">
                 <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  value={inputVal}
+                  onChange={(e) => setInputVal(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -346,11 +324,11 @@ export default function RagChatOverlay() {
                   style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                 />
                 <div className="flex items-center justify-between px-3 pb-2">
-                  {error && <p className="text-[0.6rem] text-red-400">{error}</p>}
+                  {error && <p className="text-[0.6rem] text-red-400">Si è verificato un errore inatteso. {error.message}</p>}
                   <div className="ml-auto">
                     <button
                       type="submit"
-                      disabled={isLoading || input.trim().length < 3}
+                      disabled={isLoading || inputVal.trim().length < 3}
                       className="rounded-full border border-[#5DE0E6]/25 bg-transparent px-4 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#5DE0E6] transition hover:bg-[#5DE0E6]/10 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Invia
