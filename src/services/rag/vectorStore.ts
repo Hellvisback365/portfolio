@@ -1,9 +1,8 @@
 import { Document } from '@langchain/core/documents';
 import type { EmbeddingsInterface } from '@langchain/core/embeddings';
-import { createEmbeddings } from './embeddings';
+import Fuse from 'fuse.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import Fuse from 'fuse.js';
 
 export type VectorPoint = {
   id: string;
@@ -43,15 +42,24 @@ function computeRRF(vectorRanks: Map<string, number>, keywordRanks: Map<string, 
   return rrfScores;
 }
 
+/** Check if all stored vectors are zero (keyword-only mode) */
+function areVectorsZero(points: VectorPoint[]): boolean {
+  if (points.length === 0) return true;
+  // Check first point only for performance
+  const first = points[0].vector;
+  return !first || first.length === 0 || first.every(v => v === 0);
+}
+
 export type RetrieverOptions = {
   k?: number;
 };
 
 export class HybridRetriever {
   private fuse: Fuse<VectorPoint>;
+  private keywordOnly: boolean;
 
   constructor(
-    private readonly embeddings: EmbeddingsInterface,
+    private readonly embeddings: EmbeddingsInterface | null,
     private readonly points: VectorPoint[],
     private readonly options?: RetrieverOptions
   ) {
@@ -60,32 +68,51 @@ export class HybridRetriever {
       includeScore: true,
       threshold: 0.6,
     });
+    this.keywordOnly = areVectorsZero(points) || !embeddings;
   }
 
   async invoke(query: string): Promise<Document[]> {
     const k = this.options?.k ?? 4;
-    
-    // 1. Vector Search
-    const queryVector = await this.embeddings.embedQuery(query);
-    const vectorResults = this.points
-      .map(point => ({
-        id: point.id,
-        score: cosineSimilarity(queryVector, point.vector)
-      }))
-      .sort((a, b) => b.score - a.score);
-    
-    const vectorRanks = new Map<string, number>();
-    vectorResults.forEach((res, idx) => vectorRanks.set(res.id, idx + 1));
 
-    // 2. Keyword Search
+    // Keyword Search (always runs)
     const keywordResults = this.fuse.search(query);
     const keywordRanks = new Map<string, number>();
     keywordResults.forEach((res, idx) => keywordRanks.set(res.item.id, idx + 1));
 
-    // 3. RRF Fusion
+    let vectorRanks = new Map<string, number>();
+
+    // Vector Search — only if we have real embeddings
+    if (!this.keywordOnly && this.embeddings) {
+      try {
+        const queryVector = await this.embeddings.embedQuery(query);
+        const vectorResults = this.points
+          .map(point => ({
+            id: point.id,
+            score: cosineSimilarity(queryVector, point.vector)
+          }))
+          .sort((a, b) => b.score - a.score);
+
+        vectorResults.forEach((res, idx) => vectorRanks.set(res.id, idx + 1));
+      } catch (err) {
+        console.error('[RAG] Embedding query failed, using keyword-only', err);
+      }
+    }
+
+    // If keyword-only or vector search failed, just use keyword results
+    if (vectorRanks.size === 0) {
+      const topIds = keywordResults.slice(0, k).map(r => r.item.id);
+      return topIds.map(id => {
+        const point = this.points.find(p => p.id === id)!;
+        return new Document({
+          pageContent: point.pageContent,
+          metadata: point.metadata,
+        });
+      });
+    }
+
+    // RRF Fusion
     const rrfScores = computeRRF(vectorRanks, keywordRanks);
     
-    // Sort by RRF
     const finalIds = Array.from(rrfScores.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, k)
@@ -117,8 +144,18 @@ export async function getVectorStore(options?: { embeddings?: EmbeddingsInterfac
   }
 
   if (!retrieverCache || options?.k) {
-    const embeddings = options?.embeddings ?? createEmbeddings();
-    const retriever = new HybridRetriever(embeddings, pointsCache, { k: options?.k ?? 4 });
+    // Try to create embeddings, but don't crash if env vars are missing
+    let embeddings: EmbeddingsInterface | null = options?.embeddings ?? null;
+    if (!embeddings && !areVectorsZero(pointsCache ?? [])) {
+      try {
+        const { createEmbeddings } = await import('./embeddings');
+        embeddings = createEmbeddings();
+      } catch (err) {
+        console.error('[RAG] Failed to create embeddings, using keyword-only mode', err);
+      }
+    }
+    
+    const retriever = new HybridRetriever(embeddings, pointsCache ?? [], { k: options?.k ?? 4 });
     if (!options?.k || options.k === 4) {
       retrieverCache = retriever;
     }
@@ -127,3 +164,4 @@ export async function getVectorStore(options?: { embeddings?: EmbeddingsInterfac
 
   return retrieverCache;
 }
+
