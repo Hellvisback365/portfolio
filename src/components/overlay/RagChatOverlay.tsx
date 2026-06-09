@@ -93,7 +93,19 @@ export default function RagChatOverlay() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
       });
-      const data = await response.json();
+      
+      // Handle non-JSON responses (e.g. 504 Gateway Timeout returns HTML)
+      const text = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(
+          response.status === 504
+            ? 'Il copilot sta impiegando troppo tempo. Riprova con una domanda più breve.'
+            : `Errore del server (${response.status}). Riprova fra qualche secondo.`
+        );
+      }
       
       if (!response.ok) {
         throw new Error(data.error || 'Il copilot non è disponibile.');

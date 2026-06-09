@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getVectorStore } from '@/services/rag/vectorStore';
-import { generateText, generateObject } from 'ai';
+import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-export const maxDuration = 30;
+export const maxDuration = 25;
 
 const requestSchema = z.object({
   messages: z.array(z.object({
@@ -16,16 +16,14 @@ const requestSchema = z.object({
 
 function getEnvSafe() {
   const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return null;
-  }
+  if (!apiKey) return null;
   const isStandardOpenAi = !process.env.OPENROUTER_API_KEY && !!process.env.OPENAI_API_KEY;
   return {
     apiKey,
     baseURL: process.env.OPENROUTER_BASE_URL || (isStandardOpenAi ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1'),
     site: process.env.OPENROUTER_SITE_URL || 'https://vitopiccolini.dev',
     title: process.env.OPENROUTER_APP_TITLE || 'Vito Piccolini Copilot',
-    llmModel: process.env.RAG_LLM_MODEL || (isStandardOpenAi ? 'gpt-4o-mini' : 'openrouter/google/gemini-flash-1.5'),
+    llmModel: process.env.RAG_LLM_MODEL || (isStandardOpenAi ? 'gpt-4o-mini' : 'google/gemini-2.0-flash-exp:free'),
   };
 }
 
@@ -35,7 +33,7 @@ export async function POST(req: Request) {
     const parsed = requestSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Richiesta non valida.', details: parsed.error.flatten() },
+        { error: 'Richiesta non valida.' },
         { status: 400 }
       );
     }
@@ -48,7 +46,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ answer: 'Per favore, scrivi una domanda.', sources: [] });
     }
 
-    // Check for API key
     const env = getEnvSafe();
     if (!env) {
       return NextResponse.json(
@@ -68,32 +65,7 @@ export async function POST(req: Request) {
 
     const llmModel = aiProvider(env.llmModel.replace('openrouter/', ''));
 
-    // Semantic Router: Classify intent
-    let intent: 'portfolio_query' | 'general_chat' = 'portfolio_query';
-    try {
-      const { object } = await generateObject({
-        model: llmModel,
-        schema: z.object({
-          intent: z.enum(['portfolio_query', 'general_chat']).describe('Se la domanda riguarda Vito Piccolini, il suo portfolio, le sue competenze, o se chiede di cosa sei capace, scegli "portfolio_query". Se è un saluto generico (es. Ciao, Come stai), scegli "general_chat".'),
-        }),
-        prompt: `Classifica l'intento del seguente messaggio dell'utente: "${question}"`,
-      });
-      intent = object.intent;
-    } catch (classifyError) {
-      console.error('[RAG] Intent classification failed, defaulting to general_chat', classifyError);
-      intent = 'general_chat';
-    }
-
-    if (intent === 'general_chat') {
-      const result = await generateText({
-        model: llmModel,
-        messages: messages as any,
-        system: "Sei l'assistente del portfolio di Vito Piccolini. Rispondi in modo amichevole, conciso e in italiano.",
-      });
-      return NextResponse.json({ answer: result.text, sources: [] });
-    }
-
-    // Portfolio Query: RAG execution
+    // --- RAG: sempre recupera contesto dal portfolio ---
     let context = '';
     let sources: { id: string; title: string; summary?: string; tags: string[] }[] = [];
 
@@ -118,17 +90,24 @@ export async function POST(req: Request) {
       console.error('[RAG] Vector store error, continuing without context', vectorError);
     }
 
-    const systemPrompt = `Sei un copilot per il portfolio di Vito Piccolini. 
-Usa il contesto fornito per rispondere in italiano. Sii conciso e usa elenchi puntati se utile (con trattini -).
-Cita esclusivamente il contesto fornito. Se non trovi la risposta nel contesto, dillo chiaramente.
+    // --- System prompt BLINDATO: rispondi SOLO sul portfolio di Vito ---
+    const systemPrompt = `Sei il copilot ufficiale del portfolio di Vito Piccolini.
 
-Contesto disponibile:
+REGOLE ASSOLUTE (non violarle MAI):
+1. Rispondi ESCLUSIVAMENTE a domande su Vito Piccolini, il suo portfolio, le sue competenze, esperienze, progetti e percorso professionale.
+2. Se l'utente ti saluta (es. "Ciao", "Come stai"), rispondi con un breve saluto e invitalo a chiederti qualcosa su Vito.
+3. Se l'utente fa una domanda che NON riguarda Vito (es. matematica, cultura generale, programmazione generica, qualsiasi altro argomento), rispondi SEMPRE con: "Posso rispondere solo a domande sul portfolio e il percorso di Vito. Chiedimi qualcosa su di lui! 😊"
+4. NON fare MAI calcoli, traduzioni, o risposte su argomenti generici. Sei un assistente di portfolio, non un chatbot generico.
+5. Rispondi in italiano, in modo conciso e professionale. Usa elenchi puntati con trattini (-) quando utile.
+6. Basa le tue risposte SOLO sul contesto fornito qui sotto. Se non trovi la risposta nel contesto, dillo chiaramente.
+
+Contesto disponibile dal portfolio:
 ${context || 'Nessun contesto trovato.'}
 `;
 
     const result = await generateText({
       model: llmModel,
-      messages: messages as any,
+      prompt: question,
       system: systemPrompt,
     });
 
@@ -137,11 +116,9 @@ ${context || 'Nessun contesto trovato.'}
   } catch (error: any) {
     console.error('[RAG] API error:', error?.message || error);
     const message = error?.message || 'Errore interno sconosciuto.';
-    // Return a user-friendly error with the actual cause
     return NextResponse.json(
       { error: `Errore del copilot: ${message}` },
       { status: 500 }
     );
   }
 }
-
