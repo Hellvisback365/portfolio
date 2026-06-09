@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     if (object.intent === 'general_chat') {
       const result = streamText({
         model: llmModel,
-        messages,
+        messages: messages as any,
         system: "Sei l'assistente del portfolio di Vito Piccolini. Rispondi in modo amichevole, conciso e in italiano.",
       });
       return result.toTextStreamResponse();
@@ -80,7 +80,7 @@ ${context || 'Nessun contesto trovato.'}
 
     const result = streamText({
       model: llmModel,
-      messages,
+      messages: messages as any,
       system: systemPrompt,
     });
 
