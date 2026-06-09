@@ -52,50 +52,79 @@ const socialLinks = [
 const timelineMilestones = [
   {
     id: 1,
-    date: 'Settembre–Novembre 2025',
-    title: 'B.Future Challenge 2025 · VAR Group x CRIF',
-    location: 'Bologna · Remote',
-    description:
-      'Partecipante alla challenge aziendale: sviluppo in team di un assistente AI per consulenza enterprise.',
+    date: 'Giugno 2026',
+    title: 'Talent Program "Next Pulse"',
+    location: 'Chieti',
+    description: 'Sviluppo backend in team per EnLexi: un AI Sales Assistant multi-sorgente.',
     highlights: [
-      'Workflow automatizzato con n8n, Gemini e Ollama per ricerca pre-incontro e supporto live.',
-      'Focus su privacy dati (GDPR) e demo interattive. Riduzione tempi report da ore a secondi.',
+      'Bootcamp selettivo intensivo su scala nazionale (320 candidati).',
+      'Implementazione pipeline di retrieval ibrida (BM25 + ChromaDB/FAISS) con FastAPI.',
     ],
   },
   {
     id: 2,
-    date: 'Marzo–Giugno 2025',
-    title: 'Tirocinio Curriculare · LACAM-SWAP',
-    location: 'Università di Bari',
-    description:
-      'Progetto di tesi: Orchestrazione di Agenti LLM per l\'Ottimizzazione Multi-Metrica nei Sistemi di Raccomandazione.',
+    date: 'Maggio 2026',
+    title: 'PugliaHack 2026',
+    location: 'Bari',
+    description: 'Sviluppo in autonomia di TerraNode, piattaforma per lo smart agri-tourism.',
     highlights: [
-      'Architettura multi-agente con Precision-Agent, Coverage-Agent e Aggregated-Agent.',
-      '+12% diversità e +53% precision@1, mantenendo la stessa precisione media.',
+      'Stack React 19, TailwindCSS, Supabase (PostgreSQL).',
+      'Sviluppato in sole 2 ore. Gamification, tracciamento CO2 e dashboard KPI in tempo reale.',
     ],
   },
   {
     id: 3,
-    date: 'Settembre 2022–Luglio 2025',
-    title: 'Laurea Triennale L-31 · 107/110',
-    location: 'Università degli Studi di Bari Aldo Moro',
-    description:
-      'Informatica e Tecnologia per la Produzione del Software, con focus su AI, sistemi e sviluppo software.',
+    date: 'Maggio 2026',
+    title: 'Hackathon "Space Edition"',
+    location: 'Milano · Talent Garden x Leonardo',
+    description: '2° Classificato all\'hackathon nazionale per l\'ideazione di The Pulse.',
     highlights: [
-      'Tesi su orchestrazione multi-agente e explainability per sistemi di raccomandazione.',
-      'Da Ottobre 2025 proseguo con la LM-18 in Computer Science – Artificial Intelligence.',
+      'Progetto per una costellazione di piccoli satelliti dedicati al monitoraggio agricolo globale.',
+      'Integrazione di logiche di telerilevamento e Artificial Intelligence.',
     ],
   },
   {
     id: 4,
-    date: '2016–2022',
-    title: 'Operaio Generico',
-    location: 'Bari',
-    description:
-      'Esperienza lavorativa che ha sviluppato resilienza, capacità di problem-solving e lavoro in team.',
+    date: 'Settembre–Novembre 2025',
+    title: 'B.Future Challenge 2025 · VAR Group x CRIF',
+    location: 'Bologna · Remote',
+    description: 'Partecipante alla challenge aziendale: sviluppo in team di Zenith, assistente AI per consulenza.',
     highlights: [
-      '6 anni di esperienza nel mondo del lavoro prima del percorso universitario.',
-      'Soft skills fondamentali: gestione del tempo, collaborazione e determinazione.',
+      'Workflow automatizzato con n8n, Gemini e Google Drive API.',
+      'Riduzione stimata dei tempi di reportistica da 7 giorni a 1.',
+    ],
+  },
+  {
+    id: 5,
+    date: 'Marzo–Giugno 2025',
+    title: 'Tirocinio Curriculare · LACAM-SWAP',
+    location: 'Università di Bari',
+    description: 'Progetto di tesi: Orchestrazione di Agenti LLM per l\'Ottimizzazione Multi-Metrica nei Sistemi di Raccomandazione.',
+    highlights: [
+      'Architettura multi-agente LangGraph + RAG Ibrido (BM25 e FAISS).',
+      '+12% novelty mantenendo inalterata la precisione media del baseline con Llama 3.2 3B.',
+    ],
+  },
+  {
+    id: 6,
+    date: 'Settembre 2022–Luglio 2025',
+    title: 'Laurea Triennale L-31 · 107/110',
+    location: 'Università degli Studi di Bari Aldo Moro',
+    description: 'Informatica e Tecnologia per la Produzione del Software.',
+    highlights: [
+      'Tesi su orchestrazione multi-agente LLM applicata ai sistemi di raccomandazione.',
+      'Prosecuzione in LM-18 Computer Science – Artificial Intelligence.',
+    ],
+  },
+  {
+    id: 7,
+    date: '2016–2022',
+    title: 'Operaio Generico e Retail',
+    location: 'Bari',
+    description: 'Esperienza lavorativa in settori trasversali (edilizia, agricoltura, reception, gestione negozio).',
+    highlights: [
+      '6 anni di esperienza prima di intraprendere il percorso in Informatica.',
+      'Forte focus su resilienza, problem-solving, e capacità di adattamento in team.',
     ],
   },
 ];
