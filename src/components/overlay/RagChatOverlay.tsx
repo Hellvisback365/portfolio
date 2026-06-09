@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
 import Badge from '@/components/ui/Badge';
 
 /* ─── Types ─── */
@@ -12,6 +10,13 @@ interface RagSource {
   title: string;
   summary?: string;
   tags?: string[];
+}
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: RagSource[];
 }
 
 const suggestionPool = [
@@ -26,14 +31,14 @@ const suggestionPool = [
   'Che risultati avete ottenuto con la B.Future Challenge 2025?',
 ];
 
-const initialAssistant = {
+const initialAssistant: ChatMessage = {
   id: 'welcome',
-  role: 'assistant' as const,
+  role: 'assistant',
   content: 'Ciao! Sono il copilot del portfolio. Posso raccontarti esperienze, metriche e focus di Vito. Chiedimi qualsiasi cosa sul suo percorso.',
-  parts: [{ type: 'text' as const, text: 'Ciao! Sono il copilot del portfolio. Posso raccontarti esperienze, metriche e focus di Vito. Chiedimi qualsiasi cosa sul suo percorso.' }],
 };
 
-function formatAnswer(text: string) {
+function formatAnswer(text?: string) {
+  if (!text) return [];
   return text
     .split('\n')
     .map((paragraph) => paragraph.trim())
@@ -56,49 +61,71 @@ function getInitialSuggestions(count: number) {
 
 export default function RagChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([initialAssistant]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>(() => suggestionPool.slice(0, 3));
+  
   const scrollAnchor = useRef<HTMLDivElement | null>(null);
   const isMounted = useRef(false);
 
   // Per conservare i sources (il header arriva alla prima risposta dello stream)
-  const [sourcesList, setSourcesList] = useState<RagSource[]>([]);
   const [showGlow, setShowGlow] = useState(false);
-  const [input, setInput] = useState('');
 
-  const { messages, sendMessage, status, error } = useChat({
-    transport: new DefaultChatTransport({
-      api: '/api/rag',
-      fetch: async (url, options) => {
-        const res = await fetch(url, options);
-        const sourcesHeader = res.headers?.get('x-rag-sources');
-        if (sourcesHeader) {
-          try {
-            const decoded = decodeURIComponent(escape(atob(sourcesHeader)));
-            const sources = JSON.parse(decoded) as RagSource[];
-            if (sources && sources.length > 0) {
-              setSourcesList(sources);
-              setShowGlow(true);
-              setTimeout(() => setShowGlow(false), 5000);
-            } else {
-              setSourcesList([]);
-            }
-          } catch (err) {
-            console.error('Error parsing sources from header:', err);
-          }
-        } else {
-          setSourcesList([]);
-        }
-        return res;
+  const sendQuestion = async (question?: string) => {
+    const prompt = (question ?? input).trim();
+    if (!prompt) return;
+    setError('');
+    setInput('');
+    
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: prompt,
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch('/api/rag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: prompt }),
+      });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Il copilot non è disponibile.');
       }
-    }),
-    messages: [initialAssistant],
-    onError: (err) => {
-      console.error('Chat error:', err);
-      setSourcesList([]);
-    },
-  });
-
-  const isLoading = status !== 'ready';
+      
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: data.answer,
+        sources: data.sources,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+      
+      if (data.sources && data.sources.length > 0) {
+        setShowGlow(true);
+        setTimeout(() => setShowGlow(false), 5000);
+      }
+    } catch (err) {
+      const fallback: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content:
+          err instanceof Error
+            ? err.message
+            : 'Si è verificato un errore inatteso. Riprova fra qualche secondo.',
+      };
+      setMessages((prev) => [...prev, fallback]);
+      setError('Impossibile completare la richiesta.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const cycleSuggestion = (index: number) => {
     setSuggestions((prev) => {
@@ -126,6 +153,8 @@ export default function RagChatOverlay() {
       }
     }
   }, [messages, isLoading]);
+
+  const latestSources = messages.filter(m => m.role === 'assistant' && m.sources && m.sources.length > 0).pop()?.sources || [];
 
   return (
     <>
@@ -198,7 +227,7 @@ export default function RagChatOverlay() {
                   Online
                 </div>
                 <AnimatePresence>
-                  {showGlow && sourcesList.length > 0 && (
+                  {showGlow && latestSources.length > 0 && (
                     <motion.div
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -208,7 +237,7 @@ export default function RagChatOverlay() {
                       <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
-                      Retrieved {sourcesList.length} docs
+                      Retrieved {latestSources.length} docs
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -227,9 +256,7 @@ export default function RagChatOverlay() {
                     type="button"
                     onClick={() => {
                       cycleSuggestion(index);
-                      setInput(suggestion);
-                      sendMessage({ text: suggestion });
-                      setInput('');
+                      sendQuestion(suggestion);
                     }}
                     className="rounded-full border border-white/8 bg-white/5 px-2.5 py-1 text-[0.65rem] text-white/70 transition hover:border-[#5DE0E6]/40 hover:text-white"
                     disabled={isLoading}
@@ -242,9 +269,8 @@ export default function RagChatOverlay() {
 
             {/* Messages */}
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-4" style={{ maxHeight: '320px' }}>
-              {messages.map((message, index) => {
+              {messages.map((message) => {
                 const isAssistant = message.role === 'assistant';
-                const isLatestAssistant = isAssistant && index === messages.length - 1;
 
                 return (
                   <div
@@ -267,10 +293,9 @@ export default function RagChatOverlay() {
                         ))}
                       </div>
                     </div>
-                    {/* Mostra i sources solo per l'ultimo messaggio dell'assistente se disponibili */}
-                    {isLatestAssistant && sourcesList.length > 0 && (
+                    {isAssistant && message.sources && message.sources.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1 text-[0.5rem] text-white/50">
-                        {sourcesList.map((source) => (
+                        {message.sources.map((source) => (
                           <Badge
                             key={source.id}
                             variant="outline"
@@ -284,7 +309,7 @@ export default function RagChatOverlay() {
                   </div>
                 );
               })}
-              {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+              {isLoading && (
                 <motion.div
                   className="flex items-center gap-2 text-xs text-white/50"
                   animate={{ opacity: [0.3, 1, 0.3] }}
@@ -301,9 +326,7 @@ export default function RagChatOverlay() {
             <form 
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!input.trim() || isLoading) return;
-                sendMessage({ text: input });
-                setInput('');
+                sendQuestion();
               }} 
               className="border-t border-white/5 px-5 py-3"
             >
@@ -314,9 +337,7 @@ export default function RagChatOverlay() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      if (!input.trim() || isLoading) return;
-                      sendMessage({ text: input });
-                      setInput('');
+                      sendQuestion();
                     }
                   }}
                   placeholder="Scrivi la tua domanda..."
@@ -325,11 +346,11 @@ export default function RagChatOverlay() {
                   style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                 />
                 <div className="flex items-center justify-between px-3 pb-2">
-                  {error && <p className="text-[0.6rem] text-red-400">Si è verificato un errore inatteso.</p>}
+                  {error && <p className="text-[0.6rem] text-red-400">{error}</p>}
                   <div className="ml-auto">
                     <button
                       type="submit"
-                      disabled={isLoading || (input || '').trim().length < 3}
+                      disabled={isLoading || input.trim().length < 3}
                       className="rounded-full border border-[#5DE0E6]/25 bg-transparent px-4 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#5DE0E6] transition hover:bg-[#5DE0E6]/10 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Invia

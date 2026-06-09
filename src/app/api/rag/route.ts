@@ -9,14 +9,17 @@ export const maxDuration = 30;
 
 const requestSchema = z.object({
   messages: z.array(z.object({
-    role: z.enum(['user', 'assistant', 'system']),
-    content: z.string(),
+    role: z.enum(['user', 'assistant', 'system', 'data']),
+    content: z.string().optional().default(''),
+    parts: z.array(z.any()).optional(),
   })).min(1),
 });
 
 export async function POST(req: Request) {
   try {
-    const { messages } = requestSchema.parse(await req.json());
+    const body = await req.json();
+    console.log('REQUEST BODY:', JSON.stringify(body, null, 2));
+    const { messages } = requestSchema.parse(body);
     const lastMessage = messages[messages.length - 1];
     
     const env = getRagEnv();
