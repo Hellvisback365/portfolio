@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getVectorStore } from '@/services/rag/vectorStore';
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import Fuse from 'fuse.js';
-import profileDocs from '@/content/profile/documents.json';
 
 export const maxDuration = 25;
 
@@ -26,42 +25,6 @@ function getEnvSafe() {
     title: process.env.OPENROUTER_APP_TITLE || 'Vito Piccolini Copilot',
     llmModel: process.env.RAG_LLM_MODEL || (isStandardOpenAi ? 'gpt-4o-mini' : 'google/gemini-2.0-flash-exp:free'),
   };
-}
-
-// --- Fuse.js index built at module load (once per cold start) ---
-interface ProfileDoc {
-  id: string;
-  category: string;
-  title: string;
-  summary: string;
-  body: string;
-  tags: string[];
-  updatedAt: string;
-}
-
-const fuseIndex = new Fuse<ProfileDoc>(profileDocs as ProfileDoc[], {
-  keys: [
-    { name: 'title', weight: 0.3 },
-    { name: 'body', weight: 0.5 },
-    { name: 'tags', weight: 0.15 },
-    { name: 'summary', weight: 0.05 },
-  ],
-  includeScore: true,
-  threshold: 0.5,
-  ignoreLocation: true,
-  minMatchCharLength: 2,
-});
-
-function retrieveContext(query: string, k = 4) {
-  const results = fuseIndex.search(query);
-  
-  // If Fuse finds relevant results, return them
-  if (results.length > 0) {
-    return results.slice(0, k).map(r => r.item);
-  }
-  
-  // Fallback: return ALL documents (the corpus is small enough)
-  return (profileDocs as ProfileDoc[]).slice(0, k);
 }
 
 export async function POST(req: Request) {
@@ -102,19 +65,30 @@ export async function POST(req: Request) {
 
     const llmModel = aiProvider(env.llmModel.replace('openrouter/', ''));
 
-    // --- RAG: recupera contesto dal portfolio ---
-    const relevantDocs = retrieveContext(question, 4);
+    // --- HYBRID RAG: Semantic Vectors + Keyword Search ---
+    let context = '';
+    let sources: { id: string; title: string; summary?: string; tags: string[] }[] = [];
 
-    const context = relevantDocs
-      .map(doc => `### ${doc.title}\n${doc.body}`)
-      .join('\n\n');
+    try {
+      const vectorStore = await getVectorStore({ k: 4 });
+      const docs = await vectorStore.invoke(question);
 
-    const sources = relevantDocs.map(doc => ({
-      id: doc.id,
-      title: doc.title,
-      summary: doc.summary,
-      tags: doc.tags || [],
-    }));
+      context = docs
+        .map((doc, idx) => {
+          const title = (doc.metadata?.title as string) || `Fonte ${idx + 1}`;
+          return `### ${title}\n${doc.pageContent}`;
+        })
+        .join('\n\n');
+
+      sources = docs.map((doc, idx) => ({
+        id: (doc.metadata?.id as string) || `source-${idx + 1}`,
+        title: (doc.metadata?.title as string) || `Fonte ${idx + 1}`,
+        summary: doc.metadata?.summary as string | undefined,
+        tags: (doc.metadata?.tags as string[]) || [],
+      }));
+    } catch (vectorError) {
+      console.error('[RAG] Vector store error, continuing without context', vectorError);
+    }
 
     // --- System prompt BLINDATO: rispondi SOLO sul portfolio di Vito ---
     const systemPrompt = `Sei il copilot ufficiale del portfolio di Vito Piccolini.
@@ -128,7 +102,7 @@ REGOLE ASSOLUTE (non violarle MAI):
 6. Basa le tue risposte SOLO sul contesto fornito qui sotto. Se non trovi la risposta nel contesto, dillo chiaramente.
 
 Contesto disponibile dal portfolio:
-${context}
+${context || 'Nessun contesto trovato.'}
 `;
 
     const result = await generateText({

@@ -50,9 +50,9 @@ export const capabilityTracks: CapabilityTrack[] = [
     title: 'AI/ML & Data Science',
     icon: 'brain',
     description:
-      'Sviluppo di sistemi di raccomandazione LLM-driven, architetture multi-agente e soluzioni NLP con focus su explainability.',
-    focusAreas: ['Recommender Systems', 'Multi-agent orchestration', 'NLP & Transformer', 'Explainability'],
-    stack: ['LangGraph', 'LangChain', 'LLMs (Gemini · Ollama)', 'Python'],
+      'Sviluppo di sistemi di raccomandazione LLM-driven, architetture multi-agente e soluzioni NLP con focus su explainability e RAG.',
+    focusAreas: ['Recommender Systems', 'Multi-agent orchestration', 'Hybrid RAG', 'Explainability'],
+    stack: ['LangGraph', 'LangChain', 'LLMs', 'Python', 'FAISS', 'BM25'],
   },
   {
     title: 'Web Development',
@@ -79,14 +79,14 @@ export const experienceMetrics: ExperienceMetric[] = [
     caption: 'Riduzione tempi report con AI generativa (B.Future Challenge).',
   },
   {
-    label: 'Recsys diversity',
+    label: 'Recsys novelty',
     value: '+12%',
-    caption: 'Miglioramento diversità con Coverage-Agent (LACAM-SWAP).',
+    caption: 'Miglioramento diversità/novelty con Llama 3.2 e Multi-Agent.',
   },
   {
     label: 'Precision@1',
-    value: '+53%',
-    caption: 'Incremento precisione prima raccomandazione con architettura multi-agente.',
+    value: '-0.5%',
+    caption: 'L\'agente aggregatore ha mantenuto quasi intatta la precisione del baseline.',
   },
   {
     label: 'Laurea triennale',
@@ -100,13 +100,13 @@ export const toolHighlights: ToolHighlight[] = [
     area: 'Programming Languages',
     category: 'Core',
     description: 'Linguaggi di programmazione per sviluppo AI, web e sistemi enterprise.',
-    tools: ['Python', 'Java', 'C#', 'JavaScript', 'SQL', 'HTML/CSS'],
+    tools: ['C', 'Python', 'Java', 'JavaScript', 'SQL', 'HTML/CSS'],
   },
   {
     area: 'AI/ML Stack',
     category: 'AI-first',
     description: 'Framework e librerie per machine learning, LLM e sistemi di raccomandazione.',
-    tools: ['LangGraph', 'LangChain', 'Gemini', 'Ollama', 'Transformer'],
+    tools: ['LangGraph', 'LangChain', 'FAISS', 'BM25', 'Pandas', 'NumPy', 'Jupyter'],
   },
   {
     area: 'Web & Database',
