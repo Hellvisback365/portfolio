@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getVectorStore } from '@/services/rag/vectorStore';
-import { streamText, generateObject } from 'ai';
+import { generateText, generateObject } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { getRagEnv } from '@/services/rag/env';
 
@@ -44,12 +44,12 @@ export async function POST(req: Request) {
     });
 
     if (object.intent === 'general_chat') {
-      const result = streamText({
+      const result = await generateText({
         model: llmModel,
         messages: messages as any,
         system: "Sei l'assistente del portfolio di Vito Piccolini. Rispondi in modo amichevole, conciso e in italiano.",
       });
-      return result.toTextStreamResponse();
+      return NextResponse.json({ answer: result.text, sources: [] });
     }
 
     // Portfolio Query: RAG execution
@@ -78,17 +78,13 @@ Contesto disponibile:
 ${context || 'Nessun contesto trovato.'}
 `;
 
-    const result = streamText({
+    const result = await generateText({
       model: llmModel,
       messages: messages as any,
       system: systemPrompt,
     });
 
-    return result.toTextStreamResponse({
-      headers: {
-        'x-rag-sources': Buffer.from(JSON.stringify(sources)).toString('base64'),
-      }
-    });
+    return NextResponse.json({ answer: result.text, sources });
 
   } catch (error) {
     if (error instanceof z.ZodError) {
