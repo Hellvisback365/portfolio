@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 
+import { useLenis } from 'lenis/react';
+
 const SECTIONS = [
   { id: 'hero', label: 'Home' },
   { id: 'about', label: 'About' },
@@ -14,22 +16,14 @@ const SECTIONS = [
 export default function NavigationOverlay() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const lenis = useLenis();
 
-  // Helper to find the ScrollControls container
-  const getScrollContainer = useCallback(() => {
-    return Array.from(document.querySelectorAll('div')).find(
-      (el) => el.style.overflowY === 'auto' || el.style.overflow === 'auto'
-    ) as HTMLElement | undefined;
-  }, []);
-
-  // Listen for scroll events from the drei ScrollControls
+  // Listen for native window scroll events
   useEffect(() => {
     const handleScroll = () => {
-      const scrollContainer = getScrollContainer();
-      if (!scrollContainer) return;
-
-      const scrollTop = scrollContainer.scrollTop;
-      const scrollHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+      const scrollTop = window.scrollY;
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      
       if (scrollHeight <= 0) return;
 
       const progress = scrollTop / scrollHeight;
@@ -39,7 +33,6 @@ export default function NavigationOverlay() {
       let currentSection = 0;
       for (let i = 0; i < SECTIONS.length; i++) {
         const el = document.getElementById(SECTIONS[i].id);
-        // Activate when the section is at least halfway into the viewport
         if (el && scrollTop >= el.offsetTop - window.innerHeight / 2) {
           currentSection = i;
         }
@@ -47,54 +40,53 @@ export default function NavigationOverlay() {
       setActiveIndex(currentSection);
     };
 
-    // Observe the DOM until the scroll container is mounted
-    const observer = new MutationObserver(() => {
-      const scrollContainer = getScrollContainer();
-      if (scrollContainer) {
-        scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-        observer.disconnect();
-      }
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // Also try immediately
-    const scrollContainer = getScrollContainer();
-    if (scrollContainer) {
-      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-    }
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Initial check
+    handleScroll();
 
     return () => {
-      observer.disconnect();
-      const sc = getScrollContainer();
-      if (sc) sc.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll);
     };
-  }, [getScrollContainer]);
+  }, []);
+
+
 
   const scrollToSection = useCallback((index: number) => {
-    const scrollContainer = getScrollContainer();
-    if (!scrollContainer) return;
+    const el = document.getElementById(SECTIONS[index].id);
+    if (!el) return;
+    
+    const targetScroll = el.offsetTop;
 
-    const sectionId = SECTIONS[index].id;
-    const sectionEl = document.getElementById(sectionId);
-    if (!sectionEl) return;
+    if (lenis) {
+      lenis.scrollTo(targetScroll, { duration: 1.2, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+    } else {
+      window.scrollTo({
+        top: targetScroll,
+        behavior: 'smooth',
+      });
+    }
+  }, [lenis]);
 
-    // The section's offsetTop is relative to its parent flex container,
-    // which starts at the top of the scrollContainer's scrollable area.
-    const targetScroll = sectionEl.offsetTop;
-
-    scrollContainer.scrollTo({
-      top: targetScroll,
-      behavior: 'auto',
-    });
-  }, [getScrollContainer]);
+  useEffect(() => {
+    const handleNavigate = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const sectionId = customEvent.detail?.section;
+      const index = SECTIONS.findIndex(s => s.id === sectionId);
+      if (index !== -1) {
+        scrollToSection(index);
+      }
+    };
+    window.addEventListener('navigate-section', handleNavigate);
+    return () => window.removeEventListener('navigate-section', handleNavigate);
+  }, [scrollToSection]);
 
   return (
     <>
       {/* ─── Top progress bar ─── */}
       <div className="fixed left-0 right-0 top-0 z-40 h-[2px] bg-white/5">
         <motion.div
-          className="h-full bg-gradient-to-r from-[#5DE0E6] to-[#C084FC]"
+          className="h-full bg-white"
           style={{ width: `${scrollProgress * 100}%` }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         />
@@ -106,7 +98,7 @@ export default function NavigationOverlay() {
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
-          className="text-sm font-semibold tracking-[0.2em] text-[#5DE0E6]/70"
+          className="text-sm font-semibold tracking-[0.2em] text-[white]/70"
         >
           VP
         </motion.p>
@@ -128,7 +120,7 @@ export default function NavigationOverlay() {
               <span
                 className={`text-[0.6rem] uppercase tracking-[0.3em] transition-all duration-300 ${
                   activeIndex === index
-                    ? 'text-[#5DE0E6] opacity-100'
+                    ? 'text-[white] opacity-100'
                     : 'text-white/0 group-hover:text-white/50'
                 }`}
               >
@@ -141,7 +133,7 @@ export default function NavigationOverlay() {
                 {activeIndex === index && (
                   <motion.span
                     layoutId="active-dot"
-                    className="absolute h-4 w-4 rounded-full border border-[#5DE0E6]/40"
+                    className="absolute h-4 w-4 rounded-full border border-[white]/40"
                     transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   />
                 )}
@@ -149,7 +141,7 @@ export default function NavigationOverlay() {
                 <span
                   className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
                     activeIndex === index
-                      ? 'bg-[#5DE0E6] shadow-[0_0_8px_rgba(93,224,230,0.5)]'
+                      ? 'bg-[white] shadow-[0_0_8px_rgba(255,255,255,0.5)]'
                       : 'bg-white/20 group-hover:bg-white/50'
                   }`}
                 />

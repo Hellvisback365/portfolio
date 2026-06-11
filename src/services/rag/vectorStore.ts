@@ -62,7 +62,7 @@ export class HybridRetriever {
   }
 
   async invoke(query: string): Promise<Document[]> {
-    const k = this.options?.k ?? 4;
+    const k = this.options?.k ?? 15;
 
     // Keyword Search (always runs)
     const keywordResults = this.fuse.search(query);
@@ -135,9 +135,9 @@ export async function getVectorStore(options?: { embeddings?: EmbeddingsInterfac
     }
 
     const pointsCache = vectorData as VectorPoint[];
-    const retriever = new HybridRetriever(embeddings, pointsCache, { k: options?.k ?? 4 });
+    const retriever = new HybridRetriever(embeddings, pointsCache, { k: options?.k ?? 15 });
     
-    if (!options?.k || options.k === 4) {
+    if (!options?.k || options.k === 15) {
       retrieverCache = retriever;
     }
     return retriever;

@@ -5,9 +5,9 @@ import Badge from '@/components/ui/Badge';
 import { capabilityTracks, toolHighlights, languages } from '@/data/skills';
 
 const CATEGORY_LEGEND = [
-  { label: 'AI/ML & Data Science', color: '#5DE0E6' },
+  { label: 'AI/ML & Data Science', color: 'white' },
   { label: 'Web Development', color: '#60A5FA' },
-  { label: 'DevOps & Integration', color: '#C084FC' },
+  { label: 'DevOps & Integration', color: 'white' },
 ];
 
 const fadeIn = {
@@ -32,7 +32,7 @@ export default function SkillsOverlay() {
           variants={fadeIn}
           className="mb-8 text-center"
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[#5DE0E6]/70">
+          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">
             Skill Matrix
           </p>
           <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">

@@ -36,7 +36,7 @@ export function getRagEnv(): RagEnv {
     openRouterSite: OPENROUTER_SITE_URL || 'https://vitopiccolini.dev',
     openRouterTitle: OPENROUTER_APP_TITLE || 'Vito Piccolini Copilot',
     llmModel: RAG_LLM_MODEL || (isStandardOpenAi ? 'gpt-4o-mini' : 'openrouter/google/gemini-flash-1.5'),
-    embeddingModel: RAG_EMBEDDING_MODEL || (isStandardOpenAi ? 'text-embedding-3-small' : 'openrouter/openai/text-embedding-3-large'),
+    embeddingModel: RAG_EMBEDDING_MODEL || (isStandardOpenAi ? 'text-embedding-3-small' : 'openai/text-embedding-3-large'),
   };
 
   return cachedEnv;

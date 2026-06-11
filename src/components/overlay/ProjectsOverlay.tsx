@@ -37,7 +37,7 @@ export default function ProjectsOverlay() {
             variants={fadeIn}
             className="mb-10 text-center"
           >
-            <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[#5DE0E6]/70">
+            <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">
               Case Studies
             </p>
             <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
@@ -59,7 +59,7 @@ export default function ProjectsOverlay() {
                 viewport={{ once: true, amount: 0.2 }}
                 custom={1 + index}
                 variants={fadeIn}
-                className="glass-holographic rounded-2xl p-5 transition-all duration-300 hover:border-[#5DE0E6]/25"
+                className="glass-holographic rounded-2xl p-5 transition-all duration-300 hover:border-[white]/25"
               >
                 <div className="flex flex-col gap-6 lg:flex-row">
                   {/* Image */}
@@ -71,7 +71,7 @@ export default function ProjectsOverlay() {
                         fill
                         className="object-contain p-4"
                       />
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-[#5DE0E6]/10 to-[#C084FC]/10" />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-[white]/10 to-[white]/10" />
                     </div>
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {project.tags.map((tag) => (

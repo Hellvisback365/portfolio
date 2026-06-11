@@ -31,9 +31,9 @@ const formationItems = [
 ];
 
 const interestItems = [
-  { label: 'Recommender Systems & Multi-Agent LLM', icon: <FaBrain className="text-[#5DE0E6]" /> },
-  { label: 'NLP, Transformer & Explainability', icon: <FaLanguage className="text-[#5DE0E6]" /> },
-  { label: 'Workflow Automation (n8n · API Integration)', icon: <FaShieldAlt className="text-[#5DE0E6]" /> },
+  { label: 'Recommender Systems & Multi-Agent LLM', icon: <FaBrain className="text-[white]" /> },
+  { label: 'NLP, Transformer & Explainability', icon: <FaLanguage className="text-[white]" /> },
+  { label: 'Workflow Automation (n8n · API Integration)', icon: <FaShieldAlt className="text-[white]" /> },
 ];
 
 const socialLinks = [
@@ -143,7 +143,7 @@ export default function AboutOverlay() {
           custom={0}
           variants={fadeIn}
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[#5DE0E6]/70">Chi sono</p>
+          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">Chi sono</p>
           <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
             Studente in Computer Science – AI
           </h2>
@@ -177,7 +177,7 @@ export default function AboutOverlay() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
               <div className="absolute bottom-4 left-4 flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.4em] text-white/60">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#5DE0E6]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[white]" />
                 Ritratto · Bari 2025
               </div>
             </div>
@@ -195,7 +195,7 @@ export default function AboutOverlay() {
                     href={social.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/70 transition-colors hover:border-[#5DE0E6]/50 hover:text-[#5DE0E6]"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/70 transition-colors hover:border-[white]/50 hover:text-[white]"
                     aria-label={social.label}
                   >
                     {social.icon}
@@ -256,7 +256,7 @@ export default function AboutOverlay() {
                       key={item.label}
                       className="flex items-start gap-2 rounded-xl border border-white/8 bg-white/5 p-3"
                     >
-                      <FaGraduationCap className="mt-0.5 shrink-0 text-[#5DE0E6] text-sm" />
+                      <FaGraduationCap className="mt-0.5 shrink-0 text-[white] text-sm" />
                       <div>
                         <p className="text-xs font-semibold text-white">{item.label}</p>
                         <p className="text-[0.65rem] text-white/60">{item.detail}</p>
@@ -300,12 +300,12 @@ export default function AboutOverlay() {
           custom={5}
           variants={fadeIn}
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[#5DE0E6]/70">Percorso</p>
+          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">Percorso</p>
           <h3 className="mt-2 text-2xl font-semibold text-white">Ricerca, challenge e delivery</h3>
         </motion.div>
 
         <div className="relative">
-          <div className="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-[#5DE0E6]/30 via-white/10 to-[#C084FC]/20" />
+          <div className="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-[white]/30 via-white/10 to-[white]/20" />
           <div className="space-y-6">
             {timelineMilestones.map((item, index) => (
               <motion.div
@@ -334,7 +334,7 @@ export default function AboutOverlay() {
                   <ul className="mt-3 space-y-1.5">
                     {item.highlights.map((h) => (
                       <li key={h} className="flex items-start gap-2 text-xs text-white/60">
-                        <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-[#5DE0E6]" />
+                        <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-[white]" />
                         {h}
                       </li>
                     ))}

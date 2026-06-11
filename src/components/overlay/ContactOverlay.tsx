@@ -22,27 +22,27 @@ const contactDetails = [
     label: 'Email',
     value: 'vitopiccolini@live.it',
     helper: 'Preferita per brief strutturati (risposta entro 24h).',
-    icon: <FaEnvelope className="text-[#5DE0E6]" />,
+    icon: <FaEnvelope className="text-[white]" />,
     href: 'mailto:vitopiccolini@live.it',
   },
   {
     label: 'Telefono',
     value: '+39 3937382774',
     helper: 'Disponibile 9:00–18:00, anche WhatsApp.',
-    icon: <FaPhoneAlt className="text-[#5DE0E6]" />,
+    icon: <FaPhoneAlt className="text-[white]" />,
     href: 'tel:+393937382774',
   },
   {
     label: 'Base operativa',
     value: 'Bari · Remote EU',
     helper: 'Patente B, trasferte in giornata su richiesta.',
-    icon: <FaMapMarkerAlt className="text-[#5DE0E6]" />,
+    icon: <FaMapMarkerAlt className="text-[white]" />,
   },
   {
     label: 'Disponibilità',
     value: 'Novembre 2025',
     helper: 'Stage curriculare LM-18 o collaborazione AI-first.',
-    icon: <FaCalendarAlt className="text-[#5DE0E6]" />,
+    icon: <FaCalendarAlt className="text-[white]" />,
   },
 ];
 
@@ -121,7 +121,7 @@ export default function ContactOverlay() {
           transition={{ duration: 0.5 }}
           className="text-center"
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[#5DE0E6]/70">Contatto</p>
+          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">Contatto</p>
           <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Contattami</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/60">
             Sto entrando nella Laurea Magistrale in Computer Science – AI (UniBa) e sono disponibile
@@ -153,7 +153,7 @@ export default function ContactOverlay() {
                   {item.href ? (
                     <a
                       href={item.href}
-                      className="text-sm font-semibold text-[#5DE0E6] transition-colors hover:text-white"
+                      className="text-sm font-semibold text-[white] transition-colors hover:text-white"
                     >
                       {item.value}
                     </a>
@@ -197,7 +197,7 @@ export default function ContactOverlay() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition-colors focus:border-[#5DE0E6]/40"
+                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition-colors focus:border-[white]/40"
                 placeholder="Il tuo nome"
                 aria-required="true"
                 aria-invalid={Boolean(errors.name)}
@@ -216,7 +216,7 @@ export default function ContactOverlay() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition-colors focus:border-[#5DE0E6]/40"
+                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition-colors focus:border-[white]/40"
                 placeholder="La tua email"
                 aria-required="true"
                 aria-invalid={Boolean(errors.email)}
@@ -235,7 +235,7 @@ export default function ContactOverlay() {
                 value={formData.message}
                 onChange={handleChange}
                 rows={isMobile ? 3 : 4}
-                className="w-full resize-none rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition-colors focus:border-[#5DE0E6]/40"
+                className="w-full resize-none rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition-colors focus:border-[white]/40"
                 placeholder="Il tuo messaggio"
                 aria-required="true"
                 aria-invalid={Boolean(errors.message)}
@@ -247,7 +247,7 @@ export default function ContactOverlay() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-lg border border-[#5DE0E6]/30 bg-[#5DE0E6]/10 py-2.5 text-xs font-semibold uppercase tracking-[0.3em] text-[#5DE0E6] transition-all hover:bg-[#5DE0E6]/20 hover:shadow-[0_0_20px_rgba(93,224,230,0.15)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-lg border border-[white]/30 bg-[white]/10 py-2.5 text-xs font-semibold uppercase tracking-[0.3em] text-[white] transition-all hover:bg-[white]/20 hover:shadow-[0_0_20px_rgba(93,224,230,0.15)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? 'Invio in corso...' : 'Invia Messaggio'}
             </button>
@@ -269,7 +269,7 @@ export default function ContactOverlay() {
                 href={social.href}
                 target="_blank"
                 rel="noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/12 text-white/50 transition-all hover:border-[#5DE0E6]/40 hover:text-[#5DE0E6]"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/12 text-white/50 transition-all hover:border-[white]/40 hover:text-[white]"
                 aria-label={social.label}
               >
                 {social.icon}

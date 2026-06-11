@@ -34,7 +34,7 @@ export default function HeroOverlay() {
 
         <p className="max-w-2xl text-base text-white/60 sm:text-lg">
           Laureando magistrale in{' '}
-          <span className="text-[#5DE0E6]">Computer Science – Artificial Intelligence</span>,
+          <span className="text-[white]">Computer Science – Artificial Intelligence</span>,
           appassionato di IA e Machine Learning con esperienza in sistemi di raccomandazione
           LLM-driven.
         </p>
