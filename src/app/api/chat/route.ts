@@ -1,205 +1,265 @@
 import { NextResponse } from 'next/server';
+import {
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  generateObject,
+  stepCountIs,
+  streamText,
+  tool,
+  type LanguageModel,
+  type UIMessage,
+} from 'ai';
 import { z } from 'zod';
-import { getVectorStore } from '@/services/rag/vectorStore';
-import { streamText, generateObject, tool } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { semanticCache } from '@/services/rag/semanticCache';
+import { getRetriever, type RetrievedChunk } from '@/lib/rag/retriever';
+import { getProviders } from '@/lib/rag/providers';
+import { SECTIONS } from '@/store/useAppStore';
+
+/**
+ * Pipeline per richiesta (budget ~quello di una sola chiamata LLM,
+ * perché router e retrieval lessicale corrono in parallelo):
+ *
+ *   body { messages, queryVector? }
+ *        │
+ *        ├─ router (llama-3.1-8b-instant, ~100 ms, timeout 1.2 s) ──┐
+ *        │    intent: smalltalk | portfolio | navigate              │
+ *        │    standalone: domanda riscritta self-contained          │
+ *        │                                                          ├─ join
+ *        └─ HybridRetriever: BM25 + cosine(queryVector) + RRF ──────┘
+ *        │
+ *        ├─ writer.write('data-sources')  → chips fonti nella UI
+ *        └─ streamText (llama-3.3-70b-versatile) + tools → merge
+ *
+ * Il vecchio route faceva multi-query expansion (3 riscritture LLM in
+ * serie) su un corpus di ~20 chunk e poi `messages.slice(-1)`:
+ * +1–2 s di latenza per perdere lo storico. Qui lo storico (ultimi 8
+ * messaggi) arriva intero al modello e il rewrite è un solo step
+ * piccolo, non bloccante oltre il timeout.
+ */
 
 export const maxDuration = 30;
 
-const requestSchema = z.object({
-  messages: z.array(z.object({
-    role: z.enum(['user', 'assistant', 'system', 'data', 'tool']),
-    content: z.string().optional().default(''),
-    id: z.string().optional(),
-    toolInvocations: z.array(z.any()).optional(),
-  })).min(1),
+const HISTORY_WINDOW = 8;
+const TOP_K = 4;
+const ROUTER_TIMEOUT_MS = 1200;
+
+// ── Validazione del body ──────────────────────────────────────────────
+const bodySchema = z.object({
+  messages: z.array(z.unknown()).min(1),
+  queryVector: z
+    .array(z.number().finite())
+    .min(8)
+    .max(1024)
+    .nullish(),
 });
 
-function getEnvSafe() {
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-  const isStandardOpenAi = !process.env.OPENROUTER_API_KEY && !!process.env.OPENAI_API_KEY;
-  return {
-    apiKey,
-    baseURL: process.env.OPENROUTER_BASE_URL || (isStandardOpenAi ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1'),
-    site: process.env.OPENROUTER_SITE_URL || 'https://vitopiccolini.dev',
-    title: process.env.OPENROUTER_APP_TITLE || 'Vito Piccolini Copilot',
-    llmModel: process.env.RAG_LLM_MODEL || (isStandardOpenAi ? 'gpt-4o-mini' : 'google/gemini-2.0-flash-exp:free'),
-  };
+const routerSchema = z.object({
+  intent: z.enum(['smalltalk', 'portfolio', 'navigate']),
+  standalone: z
+    .string()
+    .describe('La domanda riscritta in forma autonoma, in italiano.'),
+});
+
+type RouterDecision = z.infer<typeof routerSchema>;
+
+// ── Helpers ───────────────────────────────────────────────────────────
+function textOf(message: UIMessage): string {
+  return (message.parts ?? [])
+    .map((p) => (p.type === 'text' ? p.text : ''))
+    .filter(Boolean)
+    .join(' ')
+    .trim();
 }
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const parsed = requestSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Richiesta non valida.' }, { status: 400 });
+function lastUserText(messages: UIMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') {
+      const t = textOf(messages[i]);
+      if (t) return t;
     }
+  }
+  return '';
+}
 
-    const { messages } = parsed.data;
-    
-    // We only need to run RAG retrieval if the last message is from the user and not a tool response.
-    const lastMessage = messages[messages.length - 1];
-    const isUserMessage = lastMessage.role === 'user';
-    const question = lastMessage.content;
+function recentDialogue(messages: UIMessage[], n = 6): string {
+  return messages
+    .slice(-n)
+    .map((m) => `${m.role === 'user' ? 'Utente' : 'Copilot'}: ${textOf(m)}`)
+    .filter((line) => !line.endsWith(': '))
+    .join('\n');
+}
 
-    const env = getEnvSafe();
-    if (!env) {
-      return NextResponse.json({ error: 'Il copilot non è configurato. Chiave API mancante.' }, { status: 503 });
-    }
+function buildSystemPrompt(sources: RetrievedChunk[]): string {
+  const context =
+    sources.length > 0
+      ? sources
+          .map((s, i) => `[S${i + 1}] (${s.title})\n${s.text}`)
+          .join('\n\n')
+      : '(nessuna fonte recuperata per questa domanda)';
 
-    const aiProvider = createOpenAI({
-      apiKey: env.apiKey,
-      baseURL: env.baseURL,
-      headers: {
-        'HTTP-Referer': env.site,
-        'X-Title': env.title,
-      }
-    });
+  return `Sei il copilot del portfolio di Vito Piccolini, AI engineer (Torino).
+Rispondi SOLO sulla base delle fonti qui sotto e della conversazione. Se l'informazione non c'è, dillo con onestà e suggerisci cosa puoi raccontare invece: non inventare mai date, aziende, numeri o titoli.
 
-    const llmModel = aiProvider(env.llmModel);
+REGOLE
+- Rispondi in italiano (o nella lingua dell'utente), in modo conciso: 2-5 frasi in prosa, niente elenchi puntati se non richiesti.
+- Quando usi una fonte, citala inline con il suo tag, es. [S1].
+- Tono: competente e diretto, mai pomposo.
+- Se l'utente vuole vedere una sezione del sito (progetti, skills, contatti...), chiama il tool navigateToSection.
+- Se chiede di un progetto specifico, puoi affiancare alla risposta il tool showProject con il nome canonico (es. "LACAM-SWAP", "Zenith", "EnLexi", "TerraNode", "The Pulse", "BeFluent").
+- Se chiede una panoramica delle competenze, puoi chiamare showSkillsRadar.
+- Dopo un tool, chiudi sempre con una breve frase di testo.
 
-    let context = '';
-    let sources: { id: string; title: string; summary?: string; tags: string[] }[] = [];
-
-    // RAG Pipeline (only triggered on new user questions)
-    if (isUserMessage && question && question.trim().length > 0) {
-      // 1. Generate query vector for cache & vector search
-      let queryVector: number[] | null = null;
-      try {
-        const { createEmbeddings } = await import('@/services/rag/embeddings');
-        const embeddings = createEmbeddings();
-        queryVector = await embeddings.embedQuery(question);
-        
-        // 2. Semantic Cache Check
-        const cached = await semanticCache.get(queryVector, 0.95);
-        if (cached) {
-            context = `[CACHED ANSWER]: ${cached.answer}`;
-            sources = cached.sources;
-        }
-      } catch (e) {
-        console.error('[RAG] Embeddings/Cache error:', e);
-      }
-
-      // 3. Retrieval Pipeline if no cache hit
-      if (!context) {
-        try {
-          let allQueries = [question];
-
-          // Multi-Query Expansion (wrapped in its own try/catch to prevent catastrophic failure)
-          try {
-            const { object: queryVariants } = await generateObject({
-              model: llmModel,
-              schema: z.object({
-                queries: z.array(z.string()).length(3),
-              }),
-              prompt: `Genera 3 varianti diverse della seguente query per ottimizzare la ricerca in un database vettoriale sul portfolio di Vito Piccolini (es. risolvi acronimi, estrai l'intento principale). Query originale: "${question}"`,
-            });
-            allQueries = [question, ...queryVariants.queries];
-          } catch (expansionError) {
-            console.error('[RAG] Multi-Query Expansion failed, falling back to original query only.', expansionError);
-          }
-
-          // Parallel Retrieval with K=15
-          const vectorStore = await getVectorStore({ k: 15 });
-          
-          const results = await Promise.all(allQueries.map(q => vectorStore.invoke(q)));
-          const allDocs = results.flat();
-
-          // Deduplicate
-          const uniqueDocsMap = new Map();
-          allDocs.forEach(doc => {
-            if (!uniqueDocsMap.has(doc.metadata.id)) uniqueDocsMap.set(doc.metadata.id, doc);
-          });
-          const uniqueDocs = Array.from(uniqueDocsMap.values());
-
-          // Take top 3 directly (Skipping LLM Reranking for lower latency)
-          if (uniqueDocs.length > 0) {
-             const finalDocs = uniqueDocs.slice(0, 3);
-             
-             context = finalDocs
-                 .map((doc, idx) => {
-                 const title = (doc.metadata?.title as string) || `Fonte ${idx + 1}`;
-                 return `### ${title}\n${doc.pageContent}`;
-                 })
-                 .join('\n\n');
-
-             sources = finalDocs.map((doc, idx) => ({
-                 id: (doc.metadata?.id as string) || `source-${idx + 1}`,
-                 title: (doc.metadata?.title as string) || `Fonte ${idx + 1}`,
-                 summary: doc.metadata?.summary as string | undefined,
-                 tags: (doc.metadata?.tags as string[]) || [],
-             }));
-          }
-        } catch (vectorError) {
-          console.error('[RAG] Vector store error, continuing without context', vectorError);
-        }
-      }
-    }
-
-    const systemPrompt = `Sei il copilot AI ufficiale del portfolio di Vito Piccolini, un Agente Spaziale avanzato.
-
-REGOLE ASSOLUTE:
-1. Usa lo storico della chat SOLO per capire il contesto (es. se l'utente dice "e quanto è durato?"). NON ripetere MAI risposte che hai già dato, non fare riassunti delle discussioni precedenti e non rispondere di nuovo a vecchie domande. Rispondi DIRETTAMENTE e UNICAMENTE all'ultima richiesta.
-2. I contatti pubblici di Vito sono:
+CONTATTI PUBBLICI (puoi condividerli liberamente)
 - Email: vitopiccolini@live.it
 - LinkedIn: https://www.linkedin.com/in/vito-p-9120028a/
 - GitHub: https://github.com/Hellvisback365
-Se l'utente chiede questi dati, SCRIVI I LINK DIRETTAMENTE NELLA RISPOSTA TESTUALE e poi usa il tool per portarlo alla sezione contatti. Non fornire numeri di telefono privati.
-2. Rispondi in italiano in modo conciso, brillante e professionale.
-3. Se appropriato, usa il tool 'MapsPortfolioSection' per muovere la telecamera verso la sezione giusta (ad esempio "contatti", "progetti", "home"). ATTENZIONE: devi SEMPRE scrivere la tua risposta discorsiva PRIMA di invocare il tool. Scrivi tutto quello che hai da dire e solo alla fine chiama il tool.
-4. Se l'utente chiede le tue competenze o stack tecnologico, USA IL TOOL 'showSkillsRadar'.
-5. Se l'utente chiede un progetto specifico, USA IL TOOL 'showProjectCard'.
 
-Contesto disponibile dal portfolio di Vito:
-${context || 'Nessun contesto specifico trovato per questa domanda.'}
-`;
+FONTI
+${context}`;
+}
 
-    const coreMessages = messages
-      .slice(-1) // Prendi SOLO l'ultimo messaggio per evitare allucinazioni e riassunti
-      .filter((m: any) => m.role === 'user')
-      .map((m: any) => {
-        return { role: m.role, content: m.content || '' };
-      }).filter((m: any) => m.content.trim().length > 0);
+async function routeQuery(
+  router: LanguageModel,
+  dialogue: string,
+  fallbackQuestion: string,
+): Promise<RouterDecision> {
+  const fallback: RouterDecision = {
+    intent: 'portfolio',
+    standalone: fallbackQuestion,
+  };
+  if (!fallbackQuestion) return { intent: 'smalltalk', standalone: '' };
 
-    const result = streamText({
-      model: llmModel,
-      messages: coreMessages,
-      system: systemPrompt,
-      tools: {
-        MapsPortfolioSection: tool({
-          description: 'Naviga e muovi la telecamera 3D verso una specifica sezione del portfolio (home, about, skills, projects, contact).',
-          parameters: z.object({
-            section: z.string().describe('Il nome della sezione a cui navigare. Valori supportati: hero, about, skills, projects, contact.').optional(),
-          }),
-          execute: async (args: any) => `Comando di navigazione 3D inviato al client per la sezione: ${args.section || 'sconosciuta'}`,
-        } as any),
-        showSkillsRadar: tool({
-          description: 'Mostra un grafico radar visuale con le competenze (skills) di Vito.',
-          parameters: z.object({}),
-          execute: async () => 'Radar competenze mostrato al client.',
-        } as any),
-        showProjectCard: tool({
-          description: 'Mostra la card dettagliata di un progetto specifico richiesto dall\'utente.',
-          parameters: z.object({
-            projectName: z.string().describe('Il nome del progetto da visualizzare.'),
-          }),
-          execute: async (args: any) => `Card progetto inviata al client per: ${args.projectName}`,
-        } as any),
-      },
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ROUTER_TIMEOUT_MS);
+  try {
+    const { object } = await generateObject({
+      model: router,
+      schema: routerSchema,
+      abortSignal: controller.signal,
+      temperature: 0,
+      prompt: `Classifica l'ultimo messaggio dell'utente in una chat sul portfolio di Vito Piccolini.
+
+intent:
+- "smalltalk": saluti, ringraziamenti, chiacchiere non legate al portfolio
+- "navigate": l'utente chiede esplicitamente di vedere/aprire una sezione del sito
+- "portfolio": domande su Vito (progetti, tesi, esperienze, skills, formazione, contatti)
+
+standalone: riscrivi l'ultimo messaggio come domanda autonoma e completa in italiano, risolvendo i pronomi con il contesto della conversazione (es. "e in quel progetto?" -> "Che ruolo ha avuto Vito nel progetto Zenith?"). Per smalltalk usa stringa vuota.
+
+CONVERSAZIONE
+${dialogue}`,
     });
-
-    // @ts-ignore
-    return result.toUIMessageStreamResponse({
-      headers: {
-        'x-rag-sources': Buffer.from(JSON.stringify(sources)).toString('base64')
-      }
-    });
-
-  } catch (error: any) {
-    console.error('[RAG] API error:', error?.message || error);
-    const message = error?.message || 'Errore interno sconosciuto.';
-    return NextResponse.json({ error: `Errore del copilot: ${message}` }, { status: 500 });
+    return object;
+  } catch {
+    // Timeout o errore del router: la chat non deve accorgersene.
+    return fallback;
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+// ── Route ─────────────────────────────────────────────────────────────
+export async function POST(req: Request) {
+  const providers = getProviders();
+  if (!providers) {
+    return NextResponse.json(
+      {
+        error:
+          'Copilot non configurato: aggiungi GROQ_API_KEY (gratuita su console.groq.com) alle variabili d\'ambiente.',
+      },
+      { status: 503 },
+    );
+  }
+
+  let parsed: z.infer<typeof bodySchema>;
+  try {
+    parsed = bodySchema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: 'Body non valido.' }, { status: 400 });
+  }
+
+  const messages = parsed.messages as UIMessage[];
+  const queryVector = parsed.queryVector ?? null;
+  const question = lastUserText(messages);
+  const history = messages.slice(-HISTORY_WINDOW);
+
+  // Router e retriever partono insieme: il retrieval lessicale sulla
+  // domanda grezza copre il caso in cui il router scada in timeout.
+  const retrieverPromise = getRetriever();
+  const decisionPromise = routeQuery(
+    providers.router,
+    recentDialogue(history),
+    question,
+  );
+
+  const [retriever, decision] = await Promise.all([
+    retrieverPromise,
+    decisionPromise,
+  ]);
+
+  let sources: RetrievedChunk[] = [];
+  if (decision.intent !== 'smalltalk' && question) {
+    const rewritten = decision.standalone.trim();
+    // Il vettore è stato calcolato dal client sulla domanda originale:
+    // lo usiamo com'è; la gamba BM25 beneficia invece del rewrite.
+    sources = retriever.retrieve(rewritten || question, queryVector, TOP_K);
+    if (sources.length === 0 && rewritten && rewritten !== question) {
+      sources = retriever.retrieve(question, queryVector, TOP_K);
+    }
+  }
+
+  const result = streamText({
+    model: providers.chat,
+    system: buildSystemPrompt(sources),
+    messages: await convertToModelMessages(history),
+    temperature: 0.4,
+    stopWhen: stepCountIs(3),
+    tools: {
+      navigateToSection: tool({
+        description:
+          'Scorri il sito verso una sezione. Usalo quando l\'utente chiede di vedere o aprire una parte del portfolio.',
+        inputSchema: z.object({
+          section: z.enum(SECTIONS),
+        }),
+        execute: async ({ section }) => ({ ok: true, section }),
+      }),
+      showProject: tool({
+        description:
+          'Mostra una card riassuntiva di un progetto specifico accanto alla risposta.',
+        inputSchema: z.object({
+          projectName: z
+            .string()
+            .describe('Nome canonico del progetto, es. "LACAM-SWAP" o "Zenith".'),
+        }),
+        execute: async ({ projectName }) => ({ ok: true, projectName }),
+      }),
+      showSkillsRadar: tool({
+        description:
+          'Mostra una panoramica visuale dello stack di competenze di Vito.',
+        inputSchema: z.object({}),
+        execute: async () => ({ ok: true }),
+      }),
+    },
+  });
+
+  const stream = createUIMessageStream({
+    execute: ({ writer }) => {
+      writer.write({ type: 'start' });
+      if (sources.length > 0) {
+        writer.write({
+          type: 'data-sources',
+          data: sources.map((s, i) => ({
+            tag: `S${i + 1}`,
+            id: s.id,
+            title: s.title,
+            category: s.category,
+            score: Math.round(s.score * 1e4) / 1e4,
+          })),
+        });
+      }
+      writer.merge(result.toUIMessageStream({ sendStart: false }));
+    },
+  });
+
+  return createUIMessageStreamResponse({ stream });
 }

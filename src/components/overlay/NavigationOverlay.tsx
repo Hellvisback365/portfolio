@@ -1,147 +1,147 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-
 import { useLenis } from 'lenis/react';
+import { SECTIONS, type SectionId } from '@/store/useAppStore';
 
-const SECTIONS = [
-  { id: 'hero', label: 'Home' },
-  { id: 'about', label: 'About' },
-  { id: 'skills', label: 'Skills' },
-  { id: 'projects', label: 'Projects' },
-  { id: 'contact', label: 'Contact' },
-];
+const LABELS: Record<SectionId, string> = {
+  hero: 'Home',
+  about: 'About',
+  skills: 'Skills',
+  projects: 'Projects',
+  contact: 'Contact',
+};
 
+/**
+ * Stessa UX di prima, costo diverso: gli offsetTop delle sezioni sono
+ * misurati una volta (e su resize), non a ogni evento di scroll; lo
+ * scroll handler è coalizzato in un singolo rAF. Niente reflow nel
+ * percorso caldo.
+ */
 export default function NavigationOverlay() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [scrollProgress, setScrollProgress] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const offsets = useRef<number[]>([]);
+  const ticking = useRef(false);
   const lenis = useLenis();
 
-  // Listen for native window scroll events
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-      
-      if (scrollHeight <= 0) return;
-
-      const progress = scrollTop / scrollHeight;
-      setScrollProgress(progress);
-
-      // Find the currently active section based on actual scroll position
-      let currentSection = 0;
-      for (let i = 0; i < SECTIONS.length; i++) {
-        const el = document.getElementById(SECTIONS[i].id);
-        if (el && scrollTop >= el.offsetTop - window.innerHeight / 2) {
-          currentSection = i;
-        }
-      }
-      setActiveIndex(currentSection);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    // Initial check
-    handleScroll();
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+  const measure = useCallback(() => {
+    offsets.current = SECTIONS.map((id) => {
+      const el = document.getElementById(id);
+      return el ? el.offsetTop : 0;
+    });
   }, []);
 
-
-
-  const scrollToSection = useCallback((index: number) => {
-    const el = document.getElementById(SECTIONS[index].id);
-    if (!el) return;
-    
-    const targetScroll = el.offsetTop;
-
-    if (lenis) {
-      lenis.scrollTo(targetScroll, { duration: 1.2, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
-    } else {
-      window.scrollTo({
-        top: targetScroll,
-        behavior: 'smooth',
-      });
-    }
-  }, [lenis]);
-
   useEffect(() => {
-    const handleNavigate = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const sectionId = customEvent.detail?.section;
-      const index = SECTIONS.findIndex(s => s.id === sectionId);
-      if (index !== -1) {
-        scrollToSection(index);
-      }
+    measure();
+    const onScroll = () => {
+      if (ticking.current) return;
+      ticking.current = true;
+      requestAnimationFrame(() => {
+        ticking.current = false;
+        const y = window.scrollY;
+        const limit = document.documentElement.scrollHeight - window.innerHeight;
+        setProgress(limit > 0 ? y / limit : 0);
+        const threshold = y + window.innerHeight / 2;
+        let current = 0;
+        for (let i = 0; i < offsets.current.length; i++) {
+          if (threshold >= offsets.current[i]) current = i;
+        }
+        setActiveIndex(current);
+      });
     };
-    window.addEventListener('navigate-section', handleNavigate);
-    return () => window.removeEventListener('navigate-section', handleNavigate);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', measure, { passive: true });
+    onScroll();
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', measure);
+    };
+  }, [measure]);
+
+  const scrollToSection = useCallback(
+    (index: number) => {
+      const el = document.getElementById(SECTIONS[index]);
+      if (!el) return;
+      if (lenis) {
+        lenis.scrollTo(el.offsetTop, {
+          duration: 1.2,
+          easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        });
+      } else {
+        window.scrollTo({ top: el.offsetTop, behavior: 'smooth' });
+      }
+    },
+    [lenis],
+  );
+
+  // Canale per la navigazione programmata (copilot, CTA).
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const section = (event as CustomEvent).detail?.section as string | undefined;
+      const index = SECTIONS.indexOf(section as SectionId);
+      if (index !== -1) scrollToSection(index);
+    };
+    window.addEventListener('navigate-section', handler);
+    return () => window.removeEventListener('navigate-section', handler);
   }, [scrollToSection]);
 
   return (
     <>
-      {/* ─── Top progress bar ─── */}
-      <div className="fixed left-0 right-0 top-0 z-40 h-[2px] bg-white/5">
-        <motion.div
-          className="h-full bg-white"
-          style={{ width: `${scrollProgress * 100}%` }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      {/* Barra di avanzamento */}
+      <div className="fixed left-0 right-0 top-0 z-40 h-px bg-white/5">
+        <div
+          className="h-full bg-accent transition-[width] duration-150 ease-out"
+          style={{ width: `${progress * 100}%` }}
         />
       </div>
 
-      {/* ─── Top name / logo ─── */}
+      {/* Monogramma */}
       <div className="fixed left-6 top-4 z-40">
         <motion.p
-          initial={{ opacity: 0, x: -10 }}
+          initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
-          className="text-sm font-semibold tracking-[0.2em] text-[white]/70"
+          className="font-mono text-xs tracking-[0.3em] text-[var(--text-secondary)]"
         >
           VP
         </motion.p>
       </div>
 
-      {/* ─── Navigation dots (right side) ─── */}
+      {/* Dot di sezione */}
       <nav className="fixed right-6 top-1/2 z-40 -translate-y-1/2" aria-label="Sezioni">
         <div className="flex flex-col items-end gap-4">
-          {SECTIONS.map((section, index) => (
+          {SECTIONS.map((id, index) => (
             <button
-              key={section.id}
+              key={id}
               type="button"
               onClick={() => scrollToSection(index)}
-              className="group flex items-center gap-3"
-              aria-label={`Vai a ${section.label}`}
+              className="group flex min-h-0 min-w-0 items-center gap-3 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+              aria-label={`Vai a ${LABELS[id]}`}
               aria-current={activeIndex === index ? 'true' : undefined}
             >
-              {/* Label (visible on hover) */}
               <span
-                className={`text-[0.6rem] uppercase tracking-[0.3em] transition-all duration-300 ${
+                className={`font-mono text-[0.58rem] uppercase tracking-[0.3em] transition-all duration-300 ${
                   activeIndex === index
-                    ? 'text-[white] opacity-100'
+                    ? 'text-accent-soft opacity-100'
                     : 'text-white/0 group-hover:text-white/50'
                 }`}
               >
-                {section.label}
+                {LABELS[id]}
               </span>
-
-              {/* Dot */}
               <span className="relative flex items-center justify-center">
-                {/* Active ring */}
                 {activeIndex === index && (
                   <motion.span
                     layoutId="active-dot"
-                    className="absolute h-4 w-4 rounded-full border border-[white]/40"
+                    className="absolute h-4 w-4 rounded-full border border-accent/50"
                     transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   />
                 )}
-                {/* Inner dot */}
                 <span
                   className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
                     activeIndex === index
-                      ? 'bg-[white] shadow-[0_0_8px_rgba(255,255,255,0.5)]'
+                      ? 'bg-accent shadow-[0_0_10px_rgb(10_132_255/0.6)]'
                       : 'bg-white/20 group-hover:bg-white/50'
                   }`}
                 />

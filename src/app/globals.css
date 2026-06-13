@@ -1,156 +1,147 @@
-/* Importazioni prima di tutto il resto */
 @import "tailwindcss";
 @import "../styles/breakpoints.css";
 
-/* ═══════════════════════════════════════════════
-   3D IMMERSIVE PORTFOLIO — DARK-ONLY THEME
-   ═══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   DESIGN SYSTEM v2 — "Phyllotaxis"
+   Ink-blue scuro, accento blu sistema, hairline, niente neon.
+   I token legacy `neural-*` (usati ~110 volte negli overlay
+   esistenti) sono definiti qui come alias dei nuovi token:
+   prima di questa @theme NON esistevano e generavano CSS vuoto.
+   ═══════════════════════════════════════════════════════════ */
 
-:root {
-  --scene-bg: #030303;
-  --accent-white: #FFFFFF;
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-border-hover: rgba(255, 255, 255, 0.2);
-  --text-primary: #FFFFFF;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --text-muted: rgba(255, 255, 255, 0.4);
+@theme {
+  /* — Palette — */
+  --color-ink: #04060c;            /* fondo scena, blu-nero profondo */
+  --color-surface: #0a0f1c;        /* pannelli */
+  --color-accent: #0a84ff;         /* blu sistema (dominante) */
+  --color-accent-soft: #64a8ff;    /* blu chiaro, hover/dettagli */
+  --color-accent-deep: #1d4ed8;    /* blu profondo, gradienti */
+  --color-leaf: #34d399;           /* tocco organico, usato con parsimonia */
+  --color-line: rgb(148 178 255 / 0.14);  /* hairline */
 
-  /* Overlays */
-  --overlay-bg: rgba(0, 0, 0, 0.4);
+  /* — Alias legacy (retro-compatibilità overlay esistenti) — */
+  --color-neural-cyan: var(--color-accent-soft);
+  --color-neural-magenta: var(--color-accent-deep);
+  --color-neural-blue: var(--color-accent);
+  --color-neural-indigo: var(--color-accent-deep);
+  --color-neural-accent: var(--color-accent);
+  --color-neural-card: rgb(10 15 28 / 0.7);
+  --color-neural-void: var(--color-ink);
+
+  --shadow-neural-glow: 0 0 24px rgb(10 132 255 / 0.25);
+
+  /* — Tipografia (iniettata da next/font in layout.tsx) — */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", monospace;
 }
 
-/* ─── Full-screen lockdown for 3D canvas ─── */
+:root {
+  --scene-bg: var(--color-ink);
+  --glass-bg: rgb(13 20 38 / 0.55);
+  --glass-border: var(--color-line);
+  --glass-border-hover: rgb(100 168 255 / 0.35);
+  --text-primary: #f2f6ff;
+  --text-secondary: rgb(214 226 255 / 0.72);
+  --text-muted: rgb(214 226 255 / 0.4);
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
-  width: 100vw;
   min-height: 100vh;
   background: var(--scene-bg);
   color: var(--text-primary);
-  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
 }
 
-/* ─── Glassmorphism Utility Classes ─── */
+::selection {
+  background: rgb(10 132 255 / 0.35);
+}
+
+/* ─── Utility ─── */
 @layer utilities {
   .glass-panel {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px) saturate(1.3);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
   }
 
+  /* alias legacy mantenuto: stessa resa del nuovo glass */
   .glass-holographic {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    box-shadow:
-      0 0 30px rgba(255, 255, 255, 0.05),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(24px) saturate(1.3);
+    -webkit-backdrop-filter: blur(24px) saturate(1.3);
+    box-shadow: 0 0 30px rgb(10 132 255 / 0.06),
+      inset 0 1px 0 rgb(160 196 255 / 0.08);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
   }
-
   .glass-holographic:hover {
     border-color: var(--glass-border-hover);
-    box-shadow:
-      0 0 40px rgba(255, 255, 255, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 40px rgb(10 132 255 / 0.12),
+      inset 0 1px 0 rgb(160 196 255 / 0.12);
   }
 
-  .glow-white {
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1),
-                0 0 60px rgba(255, 255, 255, 0.05);
+  .glow-white { box-shadow: 0 0 24px rgb(10 132 255 / 0.18); }
+  .glow-text-white,
+  .glow-text-cyan { text-shadow: 0 0 28px rgb(100 168 255 / 0.35); }
+
+  /* etichetta "engineer": mono, maiuscolo, tracking largo */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--color-accent-soft);
   }
 
-  .glow-text-white {
-    text-shadow: 0 0 20px rgba(255, 255, 255, 0.2),
-                 0 0 40px rgba(255, 255, 255, 0.1);
-  }
+  .hairline { border-color: var(--color-line); }
 
   .animate-blink {
-    @apply inline-block;
+    display: inline-block;
     animation: blink-cursor 0.8s steps(2) infinite;
   }
 
   .neural-grid-overlay::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
-    background-image: linear-gradient(
-        rgba(255, 255, 255, 0.02) 1px,
-        transparent 1px
-      ),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-    background-size: 40px 40px;
-    opacity: 0.25;
+    background-image: linear-gradient(rgb(100 168 255 / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(100 168 255 / 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.35;
     pointer-events: none;
   }
 }
 
-/* ─── Animations ─── */
 @keyframes blink-cursor {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
 
-@keyframes glow-pulse {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.05),
-                0 0 60px rgba(255, 255, 255, 0.02);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(255, 255, 255, 0.1),
-                0 0 80px rgba(255, 255, 255, 0.05);
-  }
-}
-
-@keyframes border-glow {
-  0%, 100% { border-color: rgba(255, 255, 255, 0.1); }
-  50% { border-color: rgba(255, 255, 255, 0.2); }
-}
-
-/* ─── Scrollbar (for overlay panels with internal scroll) ─── */
-::-webkit-scrollbar {
-  width: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgb(100 168 255 / 0.22);
   border-radius: 2px;
 }
+::-webkit-scrollbar-thumb:hover { background: rgb(100 168 255 / 0.45); }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
+/* ─── iOS input zoom fix ─── */
+input, select, textarea { font-size: 16px; }
 
-/* ─── Fix for iOS input zooming ─── */
-input, select, textarea {
-  font-size: 16px;
-}
-
-/* ─── Canvas container ─── */
-.canvas-container {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-}
-
-/* ─── Overlay container (outside Canvas, above it) ─── */
-.overlay-fixed {
-  position: fixed;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.overlay-fixed > * {
-  pointer-events: auto;
+/* ─── Accessibilità: riduzione movimento ─── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

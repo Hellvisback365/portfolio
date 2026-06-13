@@ -1,62 +1,59 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
-import { Suspense, useEffect } from 'react';
-import Scene from '@/components/canvas/Scene';
+import dynamic from 'next/dynamic';
+import { ReactLenis, useLenis } from 'lenis/react';
 import HtmlOverlay from '@/components/overlay/HtmlOverlay';
-import RagChatOverlay from '@/components/overlay/RagChatOverlay';
 import NavigationOverlay from '@/components/overlay/NavigationOverlay';
-import { ReactLenis } from 'lenis/react';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import CopilotOverlay from '@/components/overlay/CopilotOverlay';
+import { scrollProgress, SECTIONS } from '@/store/useAppStore';
+
+// Il canvas è client-only e fuori dal critical path: la pagina (testo,
+// SEO, a11y) è servita subito, il WebGL arriva un istante dopo.
+const Experience = dynamic(() => import('@/components/canvas/Experience'), {
+  ssr: false,
+});
 
 /**
- * Main page — 3D immersive portfolio.
- *
- * Architecture Refactored:
- * - ReactLenis for native smooth scrolling
- * - Full-screen fixed <Canvas> as background
- * - Normal HTML flow for overlays (no longer inside <ScrollControls>)
+ * Unica fonte di verità dello scroll: il callback di Lenis scrive nel
+ * canale transiente dello store. Il loop WebGL legge `scrollProgress`
+ * via ref — nessuna lettura di layout dentro requestAnimationFrame,
+ * nessun re-render React per frame.
  */
+function ScrollBridge() {
+  useLenis((lenis) => {
+    const p = lenis.limit > 0 ? lenis.scroll / lenis.limit : 0;
+    scrollProgress.value = p;
+    scrollProgress.stage = p * (SECTIONS.length - 1);
+  });
+  return null;
+}
+
 export default function Home() {
-  useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
-  }, []);
-
   return (
-    <ReactLenis root options={{ lerp: 0.05, wheelMultiplier: 1 }}>
+    <ReactLenis root options={{ lerp: 0.08, wheelMultiplier: 1 }}>
+      <ScrollBridge />
       <div className="relative w-full">
-        
-        {/* Fixed 3D Canvas Background */}
-        <div className="fixed inset-0 z-0 h-screen w-screen">
-          <Canvas
-            camera={{ fov: 50, position: [0, 0, 20], near: 0.1, far: 150 }}
-            gl={{
-              antialias: true,
-              alpha: false,
-              powerPreference: 'high-performance',
+        {/* Sfondo 3D fisso */}
+        <div className="fixed inset-0 z-0 h-dvh w-screen" aria-hidden="true">
+          <Experience />
+          {/* Vignettatura: lega i punti al fondale e protegge la leggibilità */}
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(ellipse 80% 60% at 50% 45%, transparent 35%, rgba(4,6,12,0.55) 100%)',
             }}
-            dpr={[1, 1.5]}
-            style={{ background: '#030303' }}
-          >
-            <Suspense fallback={null}>
-              <Scene />
-            </Suspense>
-          </Canvas>
+          />
         </div>
 
-        {/* Scrollable DOM Overlay */}
-        <div className="relative z-10 w-full pointer-events-none">
-          <div className="pointer-events-auto">
-            <HtmlOverlay />
-          </div>
+        {/* Contenuto DOM scrollabile */}
+        <div className="relative z-10 w-full">
+          <HtmlOverlay />
         </div>
 
-        {/* Overlays (fixed position, above everything) */}
-        <div className="pointer-events-auto">
-          <NavigationOverlay />
-          <RagChatOverlay />
-        </div>
+        {/* Layer fissi */}
+        <NavigationOverlay />
+        <CopilotOverlay />
       </div>
     </ReactLenis>
   );

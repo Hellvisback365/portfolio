@@ -1,84 +1,73 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import Badge from '@/components/ui/Badge';
-import CTAButton from '@/components/ui/CTAButton';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useAppStore } from '@/store/useAppStore';
 
-const text = `Ciao, mi chiamo`;
-const name = `Vito Piccolini`;
+const STACK = ['Python', 'LangGraph', 'RAG ibrido · BM25 + FAISS', 'React · Next.js', 'n8n'];
 
-const stackBadges = [
-  'Python',
-  'LangGraph · LangChain',
-  'n8n Automations',
-  'React · Next.js',
-  'Gemini · Ollama',
-];
-
+/**
+ * La hero è una tesi: nome, una frase che dice cosa costruisci,
+ * e la prova interattiva (il copilot) a un tap di distanza.
+ * Una sola famiglia tipografica a pesi disciplinati, mono per le label.
+ */
 export default function HeroOverlay() {
-  return (
-    <div className="flex min-h-screen w-screen items-center justify-center px-6">
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.3 }}
-        className="flex max-w-3xl flex-col items-center gap-6 text-center"
-      >
-        <Badge variant="glow">Disponibile per progetti AI</Badge>
+  const setCopilotOpen = useAppStore((s) => s.setCopilotOpen);
+  const reduced = useReducedMotion();
 
-        <h1 className="text-4xl font-light leading-tight tracking-tight text-white/90 sm:text-5xl md:text-6xl lg:text-7xl">
-          {text}
-          <br />
-          <span className="font-semibold glow-text-cyan text-white">{name}</span>
+  return (
+    <div className="flex min-h-dvh w-full items-center justify-center px-6">
+      <motion.div
+        initial={reduced ? false : { opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+        className="flex max-w-3xl flex-col items-center gap-7 text-center"
+      >
+        <p className="eyebrow">AI Engineer — RecSys · RAG · Agents</p>
+
+        <h1 className="text-5xl font-extralight leading-[1.05] tracking-[-0.03em] text-white sm:text-6xl md:text-7xl">
+          Vito Piccolini
+          <span className="text-accent">.</span>
         </h1>
 
-        <p className="max-w-2xl text-base text-white/60 sm:text-lg">
-          Laureando magistrale in{' '}
-          <span className="text-[white]">Computer Science – Artificial Intelligence</span>,
-          appassionato di IA e Machine Learning con esperienza in sistemi di raccomandazione
-          LLM-driven.
+        <p className="max-w-xl text-balance text-base font-light leading-relaxed text-[var(--text-secondary)] sm:text-lg">
+          Costruisco sistemi di raccomandazione e copiloti AI che ragionano
+          su dati reali — dall'orchestrazione multi-agente al retrieval ibrido.
         </p>
 
-        <div className="flex flex-wrap justify-center gap-2">
-          {stackBadges.map((badge) => (
-            <span
-              key={badge}
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium tracking-wide text-white/70 backdrop-blur-sm"
-            >
-              {badge}
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-mono text-[0.62rem] uppercase tracking-[0.22em] text-[var(--text-muted)]">
+          {STACK.map((item, i) => (
+            <span key={item} className="flex items-center gap-5">
+              {i > 0 && <span className="text-accent/40">·</span>}
+              {item}
             </span>
           ))}
         </div>
 
-        <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-          <CTAButton href="#contact" variant="primary">
-            Contattami
-          </CTAButton>
-          <CTAButton href="#projects" variant="secondary">
+        <div className="flex flex-col gap-3 pt-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => setCopilotOpen(true)}
+            className="rounded-full bg-accent px-7 py-3 text-sm font-medium text-white transition-all hover:bg-accent-soft hover:shadow-[0_0_32px_rgb(10_132_255/0.45)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            Parla con il mio copilot
+          </button>
+          <a
+            href="#projects"
+            className="rounded-full border border-line px-7 py-3 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-accent-soft/50 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
             Vedi i progetti
-          </CTAButton>
+          </a>
         </div>
 
-        {/* Scroll indicator */}
         <motion.div
-          className="mt-8 flex flex-col items-center gap-2 text-white/40"
-          animate={{ y: [0, 6, 0] }}
-          transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+          className="mt-10 flex flex-col items-center gap-2 text-[var(--text-muted)]"
+          animate={reduced ? undefined : { y: [0, 6, 0] }}
+          transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
+          aria-hidden="true"
         >
-          <span className="text-[0.6rem] uppercase tracking-[0.5em]">Scorri</span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M19 9l-7 7-7-7"
-            />
+          <span className="font-mono text-[0.58rem] uppercase tracking-[0.5em]">Scorri</span>
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.25} d="M19 9l-7 7-7-7" />
           </svg>
         </motion.div>
       </motion.div>
