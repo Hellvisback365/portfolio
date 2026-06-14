@@ -38,7 +38,7 @@ const interestItems = [
 
 const socialLinks = [
   { icon: <FaGithub />, href: 'https://github.com/Hellvisback365', label: 'GitHub' },
-  { icon: <FaLinkedin />, href: 'https://www.linkedin.com/in/vito-p-9120028a/', label: 'LinkedIn' },
+  { icon: <FaLinkedin />, href: 'https://www.linkedin.com/in/vitopiccolini/', label: 'LinkedIn' },
   { icon: <FaEnvelope />, href: 'mailto:vitopiccolini@live.it', label: 'Email' },
 ];
 

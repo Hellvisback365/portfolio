@@ -48,7 +48,7 @@ const contactDetails = [
 
 const socialLinks = [
   { icon: <FaGithub className="h-4 w-4" />, href: 'https://github.com/Hellvisback365', label: 'GitHub' },
-  { icon: <FaLinkedin className="h-4 w-4" />, href: 'https://www.linkedin.com/in/vito-p-9120028a/', label: 'LinkedIn' },
+  { icon: <FaLinkedin className="h-4 w-4" />, href: 'https://www.linkedin.com/in/vitopiccolini/', label: 'LinkedIn' },
   { icon: <FaEnvelope className="h-4 w-4" />, href: 'mailto:vitopiccolini@live.it', label: 'Email' },
 ];
 

@@ -107,11 +107,11 @@ REGOLE
 - Se l'utente vuole vedere una sezione del sito (progetti, skills, contatti...), chiama il tool navigateToSection.
 - Se chiede di un progetto specifico, puoi affiancare alla risposta il tool showProject con il nome canonico (es. "LACAM-SWAP", "Zenith", "EnLexi", "TerraNode", "The Pulse", "BeFluent").
 - Se chiede una panoramica delle competenze, puoi chiamare showSkillsRadar.
-- Dopo un tool, chiudi sempre con una breve frase di testo.
+- Includi SEMPRE la risposta testuale completa nello STESSO messaggio in cui chiami un tool: prima scrivi la risposta in prosa, poi chiama il tool. Non chiamare mai un tool senza accompagnarlo dal testo e non ripetere due volte la stessa risposta.
 
 CONTATTI PUBBLICI (puoi condividerli liberamente)
 - Email: vitopiccolini@live.it
-- LinkedIn: https://www.linkedin.com/in/vito-p-9120028a/
+- LinkedIn: https://www.linkedin.com/in/vitopiccolini/
 - GitHub: https://github.com/Hellvisback365
 
 FONTI
@@ -213,7 +213,7 @@ export async function POST(req: Request) {
     system: buildSystemPrompt(sources),
     messages: await convertToModelMessages(history),
     temperature: 0.4,
-    stopWhen: stepCountIs(3),
+    stopWhen: stepCountIs(1),
     tools: {
       navigateToSection: tool({
         description:

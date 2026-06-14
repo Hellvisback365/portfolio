@@ -193,7 +193,14 @@ export default function CopilotOverlay() {
         if (part.state !== 'output-available') return null;
         const args = part.input as { projectName?: string } | undefined;
         return args?.projectName ? (
-          <ProjectCard key={key} projectName={args.projectName} />
+          <ProjectCard
+            key={key}
+            projectName={args.projectName}
+            onExplore={() => {
+              flyToSection('projects');
+              setCopilotOpen(false);
+            }}
+          />
         ) : null;
       }
       case 'tool-showSkillsRadar':
