@@ -82,9 +82,8 @@ function EmbedderDot({ state }: { state: EmbedderState }) {
   return (
     <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-white/40">
       <span
-        className={`h-1.5 w-1.5 rounded-full ${
-          state === 'ready' ? 'bg-leaf' : 'animate-pulse bg-accent-soft'
-        }`}
+        className={`h-1.5 w-1.5 rounded-full ${state === 'ready' ? 'bg-leaf' : 'animate-pulse bg-accent-soft'
+          }`}
       />
       {label}
     </span>
@@ -120,6 +119,7 @@ export default function CopilotOverlay() {
   const processedTools = useRef<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inFlightRef = useRef(false);
 
   const transport = useMemo(
     () => new DefaultChatTransport({ api: '/api/chat' }),
@@ -128,12 +128,34 @@ export default function CopilotOverlay() {
   const { messages, sendMessage, status, error } = useChat({ transport });
   const busy = status === 'submitted' || status === 'streaming';
 
-  // Warmup del modello di embedding all'apertura del pannello.
+  // Sottoscrizione permanente allo stato dell'embedder.
+  useEffect(() => subscribeEmbedder(setEmbedderState), []);
+
+  // Warmup in background appena la pagina è idle (non all'apertura del
+  // pannello): così il modello è quasi sempre già caldo quando l'utente
+  // scrive, e la prima risposta è già ibrida invece che solo-BM25.
   useEffect(() => {
-    if (!copilotOpen) return;
-    warmupEmbedder();
-    textareaRef.current?.focus();
-    return subscribeEmbedder(setEmbedderState);
+    if (typeof window === 'undefined') return;
+    const w = window as typeof window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    let idleId = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    if (w.requestIdleCallback) {
+      idleId = w.requestIdleCallback(() => warmupEmbedder(), { timeout: 4000 });
+    } else {
+      timeoutId = setTimeout(() => warmupEmbedder(), 2500);
+    }
+    return () => {
+      if (idleId && w.cancelIdleCallback) w.cancelIdleCallback(idleId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
+  // Focus sulla textarea quando il pannello si apre.
+  useEffect(() => {
+    if (copilotOpen) textareaRef.current?.focus();
   }, [copilotOpen]);
 
   // Side-effect dei tool di navigazione: una sola volta per toolCallId.
@@ -163,13 +185,28 @@ export default function CopilotOverlay() {
   }, [messages, status, reduceMotion]);
 
   const submit = useCallback(
-    async (raw?: string) => {
+    (raw?: string) => {
       const text = (raw ?? input).trim();
-      if (!text || busy) return;
+      // Lock sincrono: il guard `busy` diventa true solo DOPO sendMessage,
+      // quindi durante il calcolo dell'embedding non protegge da un doppio
+      // invio. Questo ref si imposta subito e rende submit idempotente.
+      if (!text || busy || inFlightRef.current) return;
+      inFlightRef.current = true;
       setInput('');
-      // Budget di 2 s per il vettore: oltre, si degrada a BM25-only.
-      const queryVector = await withTimeout(embedQuery(text), 2000, null);
-      sendMessage({ text }, { body: { queryVector } });
+      // Non blocchiamo l'invio sull'embedding: se il modello è già caldo
+      // alleghiamo il vettore (attesa breve e limitata), altrimenti partiamo
+      // subito in BM25-only. Niente freeze in attesa del download del modello.
+      const attachVector = getEmbedderState() === 'ready';
+      void (async () => {
+        try {
+          const queryVector = attachVector
+            ? await withTimeout(embedQuery(text), 1500, null)
+            : null;
+          sendMessage({ text }, { body: { queryVector } });
+        } finally {
+          inFlightRef.current = false;
+        }
+      })();
     },
     [input, busy, sendMessage],
   );
