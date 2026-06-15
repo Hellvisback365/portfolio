@@ -69,9 +69,16 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
         className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl bg-[#05060d]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative h-48 overflow-hidden rounded-t-3xl border-b border-white/10">
+        <div className="relative h-64 sm:h-80 overflow-hidden rounded-t-3xl border-b border-white/10 bg-[#05060d]">
+          {/* Blurred Background */}
+          <Image 
+            src={project.image}
+            alt="Background blur"
+            fill
+            className="object-cover blur-2xl opacity-30 scale-110"
+          />
           <motion.div 
-            className="absolute inset-0 overflow-hidden"
+            className="absolute inset-0 overflow-hidden z-10"
             initial={{ scale: 1.1, opacity: 0 }}
             animate={{ 
               scale: imageLoaded ? 1 : 1.1, 
@@ -82,13 +89,13 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             <Image 
               src={project.image}
               alt={project.title}
-              className="object-contain p-4"
+              className="object-contain p-6 drop-shadow-2xl"
               fill
               onLoad={() => setImageLoaded(true)}
             />
           </motion.div>
           <motion.div 
-            className="absolute inset-0 bg-gradient-to-r from-neural-cyan/30 to-neural-magenta/30"
+            className="absolute inset-0 z-20 bg-gradient-to-t from-[#05060d] to-transparent"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}

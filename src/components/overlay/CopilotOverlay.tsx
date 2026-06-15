@@ -62,6 +62,17 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   ]);
 }
 
+function sanitizeText(t: string): string {
+  // Llama su Groq a volte emette la tool call come testo invece di eseguirla
+  // (es. <function=showProject>{...}</function>). La rimuoviamo dalla bolla:
+  // l'esecuzione vera passa dal canale di tool calling, questo è solo testo.
+  return t
+    .replace(/<function=[^>]*>[\s\S]*?<\/function>/gi, '')
+    .replace(/<\|python_tag\|>/gi, '')
+    .replace(/<\/?function[^>]*>/gi, '')
+    .trim();
+}
+
 function prettyError(err: Error | undefined): string {
   if (!err) return 'Si è verificato un errore.';
   try {
@@ -82,8 +93,9 @@ function EmbedderDot({ state }: { state: EmbedderState }) {
   return (
     <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-white/40">
       <span
-        className={`h-1.5 w-1.5 rounded-full ${state === 'ready' ? 'bg-leaf' : 'animate-pulse bg-accent-soft'
-          }`}
+        className={`h-1.5 w-1.5 rounded-full ${
+          state === 'ready' ? 'bg-leaf' : 'animate-pulse bg-accent-soft'
+        }`}
       />
       {label}
     </span>
@@ -218,12 +230,15 @@ export default function CopilotOverlay() {
   ): ReactNode => {
     const key = `${messageId}-${index}`;
     switch (part.type) {
-      case 'text':
+      case 'text': {
+        const clean = sanitizeText(part.text as string);
+        if (!clean) return null;
         return (
           <p key={key} className="whitespace-pre-wrap leading-relaxed">
-            {part.text as string}
+            {clean}
           </p>
         );
+      }
       case 'data-sources':
         return <SourceChips key={key} sources={part.data as SourceChip[]} />;
       case 'tool-showProject': {

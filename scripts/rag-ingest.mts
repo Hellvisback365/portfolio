@@ -19,6 +19,8 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import projectsModule from '../src/data/projects.ts';
+const { projects } = projectsModule as any;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
@@ -80,11 +82,46 @@ async function tryLoadEmbedder() {
   }
 }
 
+/** Trasforma un progetto del sito (src/data/projects.ts) in un documento
+ *  RAG citabile: il corpo include sia il nome dell'evento sia quello del
+ *  prodotto, così il retrieval risponde a entrambi (es. "Next Pulse" o
+ *  "EnLexi", "PugliaHack" o "TerraNode"). */
+function projectToDocument(p: (typeof projects)[number]): ProfileDocument {
+  const metrics = p.metrics
+    .map((m) => `${m.label}: ${m.value} (${m.caption})`)
+    .join('; ');
+  const links = p.links?.length
+    ? ` Link: ${p.links.map((l) => `${l.label} ${l.href}`).join(', ')}.`
+    : '';
+  const body =
+    `${p.subtitle}. ${p.longDescription} ` +
+    `Ruolo di Vito: ${p.role}. Periodo: ${p.timeline}. ` +
+    `Stack: ${p.stack.join(', ')}. ` +
+    `Risultati: ${metrics}.${links}`;
+  return {
+    id: `project-${p.id}`,
+    category: 'project',
+    title: p.title,
+    summary: p.description,
+    body,
+    tags: p.tags,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 async function main() {
   const docsPath = join(rootDir, 'src', 'content', 'profile', 'documents.json');
-  const documents = JSON.parse(readFileSync(docsPath, 'utf-8')) as ProfileDocument[];
-  if (!documents.length) throw new Error('Nessun documento in documents.json');
-  console.log(`[ingest] ${documents.length} documenti di profilo.`);
+  const profileDocs = JSON.parse(readFileSync(docsPath, 'utf-8')) as ProfileDocument[];
+  if (!profileDocs.length) throw new Error('Nessun documento in documents.json');
+
+  // I progetti del sito diventano documenti RAG: una sola fonte di verità
+  // (projects.ts), nessuna duplicazione manuale, nessun disallineamento tra
+  // ciò che il sito mostra e ciò che il copilot sa raccontare.
+  const projectDocs = projects.map(projectToDocument);
+  const documents = [...profileDocs, ...projectDocs];
+  console.log(
+    `[ingest] ${profileDocs.length} doc. di profilo + ${projectDocs.length} progetti = ${documents.length} documenti.`,
+  );
 
   const chunks: Array<{
     id: string;

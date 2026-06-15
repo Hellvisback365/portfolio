@@ -63,17 +63,25 @@ export default function ProjectsOverlay() {
               >
                 <div className="flex flex-col gap-6 lg:flex-row">
                   {/* Image */}
-                  <div className="lg:w-2/5">
-                    <div className="relative h-48 overflow-hidden rounded-xl border border-white/8 bg-white/5">
+                  <div className="flex flex-col lg:w-2/5">
+                    <div className="relative flex-1 min-h-[16rem] overflow-hidden rounded-xl border border-white/8 bg-[#05060d]">
+                      {/* Blurred background */}
+                      <Image
+                        src={project.image}
+                        alt={`${project.title} blur`}
+                        fill
+                        className="object-cover blur-2xl opacity-40 scale-110"
+                      />
+                      {/* Foreground image */}
                       <Image
                         src={project.image}
                         alt={project.title}
                         fill
-                        className="object-contain p-4"
+                        className="object-contain p-4 relative z-10 drop-shadow-2xl transition-transform duration-500 hover:scale-105"
                       />
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-[white]/10 to-[white]/10" />
+                      <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-t from-[#05060d]/60 via-transparent to-transparent" />
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
+                    <div className="mt-4 flex flex-wrap gap-1.5">
                       {project.tags.map((tag) => (
                         <span
                           key={tag}

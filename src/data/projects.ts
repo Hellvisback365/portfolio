@@ -33,7 +33,7 @@ export const projects: ProjectData[] = [
     subtitle: 'EnLexi: AI Sales Assistant multi-sorgente per Engine S.p.A.',
     description:
       'Sviluppo backend in team per un AI Sales Assistant nel settore Traffic Enforcement e Smart City (Hackathon nazionale).',
-    image: '/EnLexi.png',
+    image: '/next-pulse-polaroid.jpg',
     longDescription:
       'Durante il bootcamp selettivo intensivo (48h) su scala nazionale (320 candidati), ho contribuito allo sviluppo di EnLexi in un team di 5 persone. '
       + 'EnLexi è un AI Sales Assistant multi-sorgente per Engine S.p.A. Mi sono occupato del backend con focus sulla pipeline di retrieval e '
@@ -55,7 +55,7 @@ export const projects: ProjectData[] = [
     subtitle: 'TerraNode: Piattaforma per smart agri-tourism',
     description:
       'Sviluppo in autonomia di TerraNode, piattaforma con prenotazioni, gamification, tracciamento CO2 e dashboard real-time.',
-    image: '/TerraNode.png',
+    image: '/pugliahack-2026.png',
     longDescription:
       'Nell\'ambito dell\'hackathon PugliaHack 2026 (finestra di sviluppo: 2 ore, piattaforma Lovable), ho sviluppato in autonomia TerraNode, '
       + 'una piattaforma per lo smart agri-tourism pugliese. La soluzione prevede ruoli distinti per turisti, agricoltori e Pubblica Amministrazione, '
@@ -77,7 +77,7 @@ export const projects: ProjectData[] = [
     subtitle: 'The Pulse: Monitoraggio agricolo globale satellitare',
     description:
       '2° Classificato. Collaborazione all\'ideazione di un progetto per una costellazione di piccoli satelliti dedicati all\'agricoltura.',
-    image: '/ThePulse.png',
+    image: '/leonardo-hackathon.jpg',
     longDescription:
       'Hackathon organizzato da Talent Garden e Leonardo a Milano. Mi sono classificato al 2° posto collaborando all\'ideazione di "The Pulse", '
       + 'un progetto per una costellazione di piccoli satelliti dedicata al monitoraggio agricolo globale, integrando logiche di telerilevamento e AI.',
