@@ -29,13 +29,13 @@ export async function GET() {
       schema: z.object({
         questions: z
           .array(z.string())
-          .length(5)
-          .describe('Array di 5 domande brevi e in italiano.'),
+          .length(8)
+          .describe('Array di 8 domande brevi e in italiano.'),
       }),
       system: `Sei l'assistente virtuale del portfolio di Vito Piccolini.
-Il tuo compito è generare 5 domande molto brevi, naturali e interessanti che un utente potrebbe farti riguardo al background, alle competenze o ai progetti di Vito, basandoti SUL CONTESTO FORNITO.
+Il tuo compito è generare 8 domande molto brevi, naturali e interessanti che un utente potrebbe farti riguardo al background, alle competenze o ai progetti di Vito, basandoti SUL CONTESTO FORNITO.
 Le domande devono essere rigorosamente IN TERZA PERSONA perché l'utente sta parlando con te (l'assistente) DI Vito (es. "Che linguaggi sa usare Vito?", "Parlami di TerraNode", "Qual è stato il suo ruolo in Zenith?"). Non usare MAI la seconda persona ("Che linguaggi usi?"). Non superare le 8 parole per domanda. Sii vario.`,
-      prompt: `CONTESTO REALE DI VITO:\n${randomChunks}\n\nGenera 5 domande basate su questo contesto.`,
+      prompt: `CONTESTO REALE DI VITO:\n${randomChunks}\n\nGenera 8 domande basate su questo contesto.`,
     });
 
     return NextResponse.json(object);

@@ -151,6 +151,7 @@ export default function CopilotOverlay() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
   const suggestionPoolRef = useRef<string[]>(ALL_SUGGESTIONS);
+  const clickedSuggestionsRef = useRef<Set<string>>(new Set());
   const processedTools = useRef<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -159,7 +160,7 @@ export default function CopilotOverlay() {
   // Fetch dynamic suggestions on mount
   useEffect(() => {
     setIsLoadingSuggestions(true);
-    fetch('/api/suggestions')
+    fetch('/api/suggestions?t=' + Date.now(), { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error('API error');
         return res.json();
@@ -276,16 +277,21 @@ export default function CopilotOverlay() {
 
   const handleSuggestionClick = useCallback((q: string) => {
     submit(q);
+    clickedSuggestionsRef.current.add(q);
     setSuggestions((prev) => {
       const pool = suggestionPoolRef.current;
-      const remaining = pool.filter((s) => !prev.includes(s));
+      const clicked = clickedSuggestionsRef.current;
+      // Trova le domande dinamiche non ancora mostrate su schermo (prev) e non ancora cliccate
+      const remaining = pool.filter((s) => !prev.includes(s) && !clicked.has(s));
+      
       if (remaining.length === 0) {
         // Fallback to static if dynamic pool is exhausted
-        const fallbackRemaining = ALL_SUGGESTIONS.filter((s) => !prev.includes(s) && !pool.includes(s));
-        if (fallbackRemaining.length === 0) return prev;
+        const fallbackRemaining = ALL_SUGGESTIONS.filter((s) => !prev.includes(s) && !clicked.has(s) && !pool.includes(s));
+        if (fallbackRemaining.length === 0) return prev; // Se abbiamo finito TUTTE le domande, lascia quelle attuali
         const next = fallbackRemaining[Math.floor(Math.random() * fallbackRemaining.length)];
         return prev.map((s) => (s === q ? next : s));
       }
+      
       const next = remaining[Math.floor(Math.random() * remaining.length)];
       return prev.map((s) => (s === q ? next : s));
     });
