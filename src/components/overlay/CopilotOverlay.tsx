@@ -183,22 +183,6 @@ export default function CopilotOverlay() {
       });
   }, []);
 
-  const handleSuggestionClick = useCallback((q: string) => {
-    submit(q);
-    setSuggestions((prev) => {
-      const pool = suggestionPoolRef.current;
-      const remaining = pool.filter((s) => !prev.includes(s));
-      if (remaining.length === 0) {
-        // Fallback to static if dynamic pool is exhausted
-        const fallbackRemaining = ALL_SUGGESTIONS.filter((s) => !prev.includes(s) && !pool.includes(s));
-        if (fallbackRemaining.length === 0) return prev;
-        const next = fallbackRemaining[Math.floor(Math.random() * fallbackRemaining.length)];
-        return prev.map((s) => (s === q ? next : s));
-      }
-      const next = remaining[Math.floor(Math.random() * remaining.length)];
-      return prev.map((s) => (s === q ? next : s));
-    });
-  }, [submit]);
 
   const transport = useMemo(
     () => new DefaultChatTransport({ api: '/api/chat' }),
@@ -289,6 +273,23 @@ export default function CopilotOverlay() {
     },
     [input, busy, sendMessage],
   );
+
+  const handleSuggestionClick = useCallback((q: string) => {
+    submit(q);
+    setSuggestions((prev) => {
+      const pool = suggestionPoolRef.current;
+      const remaining = pool.filter((s) => !prev.includes(s));
+      if (remaining.length === 0) {
+        // Fallback to static if dynamic pool is exhausted
+        const fallbackRemaining = ALL_SUGGESTIONS.filter((s) => !prev.includes(s) && !pool.includes(s));
+        if (fallbackRemaining.length === 0) return prev;
+        const next = fallbackRemaining[Math.floor(Math.random() * fallbackRemaining.length)];
+        return prev.map((s) => (s === q ? next : s));
+      }
+      const next = remaining[Math.floor(Math.random() * remaining.length)];
+      return prev.map((s) => (s === q ? next : s));
+    });
+  }, [submit]);
 
   const renderPart = (
     messageId: string,
