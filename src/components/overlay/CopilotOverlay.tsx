@@ -149,26 +149,56 @@ export default function CopilotOverlay() {
     getEmbedderState(),
   );
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
+  const suggestionPoolRef = useRef<string[]>(ALL_SUGGESTIONS);
   const processedTools = useRef<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inFlightRef = useRef(false);
 
-  // Initialize random suggestions
+  // Fetch dynamic suggestions on mount
   useEffect(() => {
-    const shuffled = [...ALL_SUGGESTIONS].sort(() => 0.5 - Math.random());
-    setSuggestions(shuffled.slice(0, 3));
+    setIsLoadingSuggestions(true);
+    fetch('/api/suggestions')
+      .then((res) => {
+        if (!res.ok) throw new Error('API error');
+        return res.json();
+      })
+      .then((data) => {
+        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
+          suggestionPoolRef.current = data.questions;
+          setSuggestions(data.questions.slice(0, 3));
+        } else {
+          throw new Error('Invalid schema');
+        }
+      })
+      .catch((err) => {
+        console.error('[Copilot] Fallback to static suggestions:', err);
+        const shuffled = [...ALL_SUGGESTIONS].sort(() => 0.5 - Math.random());
+        suggestionPoolRef.current = shuffled;
+        setSuggestions(shuffled.slice(0, 3));
+      })
+      .finally(() => {
+        setIsLoadingSuggestions(false);
+      });
   }, []);
 
   const handleSuggestionClick = useCallback((q: string) => {
     submit(q);
     setSuggestions((prev) => {
-      const remaining = ALL_SUGGESTIONS.filter((s) => !prev.includes(s));
-      if (remaining.length === 0) return prev;
+      const pool = suggestionPoolRef.current;
+      const remaining = pool.filter((s) => !prev.includes(s));
+      if (remaining.length === 0) {
+        // Fallback to static if dynamic pool is exhausted
+        const fallbackRemaining = ALL_SUGGESTIONS.filter((s) => !prev.includes(s) && !pool.includes(s));
+        if (fallbackRemaining.length === 0) return prev;
+        const next = fallbackRemaining[Math.floor(Math.random() * fallbackRemaining.length)];
+        return prev.map((s) => (s === q ? next : s));
+      }
       const next = remaining[Math.floor(Math.random() * remaining.length)];
       return prev.map((s) => (s === q ? next : s));
     });
-  }, []);
+  }, [submit]);
 
   const transport = useMemo(
     () => new DefaultChatTransport({ api: '/api/chat' }),
@@ -376,15 +406,25 @@ export default function CopilotOverlay() {
                     citando le fonti.
                   </p>
                   <div className="flex flex-col items-start gap-2">
-                    {suggestions.map((q) => (
-                      <button
-                        key={q}
-                        onClick={() => handleSuggestionClick(q)}
-                        className="hairline rounded-full border bg-white/5 px-3 py-1.5 text-left text-xs text-white/75 transition-colors hover:bg-accent/15 hover:text-white"
-                      >
-                        {q}
-                      </button>
-                    ))}
+                    {isLoadingSuggestions ? (
+                      // Skeleton loader per i suggerimenti
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-6 w-48 animate-pulse rounded-full bg-white/5"
+                        />
+                      ))
+                    ) : (
+                      suggestions.map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => handleSuggestionClick(q)}
+                          className="hairline rounded-full border bg-white/5 px-3 py-1.5 text-left text-xs text-white/75 transition-colors hover:bg-accent/15 hover:text-white"
+                        >
+                          {q}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
