@@ -5,6 +5,7 @@ import { getProviders } from '@/lib/rag/providers';
 import ragIndex from '@/data/rag-index.json';
 
 export const maxDuration = 30;
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
@@ -24,6 +25,7 @@ export async function GET() {
 
     const { object } = await generateObject({
       model: providers.router, // Usiamo il modello veloce (es. Llama 8B / Flash)
+      temperature: 0.8,
       schema: z.object({
         questions: z
           .array(z.string())
