@@ -222,19 +222,26 @@ export default function CopilotOverlay() {
     if (copilotOpen) textareaRef.current?.focus();
   }, [copilotOpen]);
 
-  // Side-effect dei tool di navigazione: una sola volta per toolCallId.
+  // Side-effect dei tool UI: scroll automatico in background.
   useEffect(() => {
     for (const message of messages) {
       for (const part of message.parts as AnyPart[]) {
         if (
-          part.type === 'tool-navigateToSection' &&
           part.state === 'output-available' &&
           typeof part.toolCallId === 'string' &&
           !processedTools.current.has(part.toolCallId)
         ) {
-          processedTools.current.add(part.toolCallId);
-          const args = part.input as { section?: string } | undefined;
-          if (args?.section) flyToSection(args.section);
+          if (part.type === 'tool-navigateToSection') {
+            processedTools.current.add(part.toolCallId);
+            const args = part.input as { section?: string } | undefined;
+            if (args?.section) flyToSection(args.section);
+          } else if (part.type === 'tool-showProject') {
+            processedTools.current.add(part.toolCallId);
+            flyToSection('projects');
+          } else if (part.type === 'tool-showSkillsRadar') {
+            processedTools.current.add(part.toolCallId);
+            flyToSection('skills');
+          }
         }
       }
     }
