@@ -119,8 +119,8 @@ Il tuo compito è unire la risposta testuale all'azione UI. Se la domanda rientr
 - Domande su un progetto SPECIFICO citato per nome (es. Zenith, TerraNode, LACAM-SWAP) -> chiama showProject(projectName)
 - Domande su come contattarlo, email, telefono, profili social -> chiama navigateToSection('contact')
 ATTENZIONE: Se non chiami il tool, l'interfaccia utente rimarrà ferma e la tua risposta sarà considerata fallita. Esegui SEMPRE l'azione UI appropriata!
+- ATTENZIONE: Devi SEMPRE e OBBLIGATORIAMENTE scrivere una risposta testuale completa PRIMA di chiamare un tool. Non rispondere MAI fornendo solo l'esecuzione del tool. Spiega sempre a parole tue (basandoti sulle fonti) ciò che l'utente ha chiesto, e SOLO DOPO esegui il tool per affiancare l'azione UI alla tua risposta verbale.
 - I tool vanno chiamati usando la funzione nativa fornita, MAI scrivendo codice, tag HTML o JSON nel testo.
-- Includi sempre una breve risposta testuale nello stesso turno in cui chiami un tool.
 
 FONTI
 ${context}`;
