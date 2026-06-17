@@ -84,6 +84,19 @@ function prettyError(err: Error | undefined): string {
   return err.message || 'Si è verificato un errore.';
 }
 
+function renderMarkdownBold(text: string) {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <strong key={i} className="font-semibold text-white">
+        {part}
+      </strong>
+    ) : (
+      part
+    )
+  );
+}
+
 function EmbedderDot({ state }: { state: EmbedderState }) {
   if (state === 'error') return null; // degradazione silenziosa
   const label =
@@ -234,13 +247,13 @@ export default function CopilotOverlay() {
         const clean = sanitizeText(part.text as string);
         if (!clean) return null;
         return (
-          <p key={key} className="whitespace-pre-wrap leading-relaxed">
-            {clean}
+          <p key={key} className="whitespace-pre-wrap break-words leading-relaxed">
+            {renderMarkdownBold(clean)}
           </p>
         );
       }
       case 'data-sources':
-        return <SourceChips key={key} sources={part.data as SourceChip[]} />;
+        return null; // Nascosti come richiesto dall'utente
       case 'tool-showProject': {
         if (part.state !== 'output-available') return null;
         const args = part.input as { projectName?: string } | undefined;
@@ -305,7 +318,8 @@ export default function CopilotOverlay() {
             animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 48 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="glass-panel fixed inset-y-0 right-0 z-50 flex w-full flex-col sm:inset-y-3 sm:right-3 sm:w-[420px] sm:rounded-2xl"
+            className="glass-panel bg-zinc-950/95 backdrop-blur-xl shadow-2xl fixed inset-y-0 right-0 z-50 flex w-full flex-col sm:inset-y-3 sm:right-3 sm:w-[420px] sm:rounded-2xl"
+            onWheel={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
@@ -329,7 +343,7 @@ export default function CopilotOverlay() {
             </header>
 
             {/* Messaggi */}
-            <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 text-sm text-white/85">
+            <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 text-sm text-white/85">
               {messages.length === 0 && (
                 <div className="flex h-full flex-col justify-end gap-3 pb-2">
                   <p className="text-white/55">
@@ -392,16 +406,17 @@ export default function CopilotOverlay() {
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
+                  onWheel={(e) => e.stopPropagation()}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       void submit();
                     }
                   }}
-                  rows={1}
+                  rows={2}
                   placeholder="Scrivi una domanda…"
                   aria-label="Messaggio per il copilot"
-                  className="max-h-28 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+                  className="max-h-32 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35 overscroll-contain"
                 />
                 <button
                   type="submit"

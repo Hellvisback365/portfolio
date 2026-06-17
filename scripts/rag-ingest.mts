@@ -1,7 +1,7 @@
 /**
  * Ingest RAG v2 — `npm run rag:ingest`
  *
- * 1. Legge src/content/profile/documents.json
+ * 1. Legge src/data/projects.ts, src/data/about.ts, src/data/skills.ts
  * 2. Chunking paragraph-aware (~480 caratteri, overlap di una frase)
  * 3. Embeddings con `Xenova/multilingual-e5-small` via Transformers.js,
  *    eseguito LOCALMENTE in Node: nessuna API, nessuna chiave, nessun
@@ -16,10 +16,9 @@
  * lavorerà in BM25-only. Mai un indice rotto, mai vettori-zero finti.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { projects } from '../src/data/projects.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
@@ -81,11 +80,8 @@ async function tryLoadEmbedder() {
   }
 }
 
-/** Trasforma un progetto del sito (src/data/projects.ts) in un documento
- *  RAG citabile: il corpo include sia il nome dell'evento sia quello del
- *  prodotto, così il retrieval risponde a entrambi (es. "Next Pulse" o
- *  "EnLexi", "PugliaHack" o "TerraNode"). */
-function projectToDocument(p: (typeof projects)[number]): ProfileDocument {
+/** Trasforma un progetto del sito in un documento RAG */
+function projectToDocument(p: any): ProfileDocument {
   const metrics = p.metrics
     .map((m: { label: string; value: string; caption: string }) => `${m.label}: ${m.value} (${m.caption})`)
     .join('; ');
@@ -108,18 +104,110 @@ function projectToDocument(p: (typeof projects)[number]): ProfileDocument {
   };
 }
 
-async function main() {
-  const docsPath = join(rootDir, 'src', 'content', 'profile', 'documents.json');
-  const profileDocs = JSON.parse(readFileSync(docsPath, 'utf-8')) as ProfileDocument[];
-  if (!profileDocs.length) throw new Error('Nessun documento in documents.json');
+/** Trasforma le skills in documenti RAG */
+function trackToDocument(t: any): ProfileDocument {
+  return {
+    id: `skill-track-${t.title.replace(/\W+/g, '-').toLowerCase()}`,
+    category: 'skills',
+    title: `Competenze: ${t.title}`,
+    summary: t.description,
+    body: `Aree di focus: ${t.focusAreas.join(', ')}. Stack tecnologico: ${t.stack.join(', ')}.`,
+    tags: t.stack,
+    updatedAt: new Date().toISOString(),
+  };
+}
 
-  // I progetti del sito diventano documenti RAG: una sola fonte di verità
-  // (projects.ts), nessuna duplicazione manuale, nessun disallineamento tra
-  // ciò che il sito mostra e ciò che il copilot sa raccontare.
+function toolHighlightToDocument(t: any): ProfileDocument {
+  return {
+    id: `tool-${t.area.replace(/\W+/g, '-').toLowerCase()}`,
+    category: 'tools',
+    title: `Strumenti e Tecnologie: ${t.area} (${t.category})`,
+    summary: t.description,
+    body: `Strumenti utilizzati: ${t.tools.join(', ')}.`,
+    tags: t.tools,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function languageToDocument(l: any): ProfileDocument {
+  return {
+    id: `lang-${l.name.toLowerCase()}`,
+    category: 'languages',
+    title: `Lingua: ${l.name}`,
+    summary: `Livello: ${l.level}`,
+    body: l.description,
+    tags: ['language', l.name.toLowerCase()],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Crea documenti per about/bio */
+function aboutToDocuments(personalInfo: any, formationItems: any[], timelineMilestones: any[]): ProfileDocument[] {
+  const docs: ProfileDocument[] = [];
+  
+  // Bio
+  docs.push({
+    id: 'bio-vision',
+    category: 'bio',
+    title: 'Profilo professionale e Informazioni Personali',
+    summary: personalInfo.shortBio,
+    body: `Nome: ${personalInfo.name}. Ruolo: ${personalInfo.role}. Vive a: ${personalInfo.location}. ${personalInfo.longBio}`,
+    tags: ['bio', 'vision', 'location'],
+    updatedAt: new Date().toISOString(),
+  });
+
+  // Education
+  docs.push({
+    id: 'education-track',
+    category: 'education',
+    title: 'Percorso formativo e Istruzione',
+    summary: 'Laurea in Informatica, Laurea Magistrale in AI, Diploma (Maturità).',
+    body: formationItems.map((f: any) => `${f.label} (${f.detail})`).join('. '),
+    tags: ['education', 'degree', 'diploma', 'maturità', 'scuola', 'voto'],
+    updatedAt: new Date().toISOString(),
+  });
+
+  // Timeline
+  timelineMilestones.forEach((m: any) => {
+    docs.push({
+      id: `timeline-${m.id}`,
+      category: 'experience',
+      title: `Esperienza: ${m.title}`,
+      summary: m.description,
+      body: `Data: ${m.date}. Luogo: ${m.location}. Dettagli: ${m.highlights.join(' ')}`,
+      tags: ['experience', 'work', 'hackathon'],
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
+  return docs;
+}
+
+async function main() {
+  const projectsData: any = await import('../src/data/projects.ts');
+  const skillsData: any = await import('../src/data/skills.ts');
+  const aboutData: any = await import('../src/data/about.ts');
+  
+  const projects = projectsData.projects;
+  const capabilityTracks = skillsData.capabilityTracks;
+  const toolHighlights = skillsData.toolHighlights;
+  const languages = skillsData.languages;
+  
+  const personalInfo = aboutData.personalInfo;
+  const formationItems = aboutData.formationItems;
+  const timelineMilestones = aboutData.timelineMilestones;
+
   const projectDocs = projects.map(projectToDocument);
-  const documents = [...profileDocs, ...projectDocs];
+  const skillDocs = [
+    ...capabilityTracks.map(trackToDocument),
+    ...toolHighlights.map(toolHighlightToDocument),
+    ...languages.map(languageToDocument)
+  ];
+  const aboutDocs = aboutToDocuments(personalInfo, formationItems, timelineMilestones);
+
+  const documents = [...projectDocs, ...skillDocs, ...aboutDocs];
   console.log(
-    `[ingest] ${profileDocs.length} doc. di profilo + ${projectDocs.length} progetti = ${documents.length} documenti.`,
+    `[ingest] ${aboutDocs.length} about docs + ${skillDocs.length} skill docs + ${projectDocs.length} progetti = ${documents.length} documenti.`,
   );
 
   const chunks: Array<{
@@ -181,3 +269,4 @@ main().catch((err) => {
   console.error('[ingest] Errore:', err);
   process.exit(1);
 });
+

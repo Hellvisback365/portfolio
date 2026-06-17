@@ -82,7 +82,7 @@ export class HybridRetriever {
     }
 
     // ── Gamba lessicale ──
-    const lexical = this.bm25.search(query, 12);
+    const lexical = this.bm25.search(query, 24);
     const lexRank = new Map<string, number>();
     lexical.forEach((r, i) => lexRank.set(r.id, i + 1));
 
@@ -94,7 +94,7 @@ export class HybridRetriever {
         .filter((c) => c.vec && c.vec.length > 0)
         .map((c) => ({ id: c.id, score: cosine(queryVector, c.vec!) }))
         .sort((a, b) => b.score - a.score)
-        .slice(0, 12);
+        .slice(0, 24);
       scored.forEach((r, i) => vecRank.set(r.id, i + 1));
     }
 

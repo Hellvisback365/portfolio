@@ -14,22 +14,9 @@ import {
 } from 'react-icons/fa';
 import Badge from '@/components/ui/Badge';
 
-const focusPills = ['Assistenti enterprise', 'Multi-agent Recsys', 'Workflow automation', 'AI compliance'];
+import { personalInfo, formationItems, timelineMilestones } from '@/data/about';
 
-const formationItems = [
-  {
-    label: 'LM-18 · Computer Science – AI',
-    detail: 'Università degli Studi di Bari Aldo Moro · Da Ottobre 2025',
-  },
-  {
-    label: 'Laurea L-31 · 107/110',
-    detail: 'Informatica e Tecnologia per la Produzione del Software · UniBa (2022-2025)',
-  },
-  {
-    label: 'Diploma · Amministrazione, Finanza e Marketing',
-    detail: 'I.I.S.S Alpi-Montale, Rutigliano (BA) · 2011-2016',
-  },
-];
+const focusPills = personalInfo.focusPills;
 
 const interestItems = [
   { label: 'Recommender Systems & Multi-Agent LLM', icon: <FaBrain className="text-[white]" /> },
@@ -41,86 +28,6 @@ const socialLinks = [
   { icon: <FaGithub />, href: 'https://github.com/Hellvisback365', label: 'GitHub' },
   { icon: <FaLinkedin />, href: 'https://www.linkedin.com/in/vitopiccolini/', label: 'LinkedIn' },
   { icon: <FaEnvelope />, href: 'mailto:vitopiccolini@live.it', label: 'Email' },
-];
-
-const timelineMilestones = [
-  {
-    id: 1,
-    date: 'Giugno 2026',
-    title: 'Talent Program "Next Pulse"',
-    location: 'Chieti',
-    description: 'Sviluppo backend in team per EnLexi: un AI Sales Assistant multi-sorgente.',
-    highlights: [
-      'Bootcamp selettivo intensivo su scala nazionale (320 candidati).',
-      'Implementazione pipeline di retrieval ibrida (BM25 + ChromaDB/FAISS) con FastAPI.',
-    ],
-  },
-  {
-    id: 2,
-    date: 'Maggio 2026',
-    title: 'PugliaHack 2026',
-    location: 'Bari',
-    description: 'Sviluppo in autonomia di TerraNode, piattaforma per lo smart agri-tourism.',
-    highlights: [
-      'Stack React 19, TailwindCSS, Supabase (PostgreSQL).',
-      'Sviluppato in sole 2 ore. Gamification, tracciamento CO2 e dashboard KPI in tempo reale.',
-    ],
-  },
-  {
-    id: 3,
-    date: 'Maggio 2026',
-    title: 'Hackathon "Space Edition"',
-    location: 'Milano · Talent Garden x Leonardo',
-    description: '2° Classificato all\'hackathon nazionale per l\'ideazione di The Pulse.',
-    highlights: [
-      'Progetto per una costellazione di piccoli satelliti dedicati al monitoraggio agricolo globale.',
-      'Integrazione di logiche di telerilevamento e Artificial Intelligence.',
-    ],
-  },
-  {
-    id: 4,
-    date: 'Settembre–Novembre 2025',
-    title: 'B.Future Challenge 2025 · VAR Group x CRIF',
-    location: 'Bologna · Remote',
-    description: 'Partecipante alla challenge aziendale: sviluppo in team di Zenith, assistente AI per consulenza.',
-    highlights: [
-      'Workflow automatizzato con n8n, Gemini e Google Drive API.',
-      'Riduzione stimata dei tempi di reportistica da 7 giorni a 1.',
-    ],
-  },
-  {
-    id: 5,
-    date: 'Marzo–Giugno 2025',
-    title: 'Tirocinio Curriculare · LACAM-SWAP',
-    location: 'Università di Bari',
-    description: 'Progetto di tesi: Orchestrazione di Agenti LLM per l\'Ottimizzazione Multi-Metrica nei Sistemi di Raccomandazione.',
-    highlights: [
-      'Architettura multi-agente LangGraph + RAG Ibrido (BM25 e FAISS).',
-      '+12% novelty mantenendo inalterata la precisione media del baseline con Llama 3.2 3B.',
-    ],
-  },
-  {
-    id: 6,
-    date: 'Settembre 2022–Luglio 2025',
-    title: 'Laurea Triennale L-31 · 107/110',
-    location: 'Università degli Studi di Bari Aldo Moro',
-    description: 'Informatica e Tecnologia per la Produzione del Software.',
-    highlights: [
-      'Tesi su orchestrazione multi-agente LLM applicata ai sistemi di raccomandazione.',
-      'Prosecuzione in LM-18 Computer Science – Artificial Intelligence.',
-    ],
-  },
-  {
-    id: 7,
-    date: '2016–2022',
-    title: 'Operaio Generico e Retail',
-    location: 'Bari',
-    description: 'Esperienza lavorativa in settori trasversali (edilizia, agricoltura, reception, gestione negozio).',
-    highlights: [
-      '6 anni di esperienza prima di intraprendere il percorso in Informatica.',
-      'Forte focus su resilienza, problem-solving, e capacità di adattamento in team.',
-    ],
-  },
 ];
 
 const fadeIn = {
@@ -161,11 +68,10 @@ export default function AboutOverlay() {
         >
           <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">Chi sono</p>
           <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
-            Studente in Computer Science – AI
+            {personalInfo.role}
           </h2>
           <p className="mt-3 max-w-2xl text-sm text-white/60">
-            Laureando magistrale appassionato di IA e Machine Learning, con esperienza in sistemi di
-            raccomandazione LLM-driven e automazione workflow.
+            {personalInfo.shortBio}
           </p>
         </motion.div>
 
@@ -255,10 +161,9 @@ export default function AboutOverlay() {
             </div>
             <div className="border-t border-white/10 bg-[#05060d]/90 px-5 py-5 backdrop-blur-md">
               <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">AI Developer</p>
-              <h3 className="mt-1 text-xl font-semibold text-white">Vito Piccolini</h3>
+              <h3 className="mt-1 text-xl font-semibold text-white">{personalInfo.name}</h3>
               <p className="mt-1 text-xs text-white/60">
-                Sviluppo sistemi di raccomandazione LLM-driven, architetture multi-agente e automazioni
-                workflow con Python e LangGraph.
+                {personalInfo.shortBio}
               </p>
               <div className="mt-3 flex gap-2">
                 {socialLinks.map((social) => (
@@ -288,19 +193,7 @@ export default function AboutOverlay() {
               className="glass-holographic rounded-2xl p-5"
             >
               <div className="space-y-3 text-sm text-white/70">
-                <p>
-                  Dopo la laurea triennale in Informatica (107/110) sto proseguendo con la LM-18 in
-                  Computer Science – Artificial Intelligence presso l&apos;Università di Bari.
-                </p>
-                <p>
-                  Durante il tirocinio nel laboratorio LACAM-SWAP ho sviluppato un&apos;architettura
-                  multi-agente basata su LLM, orchestrata con LangGraph, ottenendo +12% di diversità e
-                  +53% precision@1.
-                </p>
-                <p>
-                  Competenze in Python, LangChain, LangGraph, React, Node.js e n8n per prototipazione
-                  rapida in team multidisciplinari.
-                </p>
+                <p>{personalInfo.longBio}</p>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {focusPills.map((pill) => (

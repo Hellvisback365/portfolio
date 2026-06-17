@@ -1,18 +1,13 @@
 import { createGroq } from '@ai-sdk/groq';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createDeepSeek } from '@ai-sdk/deepseek';
 import type { LanguageModel } from 'ai';
 
 /**
- * Strategia provider (verificata giugno 2026):
- *
- * 1. Groq free tier — primario. `llama-3.3-70b-versatile` per le
- *    risposte (~30 RPM / ~1.000 req/giorno), `llama-3.1-8b-instant`
- *    per il router (fino a ~14.400 req/giorno, latenza ~100 ms su LPU).
- * 2. Gemini — solo fallback opzionale dietro env var: i ToS del free
- *    tier Google escludono il serving di utenti EU/EEA/UK/CH in
- *    produzione, quindi non può essere il default per un sito .it.
- *
- * Con il solo GROQ_API_KEY il sistema è completo e a costo zero.
+ * Astrazione per l'utilizzo di LLM.
+ * Consente un rapido fallback tra Groq (default), Google o OpenRouter in base
+ * alle chiavi configurate nell'ambiente.
  */
 
 export interface Providers {
@@ -20,10 +15,20 @@ export interface Providers {
   chat: LanguageModel;
   /** Modello piccolo e velocissimo per il routing/rewrite. */
   router: LanguageModel;
-  name: 'groq' | 'google';
+  name: 'groq' | 'google' | 'openrouter' | 'deepseek';
 }
 
 export function getProviders(): Providers | null {
+  const deepseekKey = process.env.DEEPSEEK_API_KEY;
+  if (deepseekKey) {
+    const deepseek = createDeepSeek({ apiKey: deepseekKey });
+    return {
+      chat: deepseek(process.env.RAG_CHAT_MODEL ?? 'deepseek-chat'),
+      router: deepseek(process.env.RAG_ROUTER_MODEL ?? 'deepseek-chat'),
+      name: 'deepseek',
+    };
+  }
+
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey) {
     const groq = createGroq({ apiKey: groqKey });
@@ -37,8 +42,21 @@ export function getProviders(): Providers | null {
   const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (googleKey) {
     const google = createGoogleGenerativeAI({ apiKey: googleKey });
-    const model = google(process.env.RAG_CHAT_MODEL ?? 'gemini-2.5-flash');
+    const model = google(process.env.RAG_CHAT_MODEL ?? 'gemini-1.5-flash');
     return { chat: model, router: model, name: 'google' };
+  }
+
+  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  if (openRouterKey) {
+    const openrouter = createOpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: openRouterKey,
+    });
+    return {
+      chat: openrouter(process.env.RAG_CHAT_MODEL ?? 'meta-llama/llama-3.3-70b-instruct:free'),
+      router: openrouter(process.env.RAG_ROUTER_MODEL ?? 'google/gemini-2.5-flash-free'),
+      name: 'openrouter',
+    };
   }
 
   return null;
