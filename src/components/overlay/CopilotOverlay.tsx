@@ -45,10 +45,17 @@ interface SourceChip {
   score: number;
 }
 
-const SUGGESTIONS = [
+const ALL_SUGGESTIONS = [
   'Di cosa parla la tesi di Vito?',
   'Raccontami del progetto Zenith',
   'Che esperienza ha con i sistemi RAG?',
+  'Mostrami i contatti di Vito',
+  'Quali linguaggi usa nel backend?',
+  'Parlami dell\'hackathon Space Edition',
+  'Come è fatto TerraNode?',
+  'Che università frequenta?',
+  'Vito ha esperienza lavorativa?',
+  'Portami alla sezione progetti',
 ];
 
 // Narrowing helper: con UIMessage non parametrizzato le parts custom
@@ -141,10 +148,27 @@ export default function CopilotOverlay() {
   const [embedderState, setEmbedderState] = useState<EmbedderState>(() =>
     getEmbedderState(),
   );
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const processedTools = useRef<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inFlightRef = useRef(false);
+
+  // Initialize random suggestions
+  useEffect(() => {
+    const shuffled = [...ALL_SUGGESTIONS].sort(() => 0.5 - Math.random());
+    setSuggestions(shuffled.slice(0, 3));
+  }, []);
+
+  const handleSuggestionClick = useCallback((q: string) => {
+    submit(q);
+    setSuggestions((prev) => {
+      const remaining = ALL_SUGGESTIONS.filter((s) => !prev.includes(s));
+      if (remaining.length === 0) return prev;
+      const next = remaining[Math.floor(Math.random() * remaining.length)];
+      return prev.map((s) => (s === q ? next : s));
+    });
+  }, []);
 
   const transport = useMemo(
     () => new DefaultChatTransport({ api: '/api/chat' }),
@@ -352,10 +376,10 @@ export default function CopilotOverlay() {
                     citando le fonti.
                   </p>
                   <div className="flex flex-col items-start gap-2">
-                    {SUGGESTIONS.map((q) => (
+                    {suggestions.map((q) => (
                       <button
                         key={q}
-                        onClick={() => submit(q)}
+                        onClick={() => handleSuggestionClick(q)}
                         className="hairline rounded-full border bg-white/5 px-3 py-1.5 text-left text-xs text-white/75 transition-colors hover:bg-accent/15 hover:text-white"
                       >
                         {q}
@@ -390,6 +414,22 @@ export default function CopilotOverlay() {
                   {prettyError(error)}
                 </p>
               )}
+
+              {/* Suggerimenti persistenti */}
+              {messages.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {suggestions.map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => handleSuggestionClick(q)}
+                      className="hairline rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-left text-[11px] text-white/70 transition-colors hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent-soft)]"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div ref={endRef} />
             </div>
 
