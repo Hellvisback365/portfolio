@@ -263,16 +263,18 @@ export default function ContactOverlay() {
       addField('Oggetto', formData.subject);
       addField('Messaggio', formData.message);
 
-      // Attach files using DataTransfer API (enables setting files on a real file input)
+      // Attach files using DataTransfer API
+      // Create a separate input for each file so FormSubmit doesn't overwrite them
       if (files.length > 0) {
-        const dt = new DataTransfer();
-        files.forEach((af) => dt.items.add(af.file));
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.name = 'attachment';
-        fileInput.multiple = true;
-        fileInput.files = dt.files;
-        form.appendChild(fileInput);
+        files.forEach((af, index) => {
+          const dt = new DataTransfer();
+          dt.items.add(af.file);
+          const fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.name = `attachment_${index + 1}`;
+          fileInput.files = dt.files;
+          form.appendChild(fileInput);
+        });
       }
 
       document.body.appendChild(form);
