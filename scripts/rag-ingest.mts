@@ -19,8 +19,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import projectsModule from '../src/data/projects.ts';
-const { projects } = projectsModule as any;
+import { projects } from '../src/data/projects.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
@@ -88,10 +87,10 @@ async function tryLoadEmbedder() {
  *  "EnLexi", "PugliaHack" o "TerraNode"). */
 function projectToDocument(p: (typeof projects)[number]): ProfileDocument {
   const metrics = p.metrics
-    .map((m) => `${m.label}: ${m.value} (${m.caption})`)
+    .map((m: { label: string; value: string; caption: string }) => `${m.label}: ${m.value} (${m.caption})`)
     .join('; ');
   const links = p.links?.length
-    ? ` Link: ${p.links.map((l) => `${l.label} ${l.href}`).join(', ')}.`
+    ? ` Link: ${p.links.map((l: { label: string; href: string }) => `${l.label} ${l.href}`).join(', ')}.`
     : '';
   const body =
     `${p.subtitle}. ${p.longDescription} ` +

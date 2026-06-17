@@ -70,6 +70,7 @@ export default function ProjectsOverlay() {
                         src={project.image}
                         alt={`${project.title} blur`}
                         fill
+                        sizes="(max-width: 1024px) 100vw, 40vw"
                         className="object-cover blur-2xl opacity-40 scale-110"
                       />
                       {/* Foreground image */}
@@ -77,6 +78,7 @@ export default function ProjectsOverlay() {
                         src={project.image}
                         alt={project.title}
                         fill
+                        sizes="(max-width: 1024px) 100vw, 40vw"
                         className="object-contain p-4 relative z-10 drop-shadow-2xl transition-transform duration-500 hover:scale-105"
                       />
                       <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-t from-[#05060d]/60 via-transparent to-transparent" />

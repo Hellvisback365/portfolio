@@ -14,7 +14,6 @@
     "@ai-sdk/google": "^3.0.0",
     "@ai-sdk/groq": "^3.0.0",
     "@ai-sdk/react": "^3.0.200",
-    "@getbrevo/brevo": "^3.0.1",
     "@huggingface/transformers": "^3.7.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",

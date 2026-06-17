@@ -1,6 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import {
   FaGraduationCap,
@@ -131,7 +132,22 @@ const fadeIn = {
   }),
 };
 
+const portraitImages = [
+  { id: 'me', src: '/me.jpg', label: 'Laurea triennale · Bari 2025', position: 'center 18%' },
+  { id: 'next', src: '/next-pulse-polaroid.jpg', label: 'Next Pulse · Chieti 2026', position: 'center' },
+  { id: 'leonardo', src: '/leonardo-hackathon.jpg', label: 'Hackathon Leonardo · Milano', position: 'center' },
+];
+
 export default function AboutOverlay() {
+  const [currentImgIndex, setCurrentImgIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImgIndex((prev) => (prev + 1) % portraitImages.length);
+    }, 6000); // Cambia immagine ogni 6 secondi
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="flex min-h-screen w-screen items-start justify-center px-4 py-20 sm:px-8">
       <div className="w-full max-w-5xl space-y-10">
@@ -154,7 +170,7 @@ export default function AboutOverlay() {
         </motion.div>
 
         {/* Main grid: portrait + bio */}
-        <div className="grid gap-6 lg:grid-cols-[0.8fr,1.2fr]">
+        <div className="grid gap-8 lg:grid-cols-[0.8fr,1.2fr] lg:items-start">
           {/* Portrait card */}
           <motion.div
             initial="hidden"
@@ -162,26 +178,82 @@ export default function AboutOverlay() {
             viewport={{ once: true }}
             custom={1}
             variants={fadeIn}
-            className="glass-holographic overflow-hidden rounded-2xl"
+            whileHover={{ y: -4 }}
+            className="w-full max-w-3xl mx-auto lg:max-w-none glass-holographic overflow-hidden rounded-2xl transition-all duration-500 hover:border-white/25 hover:shadow-[0_10px_40px_-10px_rgba(255,255,255,0.05)]"
           >
-            <div className="relative aspect-[4/5] w-full overflow-hidden sm:aspect-[5/6]">
-              <Image
-                src="/me.jpg"
-                alt="Vito Piccolini"
-                fill
-                priority
-                quality={90}
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 40vw"
-                className="object-cover"
-                style={{ objectPosition: 'center 18%' }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-              <div className="absolute bottom-4 left-4 flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.4em] text-white/60">
-                <span className="h-1.5 w-1.5 rounded-full bg-[white]" />
-                Ritratto · Bari 2025
+            <div className="relative w-full overflow-hidden bg-[#05060d] aspect-video lg:aspect-[4/5] max-h-[500px]">
+              {/* Cinematic Carousel */}
+              <AnimatePresence mode="popLayout">
+                <motion.div
+                  key={portraitImages[currentImgIndex].id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.2, ease: 'easeInOut' }}
+                  className="absolute inset-0"
+                >
+                  {/* Sfondo sfocato per riempire gli spazi vuoti senza croppare */}
+                  <Image
+                    src={portraitImages[currentImgIndex].src}
+                    alt="Background blur"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    className="object-cover blur-2xl opacity-40 scale-125"
+                  />
+                  {/* Immagine in primo piano contenuta perfettamente (non croppata) */}
+                  <motion.div
+                    initial={{ scale: 1.02 }}
+                    animate={{ scale: 1 }}
+                    transition={{ duration: 8, ease: 'linear' }} // Leggero Ken Burns solo sul foreground
+                    className="absolute inset-0 z-10"
+                  >
+                    <Image
+                      src={portraitImages[currentImgIndex].src}
+                      alt={portraitImages[currentImgIndex].label}
+                      fill
+                      priority={currentImgIndex === 0}
+                      quality={95}
+                      sizes="(max-width: 1024px) 100vw, 50vw"
+                      className="object-contain p-2 pb-12 sm:pb-2" // Spazio in basso per le etichette su mobile
+                    />
+                  </motion.div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Improved Gradient: dark only at the bottom, transparent top */}
+              <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#05060d] via-[#05060d]/80 to-transparent z-20 pointer-events-none" />
+
+              {/* Labels & Pagination */}
+              <div className="absolute bottom-4 left-5 right-5 flex flex-wrap items-end justify-between gap-2 z-30">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={portraitImages[currentImgIndex].id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.5 }}
+                    className="flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.3em] text-white drop-shadow-md font-semibold"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent-soft)] animate-pulse shadow-[0_0_8px_var(--color-accent)]" />
+                    {portraitImages[currentImgIndex].label}
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* Dots indicator */}
+                <div className="flex gap-1.5">
+                  {portraitImages.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentImgIndex(idx)}
+                      className={`h-1 rounded-full transition-all duration-300 ${idx === currentImgIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/30 hover:bg-white/50'
+                        }`}
+                      aria-label={`Go to slide ${idx + 1}`}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="border-t border-white/10 bg-black/40 px-5 py-5 backdrop-blur">
+            <div className="border-t border-white/10 bg-[#05060d]/90 px-5 py-5 backdrop-blur-md">
               <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">AI Developer</p>
               <h3 className="mt-1 text-xl font-semibold text-white">Vito Piccolini</h3>
               <p className="mt-1 text-xs text-white/60">

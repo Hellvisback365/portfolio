@@ -75,6 +75,7 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             src={project.image}
             alt="Background blur"
             fill
+            sizes="(max-width: 768px) 100vw, 768px"
             className="object-cover blur-2xl opacity-30 scale-110"
           />
           <motion.div 
@@ -91,6 +92,7 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
               alt={project.title}
               className="object-contain p-6 drop-shadow-2xl"
               fill
+              sizes="(max-width: 768px) 100vw, 768px"
               onLoad={() => setImageLoaded(true)}
             />
           </motion.div>
