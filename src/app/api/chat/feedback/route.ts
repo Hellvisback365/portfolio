@@ -27,7 +27,9 @@ export async function POST(req: Request) {
       name: 'Assistant Response',
       input: userQuestionText || 'No question text provided',
       output: aiResponseText || 'No response text provided',
-      model: 'unknown'
+      model: 'unknown',
+      startTime: new Date(),
+      endTime: new Date()
     });
 
     trace.score({
