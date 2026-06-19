@@ -23,14 +23,12 @@ export async function POST(req: Request) {
       tags: ['feedback'],
     });
 
-    if (aiResponseText && userQuestionText) {
-      trace.generation({
-        name: 'Assistant Response',
-        input: userQuestionText,
-        output: aiResponseText,
-        model: 'unknown'
-      });
-    }
+    trace.generation({
+      name: 'Assistant Response',
+      input: userQuestionText || 'No question text provided',
+      output: aiResponseText || 'No response text provided',
+      model: 'unknown'
+    });
 
     trace.score({
       name: 'user-feedback',

@@ -510,7 +510,7 @@ export default function CopilotOverlay() {
                     const idx = messages.findIndex(m => m.id === message.id);
                     const prevMsg = messages[idx - 1];
                     const userQ = prevMsg?.role === 'user' ? (prevMsg as any).content || ((prevMsg as any).parts || []).map((p: any) => p.text || '').join('') : 'Unknown';
-                    const aiA = (message.parts as AnyPart[]).map(p => p.type === 'text' ? p.text : '').join('');
+                    const aiA = message.content || ((message as any).parts || []).map((p: any) => p.text || '').join('');
                     return (
                       <div className="flex gap-2 pt-1 opacity-40 hover:opacity-100 transition-opacity">
                         <button onClick={() => handleFeedback(message.id, 1, aiA, userQ)} disabled={feedbackGiven[message.id]} className="hover:text-emerald-400 disabled:opacity-30"><FiThumbsUp className="w-3 h-3" /></button>
