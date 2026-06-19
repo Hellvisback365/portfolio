@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { Langfuse } from 'langfuse';
 
 const langfuse = new Langfuse({
-  publicKey: process.env.LANGFUSE_PUBLIC_KEY,
-  secretKey: process.env.LANGFUSE_SECRET_KEY,
-  baseUrl: process.env.LANGFUSE_BASEURL || 'https://cloud.langfuse.com',
+  publicKey: process.env.LANGFUSE_PUBLIC_KEY?.replace(/^"|"$/g, '').trim(),
+  secretKey: process.env.LANGFUSE_SECRET_KEY?.replace(/^"|"$/g, '').trim(),
+  baseUrl: process.env.LANGFUSE_BASEURL?.replace(/^"|"$/g, '').trim() || 'https://cloud.langfuse.com',
 });
 
 export async function POST(req: Request) {
