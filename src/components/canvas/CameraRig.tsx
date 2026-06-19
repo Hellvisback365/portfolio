@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { scrollProgress } from '@/store/useAppStore';
 
 /**
  * Stile Apple: la camera è quasi ferma, è l'oggetto a trasformarsi.

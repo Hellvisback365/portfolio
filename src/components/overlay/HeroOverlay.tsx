@@ -31,7 +31,7 @@ export default function HeroOverlay() {
 
         <p className="max-w-xl text-balance text-base font-light leading-relaxed text-[var(--text-secondary)] sm:text-lg">
           Costruisco sistemi di raccomandazione e copiloti AI che ragionano
-          su dati reali — dall'orchestrazione multi-agente al retrieval ibrido.
+          su dati reali - dall'orchestrazione multi-agente al retrieval ibrido.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-mono text-[0.62rem] uppercase tracking-[0.22em] text-[var(--text-muted)]">

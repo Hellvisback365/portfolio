@@ -58,29 +58,28 @@ export function waveField(n: number): Float32Array {
   return out;
 }
 
-/** 2 · SKILLS — Reticolo: conoscenza strutturata, jitter minimo. */
+/** 2 · SKILLS — Anello planetario frontale (inclusivo): un cerchio di stelle che abbraccia le skills. */
 export function lattice(n: number): Float32Array {
   const out = new Float32Array(n * 3);
   const rand = rng(23);
-  const side = Math.floor(Math.cbrt(n));
-  const spacing = 0.36;
-  const half = ((side - 1) * spacing) / 2;
-  let i = 0;
-  for (let x = 0; x < side && i < n; x++) {
-    for (let y = 0; y < side && i < n; y++) {
-      for (let z = 0; z < side && i < n; z++) {
-        out[i * 3 + 0] = x * spacing - half + (rand() - 0.5) * 0.05;
-        out[i * 3 + 1] = (y * spacing - half) * 0.72 + (rand() - 0.5) * 0.05;
-        out[i * 3 + 2] = (z * spacing - half) * 0.72 + (rand() - 0.5) * 0.05;
-        i++;
-      }
-    }
-  }
-  // punti residui (n non è un cubo perfetto): polvere interna
-  for (; i < n; i++) {
-    out[i * 3 + 0] = (rand() * 2 - 1) * half;
-    out[i * 3 + 1] = (rand() * 2 - 1) * half * 0.72;
-    out[i * 3 + 2] = (rand() * 2 - 1) * half * 0.72;
+  for (let i = 0; i < n; i++) {
+    const angle = rand() * Math.PI * 2;
+    
+    // Il frustum della camera a Z=14 copre circa X: [-9.5, 9.5] e Y: [-5.3, 5.3].
+    // Per far sì che l'anello sia visibile e denso, i raggi devono stare in questi limiti.
+    const radiusFactor = Math.pow(rand(), 1.5); 
+    
+    // Raggio X: da 2.5 (buco centrale) a 8.5 (bordo schermo)
+    const rx = 3.0 + radiusFactor * 6.5; 
+    // Raggio Y: da 1.5 a 4.8 (bordo verticale schermo)
+    const ry = 1.8 + radiusFactor * 3.5;  
+    
+    // Spessore 3D dell'anello: maggiore al centro della fascia, minore ai bordi
+    const thickness = (rand() - 0.5) * 4.0 * (1 - radiusFactor);
+
+    out[i * 3 + 0] = Math.cos(angle) * rx;
+    out[i * 3 + 1] = Math.sin(angle) * ry;
+    out[i * 3 + 2] = thickness;
   }
   return out;
 }

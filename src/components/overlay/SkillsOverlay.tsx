@@ -1,186 +1,146 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import Badge from '@/components/ui/Badge';
-import { capabilityTracks, toolHighlights, languages } from '@/data/skills';
-
-const CATEGORY_LEGEND = [
-  { label: 'AI/ML & Data Science', color: 'white' },
-  { label: 'Web Development', color: '#60A5FA' },
-  { label: 'DevOps & Integration', color: 'white' },
-];
-
-const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.08, duration: 0.5 },
-  }),
-};
+import { capabilityTracks } from '@/data/skills';
 
 export default function SkillsOverlay() {
+  // Extract tracks for easy radial placement
+  const aiTrack = capabilityTracks[0];
+  const webTrack = capabilityTracks[1];
+  const devopsTrack = capabilityTracks[2];
+
+  // Animation variants for entering the section
+  const fadeIn = {
+    hidden: { opacity: 0, filter: 'blur(10px)' },
+    visible: (i: number) => ({
+      opacity: 1,
+      filter: 'blur(0px)',
+      transition: { delay: i * 0.15, duration: 0.8, ease: "easeOut" },
+    }),
+  };
+
   return (
-    <div className="flex min-h-screen w-screen items-start justify-center px-4 py-16 sm:px-8">
-      <div className="w-full max-w-6xl">
-        {/* Header */}
+    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center pointer-events-none">
+      
+      {/* Vignette background to darken edges and make text readable against particles */}
+      <div
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 55% 55% at 50% 50%, transparent 20%, rgba(4,6,12,0.9) 100%)',
+        }}
+      />
+
+      <div className="relative z-10 w-full max-w-7xl h-full flex items-center justify-center pointer-events-none p-4 md:p-8">
+        
+        {/* TOP CENTER: Title */}
         <motion.div
+          custom={0}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
-          custom={0}
+          viewport={{ once: false, amount: 0.3 }}
           variants={fadeIn}
-          className="mb-8 text-center"
+          className="absolute top-[10%] md:top-[12%] left-1/2 -translate-x-1/2 text-center pointer-events-auto w-full px-4"
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">
+          <p className="text-[0.6rem] uppercase tracking-[0.5em] text-white/50 mb-2">
             Skill Matrix
           </p>
-          <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
-            Capacità trasversali per prodotti AI-first
+          <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-wide drop-shadow-lg">
+            Capacità AI-first
           </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-white/60">
-            Dal brief al roll-out: combino ricerca, orchestrazione LangGraph, UX spiegabile e
-            automazioni n8n per ridurre il time-to-impact dei progetti AI.
-          </p>
         </motion.div>
 
-        {/* Legend */}
+        {/* MIDDLE LEFT: AI/ML */}
         <motion.div
+          custom={1}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
-          custom={1}
+          viewport={{ once: false, amount: 0.3 }}
           variants={fadeIn}
-          className="mb-10 flex flex-wrap justify-center gap-6"
+          className="absolute left-[4%] md:left-[8%] lg:left-[12%] top-[30%] md:top-[35%] max-w-[180px] md:max-w-[260px] pointer-events-auto text-left"
         >
-          {CATEGORY_LEGEND.map((cat) => (
-            <div key={cat.label} className="flex items-center gap-2">
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: cat.color }}
-              />
-              <span className="text-xs text-white/60">{cat.label}</span>
-            </div>
-          ))}
-        </motion.div>
-
-        {/* Main grid */}
-        <div className="grid gap-6 lg:grid-cols-[1.3fr,0.7fr]">
-          {/* Left: Capability tracks */}
-          <div className="space-y-5">
-            {capabilityTracks.map((track, index) => (
-              <motion.div
-                key={track.title}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.3 }}
-                custom={2 + index}
-                variants={fadeIn}
-                className="glass-holographic rounded-2xl p-5"
-              >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/40">
-                      Capability
-                    </p>
-                    <h3 className="text-xl font-semibold text-white">{track.title}</h3>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {track.stack.map((tool) => (
-                      <span
-                        key={tool}
-                        className="rounded-full border border-white/12 px-2.5 py-0.5 text-[0.6rem] uppercase tracking-[0.2em] text-white/60"
-                      >
-                        {tool}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <p className="mt-3 text-sm text-white/70">{track.description}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {track.focusAreas.map((focus) => (
-                    <Badge key={focus} variant="outline" className="text-[0.6rem]">
-                      {focus}
-                    </Badge>
-                  ))}
-                </div>
-              </motion.div>
+          <h3 className="text-[0.7rem] md:text-sm font-bold text-white uppercase tracking-widest mb-2 flex items-center gap-2 drop-shadow-md">
+            <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]"></span>
+            {aiTrack.title}
+          </h3>
+          <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
+            {aiTrack.description}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {aiTrack.stack.slice(0, 5).map(tool => (
+              <span key={tool} className="text-[0.5rem] md:text-[0.55rem] border border-white/10 bg-white/5 backdrop-blur-sm rounded px-1.5 py-0.5 text-white/50">{tool}</span>
             ))}
           </div>
+        </motion.div>
 
-          {/* Right: Toolchain + Languages */}
-          <div className="space-y-5">
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.3 }}
-              custom={5}
-              variants={fadeIn}
-              className="glass-holographic rounded-2xl p-5"
-            >
-              <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/40">
-                Toolchain
-              </p>
-              <div className="mt-4 space-y-4">
-                {toolHighlights.map((cluster) => (
-                  <div
-                    key={cluster.area}
-                    className="rounded-xl border border-white/8 bg-white/5 p-3"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Badge variant="glow" className="text-[0.55rem]">
-                        {cluster.area}
-                      </Badge>
-                      <span className="text-[0.55rem] uppercase tracking-[0.3em] text-white/40">
-                        {cluster.category}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-xs text-white/60">{cluster.description}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {cluster.tools.map((tool) => (
-                        <span
-                          key={tool}
-                          className="rounded-full bg-white/5 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.15em] text-white/50"
-                        >
-                          {tool}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.3 }}
-              custom={6}
-              variants={fadeIn}
-              className="glass-holographic rounded-2xl p-5"
-            >
-              <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/40">
-                Lingue
-              </p>
-              <div className="mt-4 space-y-3">
-                {languages.map((lang) => (
-                  <div
-                    key={lang.name}
-                    className="rounded-xl border border-white/10 bg-white/5 p-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="text-base font-semibold text-white">{lang.name}</p>
-                      <Badge variant="outline" className="text-[0.6rem]">
-                        {lang.level}
-                      </Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-white/60">{lang.description}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
+        {/* MIDDLE RIGHT: Web Dev */}
+        <motion.div
+          custom={2}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+          variants={fadeIn}
+          className="absolute right-[4%] md:right-[8%] lg:right-[12%] top-[25%] md:top-[28%] max-w-[180px] md:max-w-[260px] pointer-events-auto text-right flex flex-col items-end"
+        >
+          <h3 className="text-[0.7rem] md:text-sm font-bold text-white uppercase tracking-widest mb-2 flex items-center gap-2 justify-end drop-shadow-md">
+            {webTrack.title}
+            <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#60A5FA] shadow-[0_0_8px_#60A5FA]"></span>
+          </h3>
+          <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
+            {webTrack.description}
+          </p>
+          <div className="flex flex-wrap gap-1.5 justify-end">
+            {webTrack.stack.slice(0, 5).map(tool => (
+              <span key={tool} className="text-[0.5rem] md:text-[0.55rem] border border-white/10 bg-white/5 backdrop-blur-sm rounded px-1.5 py-0.5 text-white/50">{tool}</span>
+            ))}
           </div>
-        </div>
+        </motion.div>
+
+        {/* BOTTOM LEFT: DevOps */}
+        <motion.div
+          custom={3}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+          variants={fadeIn}
+          className="absolute left-[6%] md:left-[10%] lg:left-[16%] bottom-[25%] md:bottom-[20%] max-w-[180px] md:max-w-[260px] pointer-events-auto text-left"
+        >
+          <h3 className="text-[0.7rem] md:text-sm font-bold text-white uppercase tracking-widest mb-2 flex items-center gap-2 drop-shadow-md">
+            <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-white/80 shadow-[0_0_8px_rgba(255,255,255,0.8)]"></span>
+            {devopsTrack.title}
+          </h3>
+          <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
+            {devopsTrack.description}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {devopsTrack.stack.slice(0, 4).map(tool => (
+              <span key={tool} className="text-[0.5rem] md:text-[0.55rem] border border-white/10 bg-white/5 backdrop-blur-sm rounded px-1.5 py-0.5 text-white/50">{tool}</span>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* BOTTOM RIGHT: Toolchain & Langs */}
+        <motion.div
+          custom={4}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+          variants={fadeIn}
+          className="absolute right-[6%] md:right-[10%] lg:right-[16%] bottom-[20%] md:bottom-[15%] max-w-[180px] md:max-w-[260px] pointer-events-auto text-right flex flex-col items-end"
+        >
+          <h3 className="text-[0.7rem] md:text-sm font-bold text-white uppercase tracking-widest mb-2 flex items-center gap-2 justify-end drop-shadow-md">
+            Ecosystem
+            <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-white/40 shadow-[0_0_8px_rgba(255,255,255,0.4)]"></span>
+          </h3>
+          <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
+            Strumenti core e padronanza linguistica per operare in team internazionali.
+          </p>
+          <div className="flex flex-wrap gap-1.5 justify-end">
+             <span className="text-[0.5rem] md:text-[0.55rem] border border-white/10 bg-white/5 backdrop-blur-sm rounded px-1.5 py-0.5 text-white/50">Git/GitHub</span>
+             <span className="text-[0.5rem] md:text-[0.55rem] border border-white/10 bg-white/5 backdrop-blur-sm rounded px-1.5 py-0.5 text-white/50">VS Code</span>
+             <span className="text-[0.5rem] md:text-[0.55rem] border border-white/10 bg-white/5 backdrop-blur-sm rounded px-1.5 py-0.5 text-[#60A5FA]/60">English B1</span>
+          </div>
+        </motion.div>
+
       </div>
     </div>
   );

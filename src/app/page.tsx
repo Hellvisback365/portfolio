@@ -23,7 +23,30 @@ function ScrollBridge() {
   useLenis((lenis) => {
     const p = lenis.limit > 0 ? lenis.scroll / lenis.limit : 0;
     scrollProgress.value = p;
-    scrollProgress.stage = p * (SECTIONS.length - 1);
+    
+    // Calculate stage based on DOM offsets to support varying section heights
+    if (typeof document !== 'undefined') {
+      let currentStage = 0;
+      for (let i = 0; i < SECTIONS.length - 1; i++) {
+        const currentSec = document.getElementById(SECTIONS[i]);
+        const nextSec = document.getElementById(SECTIONS[i + 1]);
+        if (currentSec && nextSec) {
+          const currentTop = currentSec.offsetTop;
+          const nextTop = nextSec.offsetTop;
+          
+          if (lenis.scroll >= currentTop && lenis.scroll < nextTop) {
+            const sectionProgress = (lenis.scroll - currentTop) / (nextTop - currentTop);
+            currentStage = i + sectionProgress;
+            break;
+          } else if (lenis.scroll >= nextTop && i === SECTIONS.length - 2) {
+             currentStage = SECTIONS.length - 1;
+          }
+        }
+      }
+      scrollProgress.stage = currentStage;
+    } else {
+      scrollProgress.stage = p * (SECTIONS.length - 1);
+    }
   });
   return null;
 }

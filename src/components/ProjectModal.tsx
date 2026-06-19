@@ -68,6 +68,7 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
         variants={modalVariants}
         className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl bg-[#05060d]"
         onClick={(e) => e.stopPropagation()}
+        data-lenis-prevent="true"
       >
         <div className="relative h-64 sm:h-80 overflow-hidden rounded-t-3xl border-b border-white/10 bg-[#05060d]">
           {/* Blurred Background */}
@@ -184,7 +185,7 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
                 {link.label}
               </CTAButton>
             ))}
-            <CTAButton variant="ghost" onClick={onClose}>
+            <CTAButton variant="primary" onClick={onClose}>
               Chiudi
             </CTAButton>
           </motion.div>

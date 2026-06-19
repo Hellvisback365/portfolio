@@ -14,6 +14,8 @@ import { z } from 'zod';
 import { getRetriever, type RetrievedChunk } from '@/lib/rag/retriever';
 import { getProviders } from '@/lib/rag/providers';
 import { SECTIONS } from '@/store/useAppStore';
+import { compileGraph } from '@/lib/rag/graph';
+import { ratelimit } from '@/lib/rag/edge-cache';
 
 /**
  * Pipeline per richiesta (budget ~quello di una sola chiamata LLM,
@@ -141,45 +143,7 @@ FONTI
 ${context}`;
 }
 
-async function routeQuery(
-  router: LanguageModel,
-  dialogue: string,
-  fallbackQuestion: string,
-): Promise<RouterDecision> {
-  const fallback: RouterDecision = {
-    intent: 'portfolio',
-    standalone: fallbackQuestion,
-  };
-  if (!fallbackQuestion) return { intent: 'smalltalk', standalone: '' };
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ROUTER_TIMEOUT_MS);
-  try {
-    const { object } = await generateObject({
-      model: router,
-      schema: routerSchema,
-      abortSignal: controller.signal,
-      temperature: 0,
-      prompt: `Classifica l'ultimo messaggio dell'utente in una chat sul portfolio di Vito Piccolini.
-
-intent:
-- "smalltalk": saluti, ringraziamenti, chiacchiere non legate al portfolio
-- "navigate": l'utente chiede esplicitamente di vedere/aprire una sezione del sito
-- "portfolio": domande su Vito (progetti, tesi, esperienze, skills, formazione, contatti)
-
-standalone: riscrivi l'ultimo messaggio come domanda autonoma e completa in italiano, risolvendo i pronomi con il contesto della conversazione (es. "e in quel progetto?" -> "Che ruolo ha avuto Vito nel progetto Zenith?"). Per smalltalk usa stringa vuota.
-
-CONVERSAZIONE
-${dialogue}`,
-    });
-    return object;
-  } catch {
-    // Timeout o errore del router: la chat non deve accorgersene.
-    return fallback;
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 // ── Route ─────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
@@ -201,41 +165,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Body non valido.' }, { status: 400 });
   }
 
+  if (ratelimit) {
+    const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+    const { success } = await ratelimit.limit(ip);
+    if (!success) {
+      return NextResponse.json({ error: 'Hai raggiunto il limite di messaggi gratuiti. Riprova più tardi.' }, { status: 429 });
+    }
+  }
+
   const messages = parsed.messages as UIMessage[];
   const queryVector = parsed.queryVector ?? null;
   const question = lastUserText(messages);
   const history = messages.slice(-HISTORY_WINDOW);
 
-  // Router e retriever partono insieme: il retrieval lessicale sulla
-  // domanda grezza copre il caso in cui il router scada in timeout.
-  const retrieverPromise = getRetriever();
-  const decisionPromise = routeQuery(
-    providers.router,
-    recentDialogue(history),
+  const graph = compileGraph();
+  const state = await graph.invoke({
+    messages: history.map(m => ({ role: m.role, content: textOf(m) })),
     question,
-  );
+    queryVector: queryVector || null,
+  });
 
-  const [retriever, decision] = await Promise.all([
-    retrieverPromise,
-    decisionPromise,
-  ]);
-
-  let sources: RetrievedChunk[] = [];
-  if (decision.intent !== 'smalltalk' && question) {
-    const rewritten = decision.standalone.trim();
-    // Il vettore è stato calcolato dal client sulla domanda originale:
-    // lo usiamo com'è; la gamba BM25 beneficia invece del rewrite.
-    sources = retriever.retrieve(rewritten || question, queryVector, TOP_K);
-    if (sources.length === 0 && rewritten && rewritten !== question) {
-      sources = retriever.retrieve(question, queryVector, TOP_K);
-    }
-  }
+  const sources: RetrievedChunk[] = state.sources || [];
 
   const result = streamText({
     model: providers.chat,
     system: buildSystemPrompt(sources),
     messages: await convertToModelMessages(history),
     temperature: 0.4,
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: 'copilot-rag',
+    },
     stopWhen: stepCountIs(1),
     tools: {
       navigateToSection: tool({

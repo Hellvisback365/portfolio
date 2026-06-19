@@ -50,11 +50,11 @@ const ALLOWED_MIME_TYPES = [
 const MAX_MESSAGE_LENGTH = 2000;
 
 const categories = [
-  { id: 'job',       label: 'Proposta lavorativa', emoji: '💼' },
-  { id: 'collab',    label: 'Collaborazione',      emoji: '🤝' },
-  { id: 'freelance', label: 'Freelance',           emoji: '🚀' },
-  { id: 'info',      label: 'Informazioni',        emoji: '💡' },
-  { id: 'other',     label: 'Altro',               emoji: '💬' },
+  { id: 'job', label: 'Proposta lavorativa', emoji: '💼' },
+  { id: 'collab', label: 'Collaborazione', emoji: '🤝' },
+  { id: 'freelance', label: 'Freelance', emoji: '🚀' },
+  { id: 'info', label: 'Informazioni', emoji: '💡' },
+  { id: 'other', label: 'Altro', emoji: '💬' },
 ];
 
 const contactDetails = [
@@ -80,7 +80,7 @@ const contactDetails = [
   },
   {
     label: 'Disponibilità',
-    value: 'Novembre 2025',
+    value: 'Immediata - Giugno 2026',
     helper: 'Stage curriculare LM-18 o collaborazione AI-first.',
     icon: <FaCalendarAlt className="text-white" />,
   },
@@ -429,11 +429,10 @@ export default function ContactOverlay() {
                     key={cat.id}
                     type="button"
                     onClick={() => selectCategory(cat.id)}
-                    className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-200 ${
-                      formData.category === cat.id
+                    className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-200 ${formData.category === cat.id
                         ? 'border-[var(--color-accent)]/50 bg-[var(--color-accent)]/15 text-[var(--color-accent-soft)]'
                         : 'border-white/10 bg-white/5 text-white/50 hover:border-white/20 hover:text-white/70'
-                    }`}
+                      }`}
                   >
                     <span className="mr-1.5">{cat.emoji}</span>{cat.label}
                   </button>
@@ -558,11 +557,10 @@ export default function ContactOverlay() {
                   onDragLeave={onDragLeave}
                   onDrop={onDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-5 transition-all duration-200 ${
-                    isDragging
+                  className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-5 transition-all duration-200 ${isDragging
                       ? 'border-[var(--color-accent)]/50 bg-[var(--color-accent)]/5'
                       : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
-                  }`}
+                    }`}
                 >
                   <FaCloudUploadAlt className={`mb-2 text-xl ${isDragging ? 'text-[var(--color-accent-soft)]' : 'text-white/20'}`} />
                   <p className="text-xs text-white/40">
@@ -635,11 +633,10 @@ export default function ContactOverlay() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`group relative ml-auto flex items-center gap-2.5 rounded-lg border px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.25em] transition-all duration-300 ${
-                  isSubmitting
+                className={`group relative ml-auto flex items-center gap-2.5 rounded-lg border px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.25em] transition-all duration-300 ${isSubmitting
                     ? 'cursor-not-allowed border-white/10 bg-white/5 text-white/30'
                     : 'border-[var(--color-accent)]/30 bg-[var(--color-accent)]/10 text-[var(--color-accent-soft)] hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-accent)]/20 hover:shadow-[0_0_24px_rgba(10,132,255,0.15)]'
-                }`}
+                  }`}
               >
                 {isSubmitting ? (
                   <>
