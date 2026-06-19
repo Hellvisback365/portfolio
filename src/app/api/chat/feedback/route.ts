@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       input: userQuestionText || 'No question text provided',
       output: aiResponseText || 'No response text provided',
       model: 'unknown',
-      startTime: new Date(),
+      startTime: new Date(Date.now() - 1000),
       endTime: new Date()
     });
 
