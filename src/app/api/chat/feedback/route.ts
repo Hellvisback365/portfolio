@@ -9,7 +9,7 @@ const langfuse = new Langfuse({
 
 export async function POST(req: Request) {
   try {
-    const { messageId, score } = await req.json();
+    const { messageId, score, aiResponseText, userQuestionText } = await req.json();
 
     if (!messageId || score === undefined) {
       return NextResponse.json({ error: 'Missing messageId or score' }, { status: 400 });
@@ -17,8 +17,22 @@ export async function POST(req: Request) {
 
     // Attach score in Langfuse. 
     // We use messageId as traceId/observationId so we can track the exact response.
-    await langfuse.score({
-      traceId: messageId,
+    const trace = langfuse.trace({
+      id: messageId,
+      name: 'User Feedback Trace',
+      tags: ['feedback'],
+    });
+
+    if (aiResponseText && userQuestionText) {
+      trace.generation({
+        name: 'Assistant Response',
+        input: userQuestionText,
+        output: aiResponseText,
+        model: 'unknown'
+      });
+    }
+
+    trace.score({
       name: 'user-feedback',
       value: score,
       comment: score === 1 ? 'Pollice in su (Utente soddisfatto)' : 'Pollice in giù (Risposta errata o allucinata)',

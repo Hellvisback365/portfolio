@@ -194,14 +194,14 @@ export default function CopilotOverlay() {
     }
   };
 
-  const handleFeedback = async (messageId: string, score: number) => {
+  const handleFeedback = async (messageId: string, score: number, aiResponseText: string, userQuestionText: string) => {
     if (feedbackGiven[messageId]) return;
     setFeedbackGiven(prev => ({ ...prev, [messageId]: true }));
     try {
       await fetch('/api/chat/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId, score })
+        body: JSON.stringify({ messageId, score, aiResponseText, userQuestionText })
       });
     } catch (err) {
       console.error('Failed to submit feedback', err);
@@ -506,12 +506,18 @@ export default function CopilotOverlay() {
                   {(message.parts as AnyPart[]).map((part, i) =>
                     renderPart(message.id, part, i),
                   )}
-                  {message.role === 'assistant' && (
-                    <div className="flex gap-2 pt-1 opacity-40 hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleFeedback(message.id, 1)} disabled={feedbackGiven[message.id]} className="hover:text-emerald-400 disabled:opacity-30"><FiThumbsUp className="w-3 h-3" /></button>
-                      <button onClick={() => handleFeedback(message.id, 0)} disabled={feedbackGiven[message.id]} className="hover:text-red-400 disabled:opacity-30"><FiThumbsDown className="w-3 h-3" /></button>
-                    </div>
-                  )}
+                  {message.role === 'assistant' && (() => {
+                    const idx = messages.findIndex(m => m.id === message.id);
+                    const prevMsg = messages[idx - 1];
+                    const userQ = prevMsg?.role === 'user' ? prevMsg.content : 'Unknown';
+                    const aiA = (message.parts as AnyPart[]).map(p => p.type === 'text' ? p.text : '').join('');
+                    return (
+                      <div className="flex gap-2 pt-1 opacity-40 hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleFeedback(message.id, 1, aiA, userQ)} disabled={feedbackGiven[message.id]} className="hover:text-emerald-400 disabled:opacity-30"><FiThumbsUp className="w-3 h-3" /></button>
+                        <button onClick={() => handleFeedback(message.id, 0, aiA, userQ)} disabled={feedbackGiven[message.id]} className="hover:text-red-400 disabled:opacity-30"><FiThumbsDown className="w-3 h-3" /></button>
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
 
