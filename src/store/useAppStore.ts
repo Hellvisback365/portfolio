@@ -24,6 +24,8 @@ export const scrollProgress = {
 interface AppState {
   copilotOpen: boolean;
   setCopilotOpen: (open: boolean) => void;
+  language: 'it' | 'en';
+  setLanguage: (lang: 'it' | 'en') => void;
   /** Naviga la pagina (e quindi la scena) verso una sezione. */
   flyToSection: (section: SectionId | string) => void;
 }
@@ -31,6 +33,8 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   copilotOpen: false,
   setCopilotOpen: (open) => set({ copilotOpen: open }),
+  language: 'it',
+  setLanguage: (lang) => set({ language: lang }),
   flyToSection: (section) => {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(

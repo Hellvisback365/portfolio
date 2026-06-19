@@ -2,7 +2,7 @@ export const personalInfo = {
   name: 'Vito Piccolini',
   role: 'AI Developer / Studente in Computer Science – AI',
   location: 'Bari e provincia (Italia)',
-  shortBio: 'Nato il 12 giugno 1997 (29 anni). Sviluppo sistemi di raccomandazione LLM-driven, architetture multi-agente e automazioni workflow con Python e LangGraph.',
+  shortBio: 'Sviluppo sistemi di raccomandazione LLM-driven, architetture multi-agente e automazioni workflow con Python e LangGraph.',
   longBio: 'Dopo la laurea triennale in Informatica (107/110) sto proseguendo con la LM-18 in Computer Science – Artificial Intelligence presso l\'Università di Bari. Durante il tirocinio nel laboratorio LACAM-SWAP ho sviluppato un\'architettura multi-agente basata su LLM, orchestrata con LangGraph, ottenendo +12% di diversità e +53% precision@1. Competenze in Python, LangChain, LangGraph, React, Node.js e n8n per prototipazione rapida in team multidisciplinari.',
   focusPills: ['Assistenti enterprise', 'Multi-agent Recsys', 'Workflow automation', 'AI compliance'],
 };

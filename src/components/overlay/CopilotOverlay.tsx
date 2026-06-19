@@ -11,7 +11,7 @@ import {
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { FiArrowUp, FiCpu, FiMessageCircle, FiX } from 'react-icons/fi';
+import { FiMessageCircle, FiX, FiCpu, FiArrowUp, FiMic, FiThumbsUp, FiThumbsDown } from 'react-icons/fi';
 import { useAppStore } from '@/store/useAppStore';
 import {
   embedQuery,
@@ -156,6 +156,57 @@ export default function CopilotOverlay() {
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inFlightRef = useRef(false);
+
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput((prev) => prev + (prev ? ' ' : '') + transcript);
+        };
+        
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+      }
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) return;
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      const language = useAppStore.getState().language;
+      recognitionRef.current.lang = language === 'en' ? 'en-US' : 'it-IT';
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
+  const handleFeedback = async (messageId: string, score: number) => {
+    if (feedbackGiven[messageId]) return;
+    setFeedbackGiven(prev => ({ ...prev, [messageId]: true }));
+    try {
+      await fetch('/api/chat/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, score })
+      });
+    } catch (err) {
+      console.error('Failed to submit feedback', err);
+    }
+  };
 
   // Fetch dynamic suggestions on mount
   useEffect(() => {
@@ -455,6 +506,12 @@ export default function CopilotOverlay() {
                   {(message.parts as AnyPart[]).map((part, i) =>
                     renderPart(message.id, part, i),
                   )}
+                  {message.role === 'assistant' && (
+                    <div className="flex gap-2 pt-1 opacity-40 hover:opacity-100 transition-opacity">
+                      <button onClick={() => handleFeedback(message.id, 1)} disabled={feedbackGiven[message.id]} className="hover:text-emerald-400 disabled:opacity-30"><FiThumbsUp className="w-3 h-3" /></button>
+                      <button onClick={() => handleFeedback(message.id, 0)} disabled={feedbackGiven[message.id]} className="hover:text-red-400 disabled:opacity-30"><FiThumbsDown className="w-3 h-3" /></button>
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -513,8 +570,16 @@ export default function CopilotOverlay() {
                   className="max-h-32 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35 overscroll-contain"
                 />
                 <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}
+                  aria-label="Microfono"
+                >
+                  <FiMic className="h-4 w-4" />
+                </button>
+                <button
                   type="submit"
-                  disabled={busy || !input.trim()}
+                  disabled={busy || (!input.trim() && !isListening)}
                   aria-label="Invia"
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-white transition-opacity disabled:opacity-30"
                 >

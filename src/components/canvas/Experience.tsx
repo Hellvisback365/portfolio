@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { PerformanceMonitor } from '@react-three/drei';
 import PhylloField from './PhylloField';
@@ -40,13 +40,15 @@ export default function Experience() {
       }}
       style={{ background: '#04060c' }}
     >
-      <PerformanceMonitor
-        onIncline={() => setDpr((d) => Math.min(1.75, d + 0.25))}
-        onDecline={() => setDpr((d) => Math.max(1, d - 0.25))}
-      >
-        <CameraRig reducedMotion={reducedMotion} />
-        <PhylloField reducedMotion={reducedMotion} isCoarsePointer={isCoarse} />
-      </PerformanceMonitor>
+      <Suspense fallback={null}>
+        <PerformanceMonitor
+          onIncline={() => setDpr((d) => Math.min(1.75, d + 0.25))}
+          onDecline={() => setDpr((d) => Math.max(1, d - 0.25))}
+        >
+          <CameraRig reducedMotion={reducedMotion} />
+          <PhylloField reducedMotion={reducedMotion} isCoarsePointer={isCoarse} />
+        </PerformanceMonitor>
+      </Suspense>
     </Canvas>
   );
 }

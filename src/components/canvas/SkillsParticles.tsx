@@ -2,6 +2,7 @@
 
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { MotionValue } from 'framer-motion';
 
@@ -97,6 +98,13 @@ export default function SkillsParticles({
         depthWrite={false}
         sizeAttenuation={true}
       />
+      <Html zIndexRange={[100, 0]} className="sr-only">
+        <div role="region" aria-label="Modello 3D interattivo delle competenze di Vito">
+          <button aria-label="Esplora le competenze in Artificial Intelligence, RAG e MLOps" className="sr-only focus:not-sr-only">Esplora AI</button>
+          <button aria-label="Esplora le competenze Web, React e Next.js" className="sr-only focus:not-sr-only">Esplora Web Frontend</button>
+          <button aria-label="Esplora le competenze di Backend e Cloud Computing" className="sr-only focus:not-sr-only">Esplora Backend</button>
+        </div>
+      </Html>
     </points>
   );
 }
