@@ -35,16 +35,30 @@ const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/vitopiccolini@live.it';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB (FormSubmit limit)
 const MAX_FILES = 3;
 const ALLOWED_EXTENSIONS = [
-  '.pdf', '.doc', '.docx', '.txt', '.csv',
-  '.png', '.jpg', '.jpeg', '.webp',
+  // Documenti e Testo
+  '.pdf', '.doc', '.docx', '.txt', '.csv', '.md',
+  // Fogli di calcolo e Presentazioni
+  '.xls', '.xlsx', '.ppt', '.pptx', '.key',
+  // Dati e Configurazioni
+  '.json', '.xml', '.yaml', '.yml',
+  // Media (Immagini e Video leggeri)
+  '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4',
+  // Archivi
   '.zip', '.rar',
 ];
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain', 'text/csv',
-  'image/png', 'image/jpeg', 'image/webp',
+  'text/plain', 'text/csv', 'text/markdown',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/x-iwork-keynote-sffkey',
+  'application/json', 'application/xml', 'text/xml', 'application/x-yaml', 'text/yaml',
+  'image/png', 'image/jpeg', 'image/webp', 'image/gif',
+  'video/mp4',
   'application/zip', 'application/x-rar-compressed',
 ];
 const MAX_MESSAGE_LENGTH = 2000;
@@ -567,7 +581,7 @@ export default function ContactOverlay() {
                     {isDragging ? 'Rilascia qui' : 'Trascina file o clicca per sfogliare'}
                   </p>
                   <p className="mt-1 text-[0.6rem] text-white/20">
-                    PDF, Word, immagini, archivi — max 10 MB
+                    PDF, Office, Markdown, Media, JSON, Archivi — max 10 MB
                   </p>
                 </div>
               )}
