@@ -46,14 +46,17 @@ function chunkText(text: string): string[] {
 
   const chunks: string[] = [];
   let current = '';
+  let lastSentence = '';
+
   for (const sentence of sentences) {
     if (current && (current + ' ' + sentence).length > CHUNK_SIZE) {
       chunks.push(current);
-      // overlap: la frase di confine apre anche il chunk successivo
-      current = sentence;
+      // overlap vero: prependi l'ultima frase del chunk precedente
+      current = lastSentence ? `${lastSentence} ${sentence}` : sentence;
     } else {
       current = current ? `${current} ${sentence}` : sentence;
     }
+    lastSentence = sentence;
   }
   if (current) chunks.push(current);
   return chunks;

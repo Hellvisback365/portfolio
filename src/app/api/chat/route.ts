@@ -14,8 +14,6 @@ import { z } from 'zod';
 import { getRetriever, type RetrievedChunk } from '@/lib/rag/retriever';
 import { getProviders } from '@/lib/rag/providers';
 import { SECTIONS } from '@/store/useAppStore';
-import { compileGraph } from '@/lib/rag/graph';
-import { ratelimit } from '@/lib/rag/edge-cache';
 
 /**
  * Pipeline per richiesta (budget ~quello di una sola chiamata LLM,
@@ -43,7 +41,7 @@ export const maxDuration = 30;
 
 const HISTORY_WINDOW = 8;
 const TOP_K = 10;
-const ROUTER_TIMEOUT_MS = 1200;
+const ROUTER_TIMEOUT_MS = 3500;
 
 // ── Validazione del body ──────────────────────────────────────────────
 const bodySchema = z.object({
@@ -53,13 +51,14 @@ const bodySchema = z.object({
     .min(8)
     .max(1024)
     .nullish(),
+  contextChunks: z.array(z.unknown()).optional(),
 });
 
 const routerSchema = z.object({
   intent: z.enum(['smalltalk', 'portfolio', 'navigate']),
-  standalone: z
-    .string()
-    .describe('La domanda riscritta in forma autonoma, in italiano.'),
+  standalone: z.string().describe('La domanda riscritta in forma autonoma, in italiano.'),
+  uiAction: z.enum(['none', 'navigateToSection', 'showProject', 'showSkillsRadar']).default('none').describe('Azione UI da eseguire.'),
+  uiActionTarget: z.string().optional().describe('Se uiAction è navigateToSection usa una tra about, skills, projects, contact. Se showProject usa il nome del progetto.'),
 });
 
 type RouterDecision = z.infer<typeof routerSchema>;
@@ -104,10 +103,14 @@ Sei il Copilot AI del portfolio di Vito Piccolini, un brillante sviluppatore AI/
 Il tuo scopo è assistere recruiter, aziende e colleghi nel comprendere le competenze e le esperienze di Vito.
 
 REGOLE FONDAMENTALI:
-1. MULTILINGUISMO: Vito cerca lavoro in Remote EU. Devi capire automaticamente la lingua in cui l'utente ti scrive (Es. Inglese, Italiano, Spagnolo, etc.) e RISPONDERE SEMPRE NELLA LINGUA DELL'UTENTE. Se l'utente scrive in Inglese, rispondi in Inglese. Se in Italiano, in Italiano.
-2. BASATI SUL CONTESTO: Usa *solo* le informazioni fornite nel blocco [CONTESTO RAG]. Se l'informazione non c'è, ammettilo gentilmente ma offriti di rispondere ad altro. NON inventare competenze o esperienze che Vito non ha.
-3. TONO DI VOCE: Professionale, brillante e conciso. Sei un assistente, non Vito stesso. Parla di lui in terza persona (es. "Vito ha sviluppato...").
-4. TOOL CALLING: Hai a disposizione dei tool per interagire con il portfolio 3D. USALI quando l'utente chiede di vedere qualcosa (es. se chiede "quali sono le sue skill?", usa showSkillsRadar. Se chiede "mostrami i progetti", naviga alla sezione progetti).
+1. MULTILINGUISMO: Rispondi SEMPRE NELLA LINGUA DELL'UTENTE.
+2. BASATI SUL CONTESTO: Usa *solo* le informazioni fornite nel blocco [CONTESTO RAG]. Se l'informazione non c'è, ammettilo gentilmente. NON inventare.
+3. TONO DI VOCE: Professionale, brillante e conciso. Sei un assistente, non Vito stesso. Parla di lui in terza persona.
+4. Sii ESTREMAMENTE conciso e dritto al punto (1-2 frasi al massimo).
+5. Tono: elegante, minimale, competente.
+6. VIETATO usare convenevoli o filler ("Certamente!", "Certo!", "Ecco a te!").
+7. VIETATO annunciare le azioni della UI ("Ti porto alla sezione", "Ecco la scheda"). L'interfaccia si muove da sola in background, tu limitati a rispondere a parole.
+8. Non inserire MAI tag o riferimenti grezzi come [S1] o [S2] nel testo.
 
 [CONTESTO RAG (Fonti Recuperate)]
 ${context}
@@ -116,37 +119,6 @@ CONTATTI PUBBLICI (puoi condividerli liberamente)
 - Email: vitopiccolini@live.it
 - LinkedIn: https://www.linkedin.com/in/vitopiccolini/
 - GitHub: https://github.com/Hellvisback365
-
-REGOLE DI CONVERSAZIONE (STILE SOTA AI)
-- Sii ESTREMAMENTE conciso e dritto al punto (1-2 frasi al massimo).
-- Tono: elegante, minimale, competente.
-- VIETATO usare convenevoli o filler ("Certamente!", "Certo!", "Ecco a te!").
-- VIETATO annunciare le azioni della UI ("Ecco la scheda del progetto", "Ti porto alla sezione", "Ecco le mie competenze"). Lascia che i tool UI parlino da soli senza "spiegarli" verbalmente.
-- Non inserire MAI tag o riferimenti grezzi come [S1] o [S2] nel testo.
-
-REGOLE SUI TOOL (CRITICO E OBBLIGATORIO)
-Il tuo compito è unire la risposta testuale all'azione UI. Se la domanda rientra in una di queste categorie, DEVI CHIAMARE IL TOOL CORRISPONDENTE nello stesso turno della risposta, senza aspettare che l'utente chieda esplicitamente di andarci:
-- Domande su chi è Vito, cosa fa ora, i suoi studi, la sua laurea, o il suo percorso lavorativo -> chiama navigateToSection('about')
-- Domande sulle sue competenze, linguaggi di programmazione o stack (es. "che linguaggi usa", "sa react?") -> chiama showSkillsRadar
-- Domande sui progetti in generale (es. "fammi vedere i progetti", "cosa ha sviluppato") -> chiama navigateToSection('projects')
-- Domande su un progetto SPECIFICO citato per nome (es. Zenith, TerraNode, LACAM-SWAP) -> chiama showProject(projectName)
-- Domande su come contattarlo, email, telefono, profili social -> chiama navigateToSection('contact')
-ATTENZIONE: Se non chiami il tool, l'interfaccia utente rimarrà ferma e la tua risposta sarà considerata fallita. Esegui SEMPRE l'azione UI appropriata!
-- ATTENZIONE: È ASSOLUTAMENTE OBBLIGATORIO scrivere un testo di risposta PRIMA di chiamare il tool. NON chiamare mai un tool senza aver prima risposto a parole.
-- REGOLA D'ORO DELLA RIPETIZIONE: Anche se hai GIA' mostrato un progetto o spiegato una cosa nei messaggi precedenti, DEVI SEMPRE generare di nuovo sia il testo testuale sia la chiamata al tool se l'utente te lo chiede di nuovo. L'interfaccia si aspetta che ad ogni interazione tu generi il tool appropriato, altrimenti sembrerà rotta. Non omettere MAI il testo o il tool pensando "l'ho già fatto prima".
-Utente: "Parlami di TerraNode"
-Tu (testo): "TerraNode è una piattaforma SaaS per l'agricoltura 4.0. Vito ha curato l'infrastruttura backend e i sensori IoT."
-Tu (tool): showProject('TerraNode')
-
-Utente: "Quali linguaggi conosce?"
-Tu (testo): "Vito usa principalmente TypeScript e Python, specialmente in ambito AI e web development."
-Tu (tool): showSkillsRadar()
-
-Utente: "Dove studia?"
-Tu (testo): "Attualmente Vito frequenta la Magistrale in Computer Science ad indirizzo AI presso l'Università di Bari."
-Tu (tool): navigateToSection('about')
-
-- I tool vanno chiamati usando la funzione nativa fornita, MAI scrivendo codice, tag HTML o JSON nel testo.
 
 FONTI
 ${context}`;
@@ -175,27 +147,57 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Body non valido.' }, { status: 400 });
   }
 
-  if (ratelimit) {
-    const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
-    const { success } = await ratelimit.limit(ip);
-    if (!success) {
-      return NextResponse.json({ error: 'Hai raggiunto il limite di messaggi gratuiti. Riprova più tardi.' }, { status: 429 });
-    }
-  }
+
 
   const messages = parsed.messages as UIMessage[];
   const queryVector = parsed.queryVector ?? null;
+  const contextChunks = parsed.contextChunks;
   const question = lastUserText(messages);
   const history = messages.slice(-HISTORY_WINDOW);
 
-  const graph = compileGraph();
-  const state = await graph.invoke({
-    messages: history.map(m => ({ role: m.role, content: textOf(m) })),
-    question,
-    queryVector: queryVector || null,
+  const retriever = await getRetriever();
+
+  const routerPrompt = `Classifica l'ultimo messaggio dell'utente in una chat sul portfolio di Vito Piccolini.
+intent:
+- "smalltalk": saluti, ringraziamenti
+- "navigate": richieste di aprire sezioni
+- "portfolio": domande su progetti, skills, Vito
+
+standalone: riscrivi l'ultimo messaggio come domanda autonoma.
+
+uiAction: scegli un'azione UI per accompagnare la risposta.
+- "navigateToSection": se chiede chi è Vito, studi, contatti.
+- "showSkillsRadar": se chiede di competenze, linguaggi.
+- "showProject": se cita un progetto specifico.
+- "none": altrimenti.
+
+CONVERSAZIONE:
+${recentDialogue(history)}`;
+
+  // Esecuzione parallela: Router (LLM) e Retrieval Lessicale (BM25)
+  const routerPromise = generateObject({
+    model: providers.router,
+    schema: routerSchema,
+    temperature: 0,
+    prompt: routerPrompt,
+    abortSignal: AbortSignal.timeout(ROUTER_TIMEOUT_MS),
+  }).catch((err) => {
+    console.error('[Router] Fallito o andato in timeout:', err);
+    return null;
   });
 
-  const sources: RetrievedChunk[] = state.sources || [];
+  let sources: RetrievedChunk[] = [];
+  const routerRes = await routerPromise;
+  const routerState = routerRes?.object || { intent: 'portfolio', standalone: question, uiAction: 'none' };
+
+  if (routerState.intent !== 'smalltalk') {
+    if (contextChunks && Array.isArray(contextChunks) && contextChunks.length > 0) {
+      sources = contextChunks as RetrievedChunk[];
+    } else {
+      const lexRank = await retriever.lexicalSearch(question);
+      sources = retriever.semanticAndFuse(lexRank, queryVector ?? null, TOP_K);
+    }
+  }
 
   const result = streamText({
     model: providers.chat,
@@ -207,32 +209,6 @@ export async function POST(req: Request) {
       functionId: 'copilot-rag',
     },
     stopWhen: stepCountIs(1),
-    tools: {
-      navigateToSection: tool({
-        description:
-          'Scorri il sito verso una sezione. Usalo quando l\'utente chiede di vedere o aprire una parte del portfolio.',
-        inputSchema: z.object({
-          section: z.enum(SECTIONS),
-        }),
-        execute: async ({ section }) => ({ ok: true, section }),
-      }),
-      showProject: tool({
-        description:
-          'Mostra una card riassuntiva di un progetto specifico accanto alla risposta.',
-        inputSchema: z.object({
-          projectName: z
-            .string()
-            .describe('Nome canonico del progetto, es. "LACAM-SWAP" o "Zenith".'),
-        }),
-        execute: async ({ projectName }) => ({ ok: true, projectName }),
-      }),
-      showSkillsRadar: tool({
-        description:
-          'Mostra una panoramica visuale dello stack di competenze di Vito.',
-        inputSchema: z.object({}),
-        execute: async () => ({ ok: true }),
-      }),
-    },
   });
 
   const stream = createUIMessageStream({
@@ -240,7 +216,7 @@ export async function POST(req: Request) {
       writer.write({ type: 'start' });
       if (sources.length > 0) {
         writer.write({
-          type: 'data-sources',
+          type: 'data-sources' as any,
           data: sources.map((s, i) => ({
             tag: `S${i + 1}`,
             id: s.id,
@@ -250,6 +226,23 @@ export async function POST(req: Request) {
           })),
         });
       }
+      
+      if (routerState.uiAction && routerState.uiAction !== 'none') {
+        const actionPayload = JSON.stringify({
+          action: routerState.uiAction,
+          target: routerState.uiActionTarget,
+        });
+        const actionId = `ui-action-${Date.now()}`;
+        
+        writer.write({ type: 'text-start', id: actionId } as any);
+        writer.write({
+          type: 'text-delta',
+          delta: `__UI_ACTION__${actionPayload}__UI_ACTION__\n`,
+          id: actionId,
+        } as any);
+        writer.write({ type: 'text-end', id: actionId } as any);
+      }
+
       writer.merge(result.toUIMessageStream({ sendStart: false }));
     },
   });

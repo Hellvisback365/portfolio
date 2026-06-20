@@ -2,6 +2,7 @@
 
 import {
   type ReactNode,
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -16,6 +17,7 @@ import { useAppStore } from '@/store/useAppStore';
 import {
   embedQuery,
   getEmbedderState,
+  rerankPairs,
   subscribeEmbedder,
   warmupEmbedder,
   type EmbedderState,
@@ -69,16 +71,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   ]);
 }
 
-function sanitizeText(t: string): string {
-  // Llama su Groq a volte emette la tool call come testo invece di eseguirla
-  // (es. <function=showProject>{...}</function>). La rimuoviamo dalla bolla:
-  // l'esecuzione vera passa dal canale di tool calling, questo è solo testo.
-  return t
-    .replace(/<function=[^>]*>[\s\S]*?<\/function>/gi, '')
-    .replace(/<\|python_tag\|>/gi, '')
-    .replace(/<\/?function[^>]*>/gi, '')
-    .trim();
-}
+
 
 function prettyError(err: Error | undefined): string {
   if (!err) return 'Si è verificato un errore.';
@@ -208,10 +201,11 @@ export default function CopilotOverlay() {
     }
   };
 
-  // Fetch dynamic suggestions on mount
+  // Fetch dynamic suggestions on open
   useEffect(() => {
+    if (!copilotOpen || suggestionPoolRef.current !== ALL_SUGGESTIONS) return;
     setIsLoadingSuggestions(true);
-    fetch('/api/suggestions?t=' + Date.now(), { cache: 'no-store' })
+    fetch('/api/suggestions')
       .then((res) => {
         if (!res.ok) throw new Error('API error');
         return res.json();
@@ -233,7 +227,7 @@ export default function CopilotOverlay() {
       .finally(() => {
         setIsLoadingSuggestions(false);
       });
-  }, []);
+  }, [copilotOpen]);
 
 
   const transport = useMemo(
@@ -273,27 +267,36 @@ export default function CopilotOverlay() {
     if (copilotOpen) textareaRef.current?.focus();
   }, [copilotOpen]);
 
-  // Side-effect dei tool UI: scroll automatico in background.
+  // Estrazione delle azioni UI dal testo e side-effect (scroll automatico in background).
   useEffect(() => {
     for (const message of messages) {
+      if (processedTools.current.has(message.id)) continue;
+      
+      let actionFound = false;
       for (const part of message.parts as AnyPart[]) {
-        if (
-          part.state === 'output-available' &&
-          typeof part.toolCallId === 'string' &&
-          !processedTools.current.has(part.toolCallId)
-        ) {
-          if (part.type === 'tool-navigateToSection') {
-            processedTools.current.add(part.toolCallId);
-            const args = part.input as { section?: string } | undefined;
-            if (args?.section) flyToSection(args.section);
-          } else if (part.type === 'tool-showProject') {
-            processedTools.current.add(part.toolCallId);
-            flyToSection('projects');
-          } else if (part.type === 'tool-showSkillsRadar') {
-            processedTools.current.add(part.toolCallId);
-            flyToSection('skills');
+        if (part.type === 'text') {
+          const text = part.text as string;
+          const match = text.match(/__UI_ACTION__(.*?)__UI_ACTION__/);
+          if (match) {
+            try {
+              const actionData = JSON.parse(match[1]);
+              actionFound = true;
+              
+              if (actionData.action === 'navigateToSection' && actionData.target) {
+                flyToSection(actionData.target);
+              } else if (actionData.action === 'showProject') {
+                flyToSection('projects');
+              } else if (actionData.action === 'showSkillsRadar') {
+                flyToSection('skills');
+              }
+            } catch (e) {
+              console.error('Failed to parse embedded action', e);
+            }
           }
         }
+      }
+      if (actionFound) {
+        processedTools.current.add(message.id);
       }
     }
   }, [messages, flyToSection]);
@@ -324,7 +327,36 @@ export default function CopilotOverlay() {
           const queryVector = attachVector
             ? await withTimeout(embedQuery(text), 1500, null)
             : null;
-          sendMessage({ text }, { body: { queryVector } });
+            
+          let contextChunks = undefined;
+          if (attachVector) {
+             try {
+               const res = await fetch('/api/retrieve', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ question: text, queryVector })
+               });
+               if (res.ok) {
+                 const data = await res.json();
+                 if (data.candidates && data.candidates.length > 0) {
+                   const pairs = data.candidates.map((c: any) => ({ text, text_pair: c.text }));
+                   // Timeout per il reranking: se il worker è troppo lento (es. sta ancora caricando ms-marco), passiamo oltre
+                   const scores = await withTimeout(rerankPairs(pairs), 2500, null);
+                   if (scores && scores.length === data.candidates.length) {
+                     const scored = data.candidates.map((c: any, i: number) => ({ ...c, score: scores[i].score }));
+                     scored.sort((a: any, b: any) => b.score - a.score);
+                     contextChunks = scored.slice(0, 4);
+                   } else {
+                     contextChunks = data.candidates.slice(0, 4); // BM25 fallback
+                   }
+                 }
+               }
+             } catch (e) {
+               console.error('[Copilot] Retrieval override failed', e);
+             }
+          }
+
+          sendMessage({ text }, { body: { queryVector, contextChunks } });
         } finally {
           inFlightRef.current = false;
         }
@@ -363,43 +395,57 @@ export default function CopilotOverlay() {
     const key = `${messageId}-${index}`;
     switch (part.type) {
       case 'text': {
-        const clean = sanitizeText(part.text as string);
-        if (!clean) return null;
-        return (
-          <p key={key} className="whitespace-pre-wrap break-words leading-relaxed">
+        let clean = (part.text as string).trim();
+        let embeddedAction = null;
+        
+        // Estrai l'azione se presente per nasconderla e preparare il rendering del widget
+        const match = clean.match(/__UI_ACTION__(.*?)__UI_ACTION__/);
+        if (match) {
+          clean = clean.replace(/__UI_ACTION__(.*?)__UI_ACTION__\n?/g, '').trim();
+          try {
+            embeddedAction = JSON.parse(match[1]);
+          } catch (e) {}
+        }
+        
+        const textNode = clean ? (
+          <p key={key + '-text'} className="whitespace-pre-wrap break-words leading-relaxed">
             {renderMarkdownBold(clean)}
           </p>
+        ) : null;
+
+        if (!embeddedAction) return textNode;
+
+        let widgetNode = null;
+        if (embeddedAction.action === 'showProject' && embeddedAction.target) {
+          widgetNode = (
+            <ProjectCard
+              key={key + '-widget'}
+              projectName={embeddedAction.target}
+              onExplore={() => {
+                flyToSection('projects');
+                setCopilotOpen(false);
+              }}
+            />
+          );
+        } else if (embeddedAction.action === 'showSkillsRadar') {
+          widgetNode = <SkillsRadar key={key + '-widget'} />;
+        } else if (embeddedAction.action === 'navigateToSection' && embeddedAction.target) {
+          widgetNode = (
+            <p key={key + '-widget'} className="font-mono text-[11px] text-accent-soft mt-2">
+              → ti porto alla sezione {embeddedAction.target}
+            </p>
+          );
+        }
+
+        return (
+          <Fragment key={key}>
+            {textNode}
+            {widgetNode}
+          </Fragment>
         );
       }
       case 'data-sources':
         return null; // Nascosti come richiesto dall'utente
-      case 'tool-showProject': {
-        if (part.state !== 'output-available') return null;
-        const args = part.input as { projectName?: string } | undefined;
-        return args?.projectName ? (
-          <ProjectCard
-            key={key}
-            projectName={args.projectName}
-            onExplore={() => {
-              flyToSection('projects');
-              setCopilotOpen(false);
-            }}
-          />
-        ) : null;
-      }
-      case 'tool-showSkillsRadar':
-        return part.state === 'output-available' ? (
-          <SkillsRadar key={key} />
-        ) : null;
-      case 'tool-navigateToSection': {
-        if (part.state !== 'output-available') return null;
-        const args = part.input as { section?: string } | undefined;
-        return (
-          <p key={key} className="font-mono text-[11px] text-accent-soft">
-            → ti porto alla sezione {args?.section}
-          </p>
-        );
-      }
       default:
         return null;
     }
@@ -447,7 +493,7 @@ export default function CopilotOverlay() {
                   <FiCpu className="h-4 w-4 text-accent" />
                   Copilot
                   <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
-                    BM25 + e5 · Groq
+                    BM25 + e5 · {process.env.NEXT_PUBLIC_LLM_PROVIDER || 'AI'}
                   </span>
                 </span>
                 <EmbedderDot state={embedderState} />

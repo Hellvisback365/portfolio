@@ -1,0 +1,22 @@
+[
+  { "query": "Quale progetto usa la Retrieval-Augmented Generation?", "expectedDocId": "project-1" },
+  { "query": "Hai mai costruito un e-commerce 3D?", "expectedDocId": "project-2" },
+  { "query": "Parlami del sistema di raccomandazione per il settore farmaceutico.", "expectedDocId": "project-3" },
+  { "query": "Cosa hai fatto in NTT DATA?", "expectedDocId": "timeline-1" },
+  { "query": "In quale hackathon hai vinto usando RAG?", "expectedDocId": "timeline-3" },
+  { "query": "Dove vive e lavora Vito?", "expectedDocId": "bio-vision" },
+  { "query": "Quale scuola superiore o liceo ha frequentato?", "expectedDocId": "education-track" },
+  { "query": "Dove si è laureato in Informatica?", "expectedDocId": "education-track" },
+  { "query": "Ha esperienza con Next.js e React?", "expectedDocId": "skill-track-web-development" },
+  { "query": "Conosce Python per il Machine Learning?", "expectedDocId": "skill-track-ai-ml-data-science" },
+  { "query": "Sa usare Docker o strumenti di CI/CD?", "expectedDocId": "tool-devops-automation" },
+  { "query": "Parla inglese?", "expectedDocId": "lang-inglese" },
+  { "query": "Che stack tecnologico ha usato per i grafi di conoscenza?", "expectedDocId": "project-4" },
+  { "query": "Ha mai lavorato con architetture serverless?", "expectedDocId": "skill-track-web-development" },
+  { "query": "Quali database vettoriali utilizza per l'AI?", "expectedDocId": "tool-ai-ml-stack" },
+  { "query": "Cosa ha sviluppato per Fastweb?", "expectedDocId": "timeline-5" },
+  { "query": "Qual è il suo ruolo attuale?", "expectedDocId": "bio-vision" },
+  { "query": "Ha mai usato LangChain o LangGraph?", "expectedDocId": "tool-ai-ml-stack" },
+  { "query": "Ha partecipato all'Hackathon del Sole 24 Ore?", "expectedDocId": "timeline-4" },
+  { "query": "Conosce Postgres e MongoDB?", "expectedDocId": "tool-web-database" }
+]

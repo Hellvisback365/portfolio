@@ -19,28 +19,44 @@ const Experience = dynamic(() => import('@/components/canvas/Experience'), {
  * via ref — nessuna lettura di layout dentro requestAnimationFrame,
  * nessun re-render React per frame.
  */
+import { useEffect, useRef } from 'react';
+
 function ScrollBridge() {
+  const offsetsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    function computeOffsets() {
+      const offsets = SECTIONS.map(id => {
+        const el = document.getElementById(id);
+        return el ? el.offsetTop : 0;
+      });
+      offsetsRef.current = offsets;
+    }
+    
+    computeOffsets();
+    
+    // Ricalcola solo quando la finestra cambia dimensioni
+    window.addEventListener('resize', computeOffsets);
+    return () => window.removeEventListener('resize', computeOffsets);
+  }, []);
+
   useLenis((lenis) => {
     const p = lenis.limit > 0 ? lenis.scroll / lenis.limit : 0;
     scrollProgress.value = p;
     
-    // Calculate stage based on DOM offsets to support varying section heights
-    if (typeof document !== 'undefined') {
+    const offsets = offsetsRef.current;
+    if (offsets.length === SECTIONS.length) {
       let currentStage = 0;
       for (let i = 0; i < SECTIONS.length - 1; i++) {
-        const currentSec = document.getElementById(SECTIONS[i]);
-        const nextSec = document.getElementById(SECTIONS[i + 1]);
-        if (currentSec && nextSec) {
-          const currentTop = currentSec.offsetTop;
-          const nextTop = nextSec.offsetTop;
-          
-          if (lenis.scroll >= currentTop && lenis.scroll < nextTop) {
-            const sectionProgress = (lenis.scroll - currentTop) / (nextTop - currentTop);
-            currentStage = i + sectionProgress;
-            break;
-          } else if (lenis.scroll >= nextTop && i === SECTIONS.length - 2) {
-             currentStage = SECTIONS.length - 1;
-          }
+        const currentTop = offsets[i];
+        const nextTop = offsets[i + 1];
+        
+        if (lenis.scroll >= currentTop && lenis.scroll < nextTop) {
+          const sectionProgress = (lenis.scroll - currentTop) / (nextTop - currentTop);
+          currentStage = i + sectionProgress;
+          break;
+        } else if (lenis.scroll >= nextTop && i === SECTIONS.length - 2) {
+           currentStage = SECTIONS.length - 1;
         }
       }
       scrollProgress.stage = currentStage;

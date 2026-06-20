@@ -5,7 +5,7 @@ import { getProviders } from '@/lib/rag/providers';
 import ragIndex from '@/data/rag-index.json';
 
 export const maxDuration = 30;
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600;
 
 export async function GET() {
   try {

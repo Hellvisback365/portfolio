@@ -53,15 +53,15 @@ Eliminati: `AbstractCore`, `SkillLenses`, `ProjectCards3D`, `FloatingParticles`,
 
 ```
 Browser ──(testo + query-vector*)──▶ /api/chat (Node)
-   │                                   ├─ Router agent (Groq 8B, ~150ms, timeout 1.2s, in parallelo)
-   │  *embedding calcolata             │    └─ intent: smalltalk | portfolio | navigate + query standalone
-   │   client-side con                 ├─ Retrieval ibrido in parallelo
-   │   multilingual-e5-small           │    ├─ BM25 Okapi (implementato in TS, stoplist IT/EN, ~0ms)
-   │   (Transformers.js, lazy,         │    └─ Cosine sui vettori precomputati a build time
-   │   ~30MB quantizzato, cache        │         (stesso modello e5, prefissi query:/passage:)
+   │                                   ├─ Promise.allSettled() in parallelo
+   │  *embedding calcolata             │    ├─ Router agent (Llama 8B) ──▶ produce intent, uiAction, e query standalone
+   │   client-side con                 │    └─ Retrieval Lessicale (BM25)
+   │   multilingual-e5-small           │
+   │   (Transformers.js, lazy,         ├─ Retrieval Semantico (Cosine Similarity con standalone question)
+   │   ~30MB quantizzato, cache        │
    │   del browser)                    ├─ Fusione RRF (k=60) + cap di diversità per documento
-   │                                   ├─ streamText (Groq Llama-3.3-70B; fallback Gemini 2.5 Flash)
-   ◀──(UIMessage stream + data-sources + tool parts)──┘    tools: navigate / showProject / showSkills
+   │                                   ├─ streamText (Groq Llama-3.3-70B)
+   ◀──(UIMessage stream + data-sources + UI action deterministica)──┘
 ```
 
 Scelte e perché:

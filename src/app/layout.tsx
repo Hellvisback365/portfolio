@@ -31,6 +31,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://vitopiccolini.com'),
   title: "Vito Piccolini — AI Engineer",
   description:
     "Sistemi di raccomandazione, architetture multi-agente e RAG ibridi. Portfolio di Vito Piccolini, AI Engineer.",
@@ -47,10 +48,27 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: 'Vito Piccolini',
+  jobTitle: 'AI & Software Engineer',
+  url: 'https://vitopiccolini.com',
+  sameAs: [
+    'https://www.linkedin.com/in/vitopiccolini/',
+    'https://github.com/Hellvisback365',
+  ],
+  knowsAbout: ['Machine Learning', 'Artificial Intelligence', 'React', 'Next.js', 'TypeScript', 'Retrieval-Augmented Generation'],
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="it" className={`dark ${inter.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <body className="bg-ink text-[var(--text-primary)]">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         {children}
         <Analytics />
         <SpeedInsights />

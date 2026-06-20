@@ -71,21 +71,14 @@ export class HybridRetriever {
     this.hasVectors = chunks.some((c) => Array.isArray(c.vec) && c.vec.length > 0);
   }
 
-  retrieve(query: string, queryVector: number[] | null, topK = 4): RetrievedChunk[] {
-    const cacheKey = `${query.trim().toLowerCase()}|${queryVector ? 'v' : 't'}|${topK}`;
-    const cached = this.cache.get(cacheKey);
-    if (cached) {
-      // LRU touch
-      this.cache.delete(cacheKey);
-      this.cache.set(cacheKey, cached);
-      return cached;
-    }
-
-    // ── Gamba lessicale ──
+  lexicalSearch(query: string): Map<string, number> {
     const lexical = this.bm25.search(query, 24);
     const lexRank = new Map<string, number>();
     lexical.forEach((r, i) => lexRank.set(r.id, i + 1));
+    return lexRank;
+  }
 
+  semanticAndFuse(lexRank: Map<string, number>, queryVector: number[] | null, topK = 4): RetrievedChunk[] {
     // ── Gamba semantica (solo se il client ha mandato il vettore
     //    e l'indice è stato generato con le embeddings) ──
     const vecRank = new Map<string, number>();
@@ -123,6 +116,21 @@ export class HybridRetriever {
       result.push({ ...chunk, score });
       if (result.length >= topK) break;
     }
+    return result;
+  }
+
+  retrieve(query: string, queryVector: number[] | null, topK = 4): RetrievedChunk[] {
+    const cacheKey = `${query.trim().toLowerCase()}|${queryVector ? 'v' : 't'}|${topK}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) {
+      // LRU touch
+      this.cache.delete(cacheKey);
+      this.cache.set(cacheKey, cached);
+      return cached;
+    }
+
+    const lexRank = this.lexicalSearch(query);
+    const result = this.semanticAndFuse(lexRank, queryVector, topK);
 
     this.cache.set(cacheKey, result);
     if (this.cache.size > 64) {
