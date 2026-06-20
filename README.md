@@ -1,23 +1,24 @@
 # 🌌 Portfolio 3D & AI Copilot
 
-Il mio portfolio personale, costruito con le tecnologie più recenti in ambito **Web 3D** e **Agentic AI**.  
-Combina un motore 3D leggero (React Three Fiber) con un assistente virtuale alimentato da un sistema **RAG (Retrieval-Augmented Generation) Ibrido**, permettendo ai visitatori di esplorare i miei progetti e chiedermi domande in linguaggio naturale.
+Il mio portfolio personale, costruito con tecnologie avanzate in ambito **Web 3D** e **Agentic AI**.  
+Combina un motore 3D leggero (React Three Fiber) con un assistente virtuale alimentato da un sistema **RAG (Retrieval-Augmented Generation) Ibrido**, permettendo ai visitatori di esplorare i miei progetti e pormi domande in linguaggio naturale.
 
 ## 🚀 Funzionalità Principali
 
-- **UI 3D Immersiva:** Sviluppata in React Three Fiber, con navigazione tramite particelle intelligenti e transizioni fluide.
-- **Agentic RAG Copilot:** Un assistente AI integrato, multilingua, che risponde alle domande basandosi esclusivamente sul mio CV, sui miei progetti e sulla mia tesi.
-  - *Parallel Routing:* Classificazione dell'intento (Llama-3.1-8B) in parallelo al retrieval lessicale per minimizzare la latenza.
-  - *Hybrid Retrieval:* Ricerca ibrida avanzata. Utilizza **BM25 Okapi** per la ricerca testuale e **Semantic Search (Cosine Similarity)** eseguita lato client (grazie a `transformers.js` via Web Worker) senza costi API aggiuntivi.
-  - *Reciprocal Rank Fusion (RRF):* Combinazione intelligente dei rank lessicali e semantici per trovare sempre i documenti più rilevanti.
-  - *Tool-Calling Deterministico:* L'assistente capisce l'intento e guida autonomamente l'interfaccia utente (es. mostrare i progetti, aprire lo stack radar).
-- **Prestazioni al Top:** Bundle analizzato e ottimizzato. Modello di embedding (`multilingual-e5-small`) caricato asincronamente in background sul browser.
+- **UI 3D Immersiva:** Sviluppata in React Three Fiber, con navigazione tramite particelle intelligenti, shader personalizzati e transizioni fluide.
+- **Agentic RAG Copilot:** Un assistente AI integrato e deterministico, che risponde alle domande basandosi esclusivamente sul mio CV, sui miei progetti e sulle mie esperienze.
+  - *Hybrid Retrieval & RRF:* Ricerca ibrida che combina **BM25 Okapi** (lessicale) e **Semantic Search** (Cosine Similarity vettoriale). I punteggi vengono fusi tramite Reciprocal Rank Fusion.
+  - *Client-Side Cross-Encoder Reranking:* I risultati ibridi vengono ulteriormente riordinati sul browser tramite un modello Cross-Encoder (MS-MARCO) che gira in un Web Worker, minimizzando il carico serverless e migliorando drasticamente la precisione del recupero.
+  - *Continuous Evaluation:* Il sistema include una suite di benchmark proprietaria (Hit Rate, MRR) e uno script di valutazione end-to-end "LLM-as-a-Judge", che certifica il **98% di assenza di allucinazioni** (Faithfulness).
+  - *Tool-Calling & UI Automation:* L'assistente comprende l'intento dell'utente e guida autonomamente l'interfaccia (es. evidenziare progetti o aprire la sezione competenze).
+- **SEO & Telemetria:** Metadata completi (JSON-LD, OpenGraph, sitemap), oltre a un tracciamento avanzato delle risposte AI e del feedback utente tramite Langfuse.
 
 ## 🛠️ Stack Tecnologico
 
 - **Frontend / 3D:** Next.js 14 (App Router), React, Tailwind CSS, Framer Motion, React Three Fiber, Drei, Lenis (Smooth Scrolling).
-- **AI / RAG:** Vercel AI SDK, Groq (per Llama-3.3-70B e 8B), `@xenova/transformers` (Web Worker), TypeScript.
-- **Analytics / Telemetry:** Langfuse (per il tracciamento delle risposte e feedback degli utenti).
+- **AI / RAG Pipeline:** Vercel AI SDK, `@huggingface/transformers` (Embeddings e Reranker in Web Worker), API Provider flessibili (DeepSeek, OpenRouter, Groq).
+- **Testing & Eval:** Vitest, script custom TSX per benchmark MRR/HitRate.
+- **Analytics / Telemetry:** Langfuse.
 
 ## 🏃‍♂️ Come Avviare il Progetto
 
@@ -34,18 +35,26 @@ Combina un motore 3D leggero (React Three Fiber) con un assistente virtuale alim
 
 3. **Configura le variabili d'ambiente:**
    Copia il file `.env.example` in `.env.local` e inserisci le tue API Key:
-   - `GROQ_API_KEY` (per l'inferenza LLM velocissima).
-   - `LANGFUSE_*` (se desideri la telemetria).
+   - `DEEPSEEK_API_KEY` o `OPENROUTER_API_KEY` (configurate in `src/lib/rag/providers.ts`).
+   - `LANGFUSE_*` (opzionale, per la telemetria LLM).
 
-4. **Avvia il server di sviluppo:**
+4. **Genera l'Indice RAG Locale:**
+   Se hai modificato i documenti sorgente (es. `codebase.md` o i file JSON), esegui l'ingestione per aggiornare i chunk:
+   ```bash
+   npm run rag:ingest
+   ```
+
+5. **Avvia il server di sviluppo:**
    ```bash
    npm run dev
    ```
    Apri [http://localhost:3000](http://localhost:3000) nel browser.
 
-## 📝 Script Utili
-- `npm run build`: Compila l'applicazione per la produzione.
-- `npm run rag:ingest`: Legge il file `codebase.md`, divide in chunk, estrae keywords e genera il `rag-index.json`.
+## 📝 Script di Valutazione
+
+- **Test Unitari:** `npm run test` (verifica degli algoritmi BM25 e Hybrid Retriever).
+- **Valutazione Retrieval (MRR):** `npx tsx scripts/rag-eval.mts`
+- **Valutazione Generazione (LLM come Giudice):** `npx tsx scripts/rag-judge.mts`
 
 ---
 *Progettato e sviluppato da [Vito Piccolini](https://www.linkedin.com/in/vitopiccolini/)*
