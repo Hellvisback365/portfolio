@@ -17,11 +17,10 @@ import { useAppStore } from '@/store/useAppStore';
 import {
   embedQuery,
   getEmbedderState,
-  rerankPairs,
   subscribeEmbedder,
   warmupEmbedder,
-  type EmbedderState,
 } from '@/lib/rag/embedder';
+import type { EmbedderState } from '@/lib/rag/embedder';
 import ProjectCard from '@/components/ui/rag/ProjectCard';
 import SkillsRadar from '@/components/ui/rag/SkillsRadar';
 
@@ -47,7 +46,7 @@ interface SourceChip {
   score: number;
 }
 
-const ALL_SUGGESTIONS = [
+const ALL_SUGGESTIONS_IT = [
   'Di cosa parla la tesi di Vito?',
   'Raccontami del progetto Zenith',
   'Che esperienza ha con i sistemi RAG?',
@@ -58,6 +57,19 @@ const ALL_SUGGESTIONS = [
   'Che università frequenta?',
   'Vito ha esperienza lavorativa?',
   'Portami alla sezione progetti',
+];
+
+const ALL_SUGGESTIONS_EN = [
+  'What is Vito\'s thesis about?',
+  'Tell me about the Zenith project',
+  'What is his experience with RAG systems?',
+  'Show me Vito\'s contacts',
+  'What languages does he use in the backend?',
+  'Tell me about the Space Edition hackathon',
+  'How is TerraNode built?',
+  'What university does he attend?',
+  'Does Vito have work experience?',
+  'Take me to the projects section',
 ];
 
 // Narrowing helper: con UIMessage non parametrizzato le parts custom
@@ -73,15 +85,15 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 
 
 
-function prettyError(err: Error | undefined): string {
-  if (!err) return 'Si è verificato un errore.';
+function prettyError(err: Error | undefined, isEn: boolean): string {
+  if (!err) return isEn ? 'An error occurred.' : 'Si è verificato un errore.';
   try {
     const parsed = JSON.parse(err.message) as { error?: string };
     if (parsed.error) return parsed.error;
   } catch {
     /* il body non era JSON */
   }
-  return err.message || 'Si è verificato un errore.';
+  return err.message || (isEn ? 'An error occurred.' : 'Si è verificato un errore.');
 }
 
 function renderMarkdownBold(text: string) {
@@ -97,12 +109,12 @@ function renderMarkdownBold(text: string) {
   );
 }
 
-function EmbedderDot({ state }: { state: EmbedderState }) {
+function EmbedderDot({ state, isEn }: { state: EmbedderState, isEn: boolean }) {
   if (state === 'error') return null; // degradazione silenziosa
   const label =
     state === 'ready'
-      ? 'retrieval semantico attivo'
-      : 'carico il modello semantico…';
+      ? (isEn ? 'semantic retrieval active' : 'retrieval semantico attivo')
+      : (isEn ? 'loading semantic model…' : 'carico il modello semantico…');
   return (
     <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-white/40">
       <span
@@ -136,6 +148,10 @@ export default function CopilotOverlay() {
   const setCopilotOpen = useAppStore((s) => s.setCopilotOpen);
   const flyToSection = useAppStore((s) => s.flyToSection);
   const reduceMotion = useReducedMotion();
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
+
+  const ALL_SUGGESTIONS = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
 
   const [input, setInput] = useState('');
   const [embedderState, setEmbedderState] = useState<EmbedderState>(() =>
@@ -143,7 +159,7 @@ export default function CopilotOverlay() {
   );
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
-  const suggestionPoolRef = useRef<string[]>(ALL_SUGGESTIONS);
+  const poolsRef = useRef<Record<string, string[]>>({});
   const clickedSuggestionsRef = useRef<Set<string>>(new Set());
   const processedTools = useRef<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
@@ -203,16 +219,23 @@ export default function CopilotOverlay() {
 
   // Fetch dynamic suggestions on open
   useEffect(() => {
-    if (!copilotOpen || suggestionPoolRef.current !== ALL_SUGGESTIONS) return;
+    if (!copilotOpen) return;
+    
+    if (poolsRef.current[language]) {
+      const pool = poolsRef.current[language];
+      setSuggestions(pool.slice(0, 3));
+      return;
+    }
+
     setIsLoadingSuggestions(true);
-    fetch('/api/suggestions')
+    fetch(`/api/suggestions?lang=${language}`)
       .then((res) => {
         if (!res.ok) throw new Error('API error');
         return res.json();
       })
       .then((data) => {
         if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
-          suggestionPoolRef.current = data.questions;
+          poolsRef.current[language] = data.questions;
           setSuggestions(data.questions.slice(0, 3));
         } else {
           throw new Error('Invalid schema');
@@ -220,14 +243,15 @@ export default function CopilotOverlay() {
       })
       .catch((err) => {
         console.error('[Copilot] Fallback to static suggestions:', err);
-        const shuffled = [...ALL_SUGGESTIONS].sort(() => 0.5 - Math.random());
-        suggestionPoolRef.current = shuffled;
+        const fallbacks = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
+        const shuffled = [...fallbacks].sort(() => 0.5 - Math.random());
+        poolsRef.current[language] = shuffled;
         setSuggestions(shuffled.slice(0, 3));
       })
       .finally(() => {
         setIsLoadingSuggestions(false);
       });
-  }, [copilotOpen]);
+  }, [copilotOpen, language, isEn]);
 
 
   const transport = useMemo(
@@ -275,9 +299,8 @@ export default function CopilotOverlay() {
       let actionFound = false;
       for (const part of message.parts as AnyPart[]) {
         if (part.type === 'text') {
-          const text = part.text as string;
-          const match = text.match(/__UI_ACTION__(.*?)__UI_ACTION__/);
-          if (match) {
+          const match = (part.text as string).match(/__UI_ACTION__(.*?)__UI_ACTION__/);
+          if (match && match[1]) {
             try {
               const actionData = JSON.parse(match[1]);
               actionFound = true;
@@ -289,9 +312,7 @@ export default function CopilotOverlay() {
               } else if (actionData.action === 'showSkillsRadar') {
                 flyToSection('skills');
               }
-            } catch (e) {
-              console.error('Failed to parse embedded action', e);
-            }
+            } catch (e) {}
           }
         }
       }
@@ -327,36 +348,8 @@ export default function CopilotOverlay() {
           const queryVector = attachVector
             ? await withTimeout(embedQuery(text), 1500, null)
             : null;
-            
-          let contextChunks = undefined;
-          if (attachVector) {
-             try {
-               const res = await fetch('/api/retrieve', {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({ question: text, queryVector })
-               });
-               if (res.ok) {
-                 const data = await res.json();
-                 if (data.candidates && data.candidates.length > 0) {
-                   const pairs = data.candidates.map((c: any) => ({ text, text_pair: c.text }));
-                   // Timeout per il reranking: se il worker è troppo lento (es. sta ancora caricando ms-marco), passiamo oltre
-                   const scores = await withTimeout(rerankPairs(pairs), 2500, null);
-                   if (scores && scores.length === data.candidates.length) {
-                     const scored = data.candidates.map((c: any, i: number) => ({ ...c, score: scores[i].score }));
-                     scored.sort((a: any, b: any) => b.score - a.score);
-                     contextChunks = scored.slice(0, 4);
-                   } else {
-                     contextChunks = data.candidates.slice(0, 4); // BM25 fallback
-                   }
-                 }
-               }
-             } catch (e) {
-               console.error('[Copilot] Retrieval override failed', e);
-             }
-          }
 
-          sendMessage({ text }, { body: { queryVector, contextChunks } });
+          sendMessage({ text }, { body: { queryVector } });
         } finally {
           inFlightRef.current = false;
         }
@@ -369,14 +362,15 @@ export default function CopilotOverlay() {
     submit(q);
     clickedSuggestionsRef.current.add(q);
     setSuggestions((prev) => {
-      const pool = suggestionPoolRef.current;
+      const pool = poolsRef.current[language] || (isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT);
       const clicked = clickedSuggestionsRef.current;
       // Trova le domande dinamiche non ancora mostrate su schermo (prev) e non ancora cliccate
       const remaining = pool.filter((s) => !prev.includes(s) && !clicked.has(s));
       
       if (remaining.length === 0) {
         // Fallback to static if dynamic pool is exhausted
-        const fallbackRemaining = ALL_SUGGESTIONS.filter((s) => !prev.includes(s) && !clicked.has(s) && !pool.includes(s));
+        const fallbacks = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
+        const fallbackRemaining = fallbacks.filter((s) => !prev.includes(s) && !clicked.has(s) && !pool.includes(s));
         if (fallbackRemaining.length === 0) return prev; // Se abbiamo finito TUTTE le domande, lascia quelle attuali
         const next = fallbackRemaining[Math.floor(Math.random() * fallbackRemaining.length)];
         return prev.map((s) => (s === q ? next : s));
@@ -385,7 +379,7 @@ export default function CopilotOverlay() {
       const next = remaining[Math.floor(Math.random() * remaining.length)];
       return prev.map((s) => (s === q ? next : s));
     });
-  }, [submit]);
+  }, [submit, isEn, language]);
 
   const renderPart = (
     messageId: string,
@@ -395,48 +389,47 @@ export default function CopilotOverlay() {
     const key = `${messageId}-${index}`;
     switch (part.type) {
       case 'text': {
-        let clean = (part.text as string).trim();
-        let embeddedAction = null;
+        let clean = (part.text as string);
         
-        // Estrai l'azione se presente per nasconderla e preparare il rendering del widget
         const match = clean.match(/__UI_ACTION__(.*?)__UI_ACTION__/);
-        if (match) {
-          clean = clean.replace(/__UI_ACTION__(.*?)__UI_ACTION__\n?/g, '').trim();
+        let embeddedAction = null;
+        if (match && match[1]) {
           try {
             embeddedAction = JSON.parse(match[1]);
-          } catch (e) {}
+          } catch(e) {}
+          clean = clean.replace(/__UI_ACTION__(.*?)__UI_ACTION__/g, '');
         }
         
+        clean = clean.trim();
         const textNode = clean ? (
           <p key={key + '-text'} className="whitespace-pre-wrap break-words leading-relaxed">
             {renderMarkdownBold(clean)}
           </p>
         ) : null;
 
-        if (!embeddedAction) return textNode;
-
         let widgetNode = null;
-        if (embeddedAction.action === 'showProject' && embeddedAction.target) {
-          widgetNode = (
-            <ProjectCard
-              key={key + '-widget'}
-              projectName={embeddedAction.target}
-              onExplore={() => {
-                flyToSection('projects');
-                setCopilotOpen(false);
-              }}
-            />
-          );
-        } else if (embeddedAction.action === 'showSkillsRadar') {
-          widgetNode = <SkillsRadar key={key + '-widget'} />;
-        } else if (embeddedAction.action === 'navigateToSection' && embeddedAction.target) {
-          widgetNode = (
-            <p key={key + '-widget'} className="font-mono text-[11px] text-accent-soft mt-2">
-              → ti porto alla sezione {embeddedAction.target}
-            </p>
-          );
+        if (embeddedAction) {
+          if (embeddedAction.action === 'showProject' && embeddedAction.target) {
+            widgetNode = (
+              <ProjectCard
+                key={key + '-widget'}
+                projectName={embeddedAction.target}
+                onExplore={() => {
+                  flyToSection('projects');
+                  setCopilotOpen(false);
+                }}
+              />
+            );
+          } else if (embeddedAction.action === 'showSkillsRadar') {
+            widgetNode = <SkillsRadar key={key + '-widget'} />;
+          } else if (embeddedAction.action === 'navigateToSection' && embeddedAction.target) {
+            widgetNode = (
+              <p key={key + '-widget'} className="font-mono text-[11px] text-accent-soft mt-2">
+                → {isEn ? `taking you to the ${embeddedAction.target} section` : `ti porto alla sezione ${embeddedAction.target}`}
+              </p>
+            );
+          }
         }
-
         return (
           <Fragment key={key}>
             {textNode}
@@ -463,7 +456,7 @@ export default function CopilotOverlay() {
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.25 }}
             onClick={() => setCopilotOpen(true)}
-            aria-label="Apri il copilot del portfolio"
+            aria-label={isEn ? 'Open portfolio copilot' : 'Apri il copilot del portfolio'}
             className="glass-panel fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full text-accent-soft transition-colors hover:text-white"
           >
             <FiMessageCircle className="h-5 w-5" />
@@ -478,7 +471,7 @@ export default function CopilotOverlay() {
             key="panel"
             role="dialog"
             aria-modal="true"
-            aria-label="Copilot del portfolio"
+            aria-label={isEn ? 'Portfolio copilot' : 'Copilot del portfolio'}
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 48 }}
             animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 48 }}
@@ -496,11 +489,11 @@ export default function CopilotOverlay() {
                     BM25 + e5 · {process.env.NEXT_PUBLIC_LLM_PROVIDER || 'AI'}
                   </span>
                 </span>
-                <EmbedderDot state={embedderState} />
+                <EmbedderDot state={embedderState} isEn={isEn} />
               </div>
               <button
                 onClick={() => setCopilotOpen(false)}
-                aria-label="Chiudi il copilot"
+                aria-label={isEn ? 'Close copilot' : 'Chiudi il copilot'}
                 className="rounded-full p-2 text-white/50 transition-colors hover:text-white"
               >
                 <FiX className="h-4 w-4" />
@@ -512,9 +505,7 @@ export default function CopilotOverlay() {
               {messages.length === 0 && (
                 <div className="flex h-full flex-col justify-end gap-3 pb-2">
                   <p className="text-white/55">
-                    Chiedimi della tesi, dei progetti o del percorso di Vito:
-                    rispondo solo sulla base dei documenti del portfolio,
-                    citando le fonti.
+                    {isEn ? 'Ask me about Vito\'s thesis, projects, or background: I only answer based on portfolio documents, citing sources.' : 'Chiedimi della tesi, dei progetti o del percorso di Vito: rispondo solo sulla base dei documenti del portfolio, citando le fonti.'}
                   </p>
                   <div className="flex flex-col items-start gap-2">
                     {isLoadingSuggestions ? (
@@ -569,12 +560,12 @@ export default function CopilotOverlay() {
 
               {status === 'submitted' && (
                 <p className="font-mono text-[11px] text-white/40">
-                  <span className="animate-pulse">retrieval in corso…</span>
+                  <span className="animate-pulse">{isEn ? 'retrieval in progress…' : 'retrieval in corso…'}</span>
                 </p>
               )}
               {status === 'error' && (
                 <p className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-red-200">
-                  {prettyError(error)}
+                  {prettyError(error, isEn)}
                 </p>
               )}
 
@@ -617,22 +608,22 @@ export default function CopilotOverlay() {
                     }
                   }}
                   rows={2}
-                  placeholder="Scrivi una domanda…"
-                  aria-label="Messaggio per il copilot"
+                  placeholder={isEn ? 'Ask a question…' : 'Scrivi una domanda…'}
+                  aria-label={isEn ? 'Message for the copilot' : 'Messaggio per il copilot'}
                   className="max-h-32 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35 overscroll-contain"
                 />
                 <button
                   type="button"
                   onClick={toggleListening}
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}
-                  aria-label="Microfono"
+                  aria-label={isEn ? 'Microphone' : 'Microfono'}
                 >
                   <FiMic className="h-4 w-4" />
                 </button>
                 <button
                   type="submit"
                   disabled={busy || (!input.trim() && !isListening)}
-                  aria-label="Invia"
+                  aria-label={isEn ? 'Send' : 'Invia'}
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-white transition-opacity disabled:opacity-30"
                 >
                   <FiArrowUp className="h-4 w-4" />

@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import type { ProjectData } from '@/data/projects';
 import Badge from '@/components/ui/Badge';
 import CTAButton from '@/components/ui/CTAButton';
+import { useAppStore } from '@/store/useAppStore';
 
 interface ProjectModalProps {
   project: ProjectData;
@@ -15,6 +16,8 @@ interface ProjectModalProps {
 
 export default function ProjectModal({ project, onClose }: ProjectModalProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
 
   // Animation variants
   const backdropVariants = {
@@ -111,10 +114,18 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             variants={contentVariants}
             className="flex flex-col gap-2"
           >
-            <p className="text-xs uppercase tracking-[0.35em] text-white/60">{project.timeline}</p>
-            <h2 className="text-3xl font-semibold text-white">{project.title}</h2>
-            <p className="text-base text-white/70">{project.subtitle}</p>
-            <Badge variant="glow" className="w-fit text-[0.65rem]">{project.role}</Badge>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">
+              {typeof project.timeline !== 'string' ? (isEn ? project.timeline.en : project.timeline.it) : project.timeline}
+            </p>
+            <h2 className="text-3xl font-semibold text-white">
+              {typeof project.title !== 'string' ? (isEn ? (project.title as any).en : (project.title as any).it) : project.title}
+            </h2>
+            <p className="text-base text-white/70">
+              {isEn ? project.subtitle.en : project.subtitle.it}
+            </p>
+            <Badge variant="glow" className="w-fit text-[0.65rem]">
+              {typeof project.role !== 'string' ? (isEn ? project.role.en : project.role.it) : project.role}
+            </Badge>
           </motion.div>
           
           <motion.p 
@@ -122,7 +133,7 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             variants={contentVariants}
             className="text-base text-white/80"
           >
-            {project.longDescription}
+            {isEn ? project.longDescription.en : project.longDescription.it}
           </motion.p>
           
           <motion.div 
@@ -130,16 +141,23 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             variants={contentVariants}
             className="grid gap-4 sm:grid-cols-3"
           >
-            {project.metrics.map((metric) => (
-              <div
-                key={`${project.id}-metric-${metric.label}`}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4"
-              >
-                <p className="text-xs uppercase tracking-[0.3em] text-white/60">{metric.label}</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{metric.value}</p>
-                <p className="mt-1 text-xs text-white/70">{metric.caption}</p>
-              </div>
-            ))}
+            {project.metrics.map((metric, idx) => {
+              const mLabel = typeof metric.label !== 'string' ? (isEn ? metric.label.en : metric.label.it) : metric.label;
+              const mValue = typeof metric.value !== 'string' ? (isEn ? metric.value.en : metric.value.it) : metric.value;
+              const mCaption = typeof metric.caption !== 'string' ? (isEn ? metric.caption.en : metric.caption.it) : metric.caption;
+              return (
+                <div
+                  key={`${project.id}-metric-${idx}`}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                >
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/60">{mLabel}</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{mValue}</p>
+                  <p className="mt-1 text-xs text-white/70">
+                    {mCaption}
+                  </p>
+                </div>
+              );
+            })}
           </motion.div>
 
           <motion.div
@@ -149,14 +167,17 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
           >
             <p className="text-xs uppercase tracking-[0.3em] text-white/60">Stack</p>
             <div className="flex flex-wrap gap-2">
-              {project.stack.map((tool) => (
-                <span
-                  key={tool}
-                  className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/70"
-                >
-                  {tool}
-                </span>
-              ))}
+              {project.stack.map((tool, idx) => {
+                const toolLabel = typeof tool !== 'string' ? (isEn ? tool.en : tool.it) : tool;
+                return (
+                  <span
+                    key={`modal-stack-${idx}`}
+                    className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/70"
+                  >
+                    {toolLabel}
+                  </span>
+                );
+              })}
             </div>
           </motion.div>
 
@@ -167,11 +188,14 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
           >
             <p className="text-xs uppercase tracking-[0.3em] text-white/60">Focus</p>
             <div className="flex flex-wrap gap-2">
-              {project.pillars.map((pillar) => (
-                <Badge key={pillar} variant="outline" className="text-[0.6rem]">
-                  {pillar}
-                </Badge>
-              ))}
+              {project.pillars.map((pillar, idx) => {
+                const pillarLabel = typeof pillar !== 'string' ? (isEn ? pillar.en : pillar.it) : pillar;
+                return (
+                  <Badge key={`modal-pillar-${idx}`} variant="outline" className="text-[0.6rem]">
+                    {pillarLabel}
+                  </Badge>
+                );
+              })}
             </div>
           </motion.div>
 
@@ -186,7 +210,7 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
               </CTAButton>
             ))}
             <CTAButton variant="primary" onClick={onClose}>
-              Chiudi
+              {isEn ? 'Close' : 'Chiudi'}
             </CTAButton>
           </motion.div>
         </div>

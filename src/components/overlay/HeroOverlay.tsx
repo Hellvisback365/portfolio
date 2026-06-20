@@ -20,16 +20,6 @@ export default function HeroOverlay() {
 
   return (
     <>
-      <div className="fixed top-5 right-5 z-40">
-        <button
-          onClick={() => setLanguage(isEn ? 'it' : 'en')}
-          className="glass-panel flex h-9 w-[4.5rem] items-center justify-between rounded-full p-1 text-[10px] font-bold uppercase tracking-widest text-white/50 transition-colors"
-        >
-          <span className={`flex-1 text-center transition-colors ${!isEn ? 'text-white' : 'hover:text-white/80'}`}>IT</span>
-          <span className="h-full w-[1px] bg-white/20"></span>
-          <span className={`flex-1 text-center transition-colors ${isEn ? 'text-white' : 'hover:text-white/80'}`}>EN</span>
-        </button>
-      </div>
 
       <div className="flex min-h-dvh w-full items-center justify-center px-6">
         <motion.div
@@ -82,7 +72,7 @@ export default function HeroOverlay() {
           transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
           aria-hidden="true"
         >
-          <span className="font-mono text-[0.58rem] uppercase tracking-[0.5em]">Scorri</span>
+          <span className="font-mono text-[0.58rem] uppercase tracking-[0.5em]">{isEn ? 'Scroll' : 'Scorri'}</span>
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.25} d="M19 9l-7 7-7-7" />
           </svg>

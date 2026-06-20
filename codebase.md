@@ -41,6 +41,7 @@ The content is organized as follows:
 
 <directory_structure>
 .aidigestignore
+.env.example
 .github/dependabot.yml
 .github/workflows/deploy.yml
 .gitignore
@@ -58,7 +59,6 @@ src/__tests__/bm25.test.ts
 src/__tests__/retriever.test.ts
 src/app/api/chat/feedback/route.ts
 src/app/api/chat/route.ts
-src/app/api/retrieve/route.ts
 src/app/api/suggestions/route.ts
 src/app/globals.css
 src/app/layout.tsx
@@ -81,21 +81,29 @@ src/components/overlay/ProjectsOverlay.tsx
 src/components/overlay/SkillsOverlay.tsx
 src/components/ProjectModal.tsx
 src/components/ui/Badge.tsx
+src/components/ui/contact/FileDropzone.tsx
+src/components/ui/copilot/CopilotInput.tsx
+src/components/ui/copilot/CopilotMessage.tsx
 src/components/ui/CTAButton.tsx
 src/components/ui/NeuralCard.tsx
 src/components/ui/rag/ProjectCard.tsx
 src/components/ui/rag/SkillsRadar.tsx
 src/components/ui/SectionHeader.tsx
+src/constants/contactConfig.tsx
 src/data/about.ts
 src/data/projects.ts
 src/data/rag-index.json
 src/data/skills.ts
+src/hooks/useContactForm.ts
+src/hooks/useCopilotChat.ts
 src/hooks/useResponsive.ts
+src/hooks/useSpeechRecognition.ts
 src/lib/rag/bm25.ts
 src/lib/rag/embedder.ts
 src/lib/rag/providers.ts
 src/lib/rag/retriever.ts
 src/lib/rag/worker.ts
+src/lib/ratelimit.ts
 src/store/useAppStore.ts
 src/styles/breakpoints.css
 src/types/env.d.ts
@@ -107,6 +115,969 @@ vitest.config.ts
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path=".env.example">
+# RAG & API Providers
+GROQ_API_KEY="your-groq-api-key"
+DEEPSEEK_API_KEY="your-deepseek-api-key" # Usato solo per rag:judge offline
+
+# Ratelimit (Upstash)
+UPSTASH_REDIS_REST_URL="https://your-upstash-url"
+UPSTASH_REDIS_REST_TOKEN="your-upstash-token"
+
+# Public
+NEXT_PUBLIC_LLM_PROVIDER="Groq"
+</file>
+
+<file path="src/components/ui/contact/FileDropzone.tsx">
+import { useRef, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaCloudUploadAlt, FaTimes, FaFilePdf, FaFileWord, FaFileImage, FaFileAlt } from 'react-icons/fa';
+import { MAX_FILES, ALLOWED_EXTENSIONS } from '@/constants/contactConfig';
+import type { AttachedFile } from '@/hooks/useContactForm';
+
+function getFileIcon(type: string) {
+  if (type.includes('pdf')) return <FaFilePdf className="text-red-400" />;
+  if (type.includes('word') || type.includes('document')) return <FaFileWord className="text-blue-400" />;
+  if (type.startsWith('image/')) return <FaFileImage className="text-emerald-400" />;
+  return <FaFileAlt className="text-white/50" />;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+interface FileDropzoneProps {
+  files: AttachedFile[];
+  fileError: string;
+  addFiles: (files: FileList | File[]) => void;
+  removeFile: (id: string) => void;
+}
+
+export default function FileDropzone({ files, fileError, addFiles, removeFile }: FileDropzoneProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const onDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); }, []);
+  const onDragLeave = useCallback(() => setIsDragging(false), []);
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  }, [addFiles]);
+
+  const totalFileSize = files.reduce((sum, f) => sum + f.file.size, 0);
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-xs font-medium text-white/60">
+          📎 Allegati
+          <span className="ml-1.5 text-[0.6rem] text-white/30">
+            ({files.length}/{MAX_FILES} · max 10 MB)
+          </span>
+        </p>
+        {files.length < MAX_FILES && (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="text-[0.65rem] font-medium text-[var(--color-accent-soft)] transition-colors hover:text-[var(--color-accent)]"
+          >
+            + Sfoglia
+          </button>
+        )}
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept={ALLOWED_EXTENSIONS.join(',')}
+        className="hidden"
+        onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.target.value = ''; }}
+      />
+
+      {files.length < MAX_FILES && (
+        <div
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-5 transition-all duration-200 ${isDragging
+              ? 'border-[var(--color-accent)]/50 bg-[var(--color-accent)]/5'
+              : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+            }`}
+        >
+          <FaCloudUploadAlt className={`mb-2 text-xl ${isDragging ? 'text-[var(--color-accent-soft)]' : 'text-white/20'}`} />
+          <p className="text-xs text-white/40">
+            {isDragging ? 'Rilascia qui' : 'Trascina file o clicca per sfogliare'}
+          </p>
+          <p className="mt-1 text-[0.6rem] text-white/20">
+            PDF, Office, Markdown, Media, JSON, Archivi — max 10 MB
+          </p>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {fileError && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mt-2 text-[0.65rem] text-amber-400"
+          >
+            {fileError}
+          </motion.p>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {files.map((af) => (
+          <motion.div
+            key={af.id}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2 flex items-center gap-3 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2.5">
+              <span className="text-sm">{getFileIcon(af.file.type)}</span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-white/80">{af.file.name}</p>
+                <p className="text-[0.6rem] text-white/30">{formatFileSize(af.file.size)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeFile(af.id)}
+                className="rounded p-1 text-white/30 transition-colors hover:bg-white/10 hover:text-red-400"
+              >
+                <FaTimes className="text-[0.6rem]" />
+              </button>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      {files.length > 0 && (
+        <p className="mt-1.5 text-[0.6rem] text-white/25">
+          Totale: {formatFileSize(totalFileSize)}
+        </p>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/ui/copilot/CopilotInput.tsx">
+import { useRef, useEffect } from 'react';
+import { FiMic, FiArrowUp } from 'react-icons/fi';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+
+interface CopilotInputProps {
+  input: string;
+  setInput: (value: string) => void;
+  onSubmit: () => void;
+  busy: boolean;
+  copilotOpen: boolean;
+}
+
+export default function CopilotInput({
+  input,
+  setInput,
+  onSubmit,
+  busy,
+  copilotOpen
+}: CopilotInputProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { isListening, toggleListening, hasSupport } = useSpeechRecognition({
+    onTranscript: (transcript) => setInput(input + (input ? ' ' : '') + transcript)
+  });
+
+  useEffect(() => {
+    if (copilotOpen) textareaRef.current?.focus();
+  }, [copilotOpen]);
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+      className="border-t border-white/10 p-3"
+    >
+      <div className="flex items-end gap-2 rounded-xl bg-white/5 px-3 py-2">
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onWheel={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              onSubmit();
+            }
+          }}
+          rows={2}
+          placeholder="Scrivi una domanda…"
+          aria-label="Messaggio per il copilot"
+          className="max-h-32 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35 overscroll-contain"
+        />
+        {hasSupport && (
+          <button
+            type="button"
+            onClick={toggleListening}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+              isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-white/50 hover:bg-white/10 hover:text-white'
+            }`}
+            aria-label="Microfono"
+          >
+            <FiMic className="h-4 w-4" />
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={busy || (!input.trim() && !isListening)}
+          aria-label="Invia"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-white transition-opacity disabled:opacity-30"
+        >
+          <FiArrowUp className="h-4 w-4" />
+        </button>
+      </div>
+    </form>
+  );
+}
+</file>
+
+<file path="src/components/ui/copilot/CopilotMessage.tsx">
+import { Fragment, type ReactNode } from 'react';
+import { FiThumbsUp, FiThumbsDown } from 'react-icons/fi';
+import ProjectCard from '@/components/ui/rag/ProjectCard';
+import SkillsRadar from '@/components/ui/rag/SkillsRadar';
+import type { UIMessage } from 'ai';
+
+type AnyPart = { type: string } & Record<string, unknown>;
+
+interface CopilotMessageProps {
+  message: UIMessage;
+  messages: UIMessage[];
+  flyToSection: (section: string) => void;
+  setCopilotOpen: (open: boolean) => void;
+  feedbackGiven: Record<string, boolean>;
+  onFeedback: (messageId: string, score: number, aiResponseText: string, userQuestionText: string) => void;
+}
+
+function renderMarkdownBold(text: string) {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <strong key={i} className="font-semibold text-white">
+        {part}
+      </strong>
+    ) : (
+      part
+    )
+  );
+}
+
+export default function CopilotMessage({
+  message,
+  messages,
+  flyToSection,
+  setCopilotOpen,
+  feedbackGiven,
+  onFeedback
+}: CopilotMessageProps) {
+  const renderPart = (part: AnyPart, index: number): ReactNode => {
+    const key = `${message.id}-${index}`;
+    switch (part.type) {
+      case 'text': {
+        const clean = (part.text as string).trim();
+        return clean ? (
+          <p key={key + '-text'} className="whitespace-pre-wrap break-words leading-relaxed">
+            {renderMarkdownBold(clean)}
+          </p>
+        ) : null;
+      }
+      case 'data-uiAction': {
+        const embeddedAction = part.data as any;
+        if (!embeddedAction) return null;
+
+        if (embeddedAction.action === 'showProject' && embeddedAction.target) {
+          return (
+            <ProjectCard
+              key={key + '-widget'}
+              projectName={embeddedAction.target}
+              onExplore={() => {
+                flyToSection('projects');
+                setCopilotOpen(false);
+              }}
+            />
+          );
+        } else if (embeddedAction.action === 'showSkillsRadar') {
+          return <SkillsRadar key={key + '-widget'} />;
+        } else if (embeddedAction.action === 'navigateToSection' && embeddedAction.target) {
+          return (
+            <p key={key + '-widget'} className="font-mono text-[11px] text-accent-soft mt-2">
+              → ti porto alla sezione {embeddedAction.target}
+            </p>
+          );
+        }
+        return null;
+      }
+      case 'data-sources': {
+        const sources = part.data as any[];
+        if (!sources || sources.length === 0) return null;
+        return (
+          <div key={key + '-sources'} className="mt-2 flex flex-wrap gap-1.5">
+            <span className="text-[10px] text-white/40 mr-1 self-center">Fonti:</span>
+            {sources.map((s, idx) => (
+              <span key={idx} className="px-2 py-0.5 rounded text-[10px] border border-white/10 bg-white/5 text-white/60">
+                {s.title || s.tag}
+              </span>
+            ))}
+          </div>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div
+      className={
+        message.role === 'user'
+          ? 'ml-8 rounded-2xl rounded-br-sm bg-accent/15 px-3.5 py-2.5'
+          : 'mr-4 space-y-2'
+      }
+    >
+      {(message.parts as AnyPart[]).map((part, i) => renderPart(part, i))}
+      {message.role === 'assistant' && (() => {
+        const idx = messages.findIndex(m => m.id === message.id);
+        const prevMsg: any = messages[idx - 1];
+        const msg: any = message;
+        const userQ = prevMsg?.role === 'user' ? prevMsg.content || (prevMsg.parts || []).map((p: any) => p.text || '').join('') : 'Unknown';
+        const aiA = msg.content || (msg.parts || []).map((p: any) => p.text || '').join('');
+        return (
+          <div className="flex gap-2 pt-1 opacity-40 hover:opacity-100 transition-opacity">
+            <button onClick={() => onFeedback(message.id, 1, aiA, userQ)} disabled={feedbackGiven[message.id]} className="hover:text-emerald-400 disabled:opacity-30"><FiThumbsUp className="w-3 h-3" /></button>
+            <button onClick={() => onFeedback(message.id, 0, aiA, userQ)} disabled={feedbackGiven[message.id]} className="hover:text-red-400 disabled:opacity-30"><FiThumbsDown className="w-3 h-3" /></button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+</file>
+
+<file path="src/constants/contactConfig.tsx">
+import {
+  FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaCalendarAlt,
+  FaGithub, FaLinkedin
+} from 'react-icons/fa';
+
+export const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/vitopiccolini@live.it';
+export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+export const MAX_FILES = 3;
+export const MAX_MESSAGE_LENGTH = 2000;
+
+export const ALLOWED_EXTENSIONS = [
+  '.pdf', '.doc', '.docx', '.txt', '.csv', '.md',
+  '.xls', '.xlsx', '.ppt', '.pptx', '.key',
+  '.json', '.xml', '.yaml', '.yml',
+  '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4',
+  '.zip', '.rar',
+];
+
+export const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain', 'text/csv', 'text/markdown',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/x-iwork-keynote-sffkey',
+  'application/json', 'application/xml', 'text/xml', 'application/x-yaml', 'text/yaml',
+  'image/png', 'image/jpeg', 'image/webp', 'image/gif',
+  'video/mp4',
+  'application/zip', 'application/x-rar-compressed',
+];
+
+export const categories = [
+  { id: 'job', label: 'Proposta lavorativa', emoji: '💼' },
+  { id: 'collab', label: 'Collaborazione', emoji: '🤝' },
+  { id: 'freelance', label: 'Freelance', emoji: '🚀' },
+  { id: 'info', label: 'Informazioni', emoji: '💡' },
+  { id: 'other', label: 'Altro', emoji: '💬' },
+];
+
+export const contactDetails = [
+  {
+    label: 'Email',
+    value: 'vitopiccolini@live.it',
+    helper: 'Preferita per brief strutturati (risposta entro 24h).',
+    icon: <FaEnvelope className="text-white" />,
+    href: 'mailto:vitopiccolini@live.it',
+  },
+  {
+    label: 'Telefono',
+    value: '+39 3937382774',
+    helper: 'Disponibile 9:00–18:00, anche WhatsApp.',
+    icon: <FaPhoneAlt className="text-white" />,
+    href: 'tel:+393937382774',
+  },
+  {
+    label: 'Base operativa',
+    value: 'Bari · Remote EU',
+    helper: 'Patente B, trasferte in giornata su richiesta.',
+    icon: <FaMapMarkerAlt className="text-white" />,
+  },
+  {
+    label: 'Disponibilità',
+    value: 'Immediata - Giugno 2026',
+    helper: 'Stage curriculare LM-18 o collaborazione AI-first.',
+    icon: <FaCalendarAlt className="text-white" />,
+  },
+];
+
+export const socialLinks = [
+  { icon: <FaGithub className="h-4 w-4" />, href: 'https://github.com/Hellvisback365', label: 'GitHub' },
+  { icon: <FaLinkedin className="h-4 w-4" />, href: 'https://www.linkedin.com/in/vitopiccolini/', label: 'LinkedIn' },
+  { icon: <FaEnvelope className="h-4 w-4" />, href: 'mailto:vitopiccolini@live.it', label: 'Email' },
+];
+</file>
+
+<file path="src/hooks/useContactForm.ts">
+import { useState, useCallback } from 'react';
+import {
+  MAX_FILE_SIZE, MAX_FILES, MAX_MESSAGE_LENGTH,
+  ALLOWED_EXTENSIONS, ALLOWED_MIME_TYPES, categories, FORMSUBMIT_ENDPOINT
+} from '@/constants/contactConfig';
+
+export interface ContactFormData {
+  name: string;
+  email: string;
+  subject: string;
+  category: string;
+  message: string;
+}
+
+export interface FormErrors {
+  name?: string;
+  email?: string;
+  subject?: string;
+  message?: string;
+}
+
+export interface AttachedFile {
+  file: File;
+  id: string;
+}
+
+function isAllowedFile(file: File): boolean {
+  if (ALLOWED_MIME_TYPES.includes(file.type)) return true;
+  const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+  return ALLOWED_EXTENSIONS.includes(ext);
+}
+
+export function useContactForm() {
+  const [formData, setFormData] = useState<ContactFormData>({
+    name: '', email: '', subject: '', category: '', message: '',
+  });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [files, setFiles] = useState<AttachedFile[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [fileError, setFileError] = useState('');
+
+  const validateForm = (): boolean => {
+    const e: FormErrors = {};
+    if (!formData.name.trim()) e.name = 'Il nome è richiesto';
+    if (!formData.email.trim()) {
+      e.email = "L'email è richiesta";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      e.email = 'Formato email non valido';
+    }
+    if (!formData.subject.trim()) e.subject = "L'oggetto è richiesto";
+    if (!formData.message.trim()) {
+      e.message = 'Il messaggio è richiesto';
+    } else if (formData.message.trim().length < 10) {
+      e.message = 'Almeno 10 caratteri';
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleChange = (
+    ev: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = ev.target;
+    if (name === 'message' && value.length > MAX_MESSAGE_LENGTH) return;
+    setFormData((p) => ({ ...p, [name]: value }));
+    if (errors[name as keyof FormErrors]) {
+      setErrors((p) => ({ ...p, [name]: undefined }));
+    }
+  };
+
+  const selectCategory = (id: string) => {
+    setFormData((p) => ({ ...p, category: p.category === id ? '' : id }));
+  };
+
+  const addFiles = useCallback((incoming: FileList | File[]) => {
+    setFileError('');
+    const newFiles: AttachedFile[] = [];
+    const list = Array.from(incoming);
+
+    for (const file of list) {
+      if (files.length + newFiles.length >= MAX_FILES) {
+        setFileError(`Massimo ${MAX_FILES} allegati.`);
+        break;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setFileError(`"${file.name}" supera il limite di 10 MB.`);
+        continue;
+      }
+      if (!isAllowedFile(file)) {
+        setFileError(`"${file.name}": tipo non supportato.`);
+        continue;
+      }
+      newFiles.push({ file, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
+    }
+    if (newFiles.length) setFiles((p) => [...p, ...newFiles]);
+  }, [files.length]);
+
+  const removeFile = (id: string) => {
+    setFiles((p) => p.filter((f) => f.id !== id));
+    setFileError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    setSubmitError('');
+
+    try {
+      const categoryLabel = categories.find((c) => c.id === formData.category)?.label || '—';
+      const categoryEmoji = categories.find((c) => c.id === formData.category)?.emoji || '';
+
+      const formElement = e.currentTarget as HTMLFormElement;
+      const honeyValue = new FormData(formElement).get('_honey') as string || '';
+
+      // Fallback a endpoint standard se l'utente ha inserito /ajax/
+      const endpoint = FORMSUBMIT_ENDPOINT.replace('/ajax/', '/');
+
+      const iframeName = `formsubmit-frame-${Date.now()}`;
+      const iframe = document.createElement('iframe');
+      iframe.name = iframeName;
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = endpoint;
+      form.enctype = 'multipart/form-data';
+      form.target = iframeName;
+      form.style.display = 'none';
+
+      const addField = (name: string, value: string) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      };
+
+      addField('_subject', `📩 ${formData.subject}`);
+      addField('_replyto', formData.email);
+      addField('_template', 'table');
+      addField('_captcha', 'false');
+      addField('_honey', honeyValue);
+
+      addField('Nome', formData.name);
+      addField('Email', formData.email);
+      addField('Categoria', `${categoryEmoji} ${categoryLabel}`);
+      addField('Oggetto', formData.subject);
+      addField('Messaggio', formData.message);
+
+      if (files.length > 0) {
+        files.forEach((af, index) => {
+          const dt = new DataTransfer();
+          dt.items.add(af.file);
+          const fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.name = `attachment_${index + 1}`;
+          fileInput.files = dt.files;
+          form.appendChild(fileInput);
+        });
+      }
+
+      document.body.appendChild(form);
+
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error('Timeout: il servizio non ha risposto in tempo.'));
+        }, 15000);
+
+        const cleanup = () => {
+          clearTimeout(timeout);
+          iframe.removeEventListener('load', onLoad);
+          setTimeout(() => {
+            if (document.body.contains(form)) document.body.removeChild(form);
+            if (document.body.contains(iframe)) document.body.removeChild(iframe);
+          }, 500);
+        };
+
+        const onLoad = () => {
+          cleanup();
+          resolve();
+        };
+
+        iframe.addEventListener('load', onLoad);
+        form.submit();
+      });
+
+      setSubmitSuccess(true);
+      setFormData({ name: '', email: '', subject: '', category: '', message: '' });
+      setFiles([]);
+      setTimeout(() => setSubmitSuccess(false), 6000);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Si è verificato un errore');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return {
+    formData,
+    errors,
+    files,
+    isSubmitting,
+    submitSuccess,
+    submitError,
+    setSubmitError,
+    fileError,
+    handleChange,
+    selectCategory,
+    addFiles,
+    removeFile,
+    handleSubmit
+  };
+}
+</file>
+
+<file path="src/hooks/useCopilotChat.ts">
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
+import { useAppStore } from '@/store/useAppStore';
+import {
+  embedQuery,
+  getEmbedderState,
+  rerankPairs,
+  subscribeEmbedder,
+  warmupEmbedder,
+  type EmbedderState,
+} from '@/lib/rag/embedder';
+
+export const ALL_SUGGESTIONS_IT = [
+  'Di cosa parla la tesi di Vito?',
+  'Raccontami del progetto Zenith',
+  'Che esperienza ha con i sistemi RAG?',
+  'Mostrami i contatti di Vito',
+  'Quali linguaggi usa nel backend?',
+  'Parlami dell\'hackathon Space Edition',
+  'Come è fatto TerraNode?',
+  'Che università frequenta?',
+  'Vito ha esperienza lavorativa?',
+  'Portami alla sezione progetti',
+];
+
+export const ALL_SUGGESTIONS_EN = [
+  'What is Vito\'s thesis about?',
+  'Tell me about the Zenith project',
+  'What experience does he have with RAG systems?',
+  'Show me Vito\'s contacts',
+  'What languages does he use in the backend?',
+  'Tell me about the Space Edition hackathon',
+  'How is TerraNode built?',
+  'What university does he attend?',
+  'Does Vito have work experience?',
+  'Take me to the projects section',
+];
+
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
+type AnyPart = { type: string } & Record<string, unknown>;
+
+export function useCopilotChat() {
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
+  const copilotOpen = useAppStore((s) => s.copilotOpen);
+  const flyToSection = useAppStore((s) => s.flyToSection);
+  
+  const [embedderState, setEmbedderState] = useState<EmbedderState>(() => getEmbedderState());
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
+  
+  const poolsRef = useRef<Record<string, string[]>>({});
+  const clickedSuggestionsRef = useRef<Set<string>>(new Set());
+  const processedTools = useRef<Set<string>>(new Set());
+  const inFlightRef = useRef(false);
+
+  const transport = useMemo(() => new DefaultChatTransport({ api: '/api/chat' }), []);
+  const { messages, sendMessage, status, error } = useChat({ transport });
+  const busy = status === 'submitted' || status === 'streaming';
+
+  // Subscriptions & Warmup
+  useEffect(() => subscribeEmbedder(setEmbedderState), []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const w = window as typeof window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    let idleId = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    if (w.requestIdleCallback) {
+      idleId = w.requestIdleCallback(() => warmupEmbedder(), { timeout: 4000 });
+    } else {
+      timeoutId = setTimeout(() => warmupEmbedder(), 2500);
+    }
+    return () => {
+      if (idleId && w.cancelIdleCallback) w.cancelIdleCallback(idleId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
+  // Fetch suggestions
+  useEffect(() => {
+    if (!copilotOpen) return;
+    
+    if (poolsRef.current[language]) {
+      // Già fetchato per questa lingua
+      const pool = poolsRef.current[language];
+      setSuggestions(pool.slice(0, 3));
+      return;
+    }
+
+    setIsLoadingSuggestions(true);
+    fetch(`/api/suggestions?lang=${language}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('API error');
+        return res.json();
+      })
+      .then((data) => {
+        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
+          poolsRef.current[language] = data.questions;
+          setSuggestions(data.questions.slice(0, 3));
+        } else {
+          throw new Error('Invalid schema');
+        }
+      })
+      .catch((err) => {
+        console.error('[Copilot] Fallback to static suggestions:', err);
+        const fallbacks = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
+        const shuffled = [...fallbacks].sort(() => 0.5 - Math.random());
+        poolsRef.current[language] = shuffled;
+        setSuggestions(shuffled.slice(0, 3));
+      })
+      .finally(() => {
+        setIsLoadingSuggestions(false);
+      });
+  }, [copilotOpen, language, isEn]);
+
+  // Process UI actions
+  useEffect(() => {
+    for (const message of messages) {
+      if (processedTools.current.has(message.id)) continue;
+      
+      let actionFound = false;
+      for (const part of message.parts as AnyPart[]) {
+        if (part.type === 'data-uiAction') {
+          const actionData = part.data as any;
+          actionFound = true;
+          
+          if (actionData.action === 'navigateToSection' && actionData.target) {
+            flyToSection(actionData.target);
+          } else if (actionData.action === 'showProject') {
+            flyToSection('projects');
+          } else if (actionData.action === 'showSkillsRadar') {
+            flyToSection('skills');
+          }
+        }
+      }
+      if (actionFound) {
+        processedTools.current.add(message.id);
+      }
+    }
+  }, [messages, flyToSection]);
+
+  const submit = useCallback(
+    (text: string): boolean => {
+      text = text.trim();
+      if (!text || busy || inFlightRef.current) return false;
+      inFlightRef.current = true;
+      
+      const attachVector = getEmbedderState() === 'ready';
+      void (async () => {
+        try {
+          const queryVector = attachVector
+            ? await withTimeout(embedQuery(text), 1500, null)
+            : null;
+
+          sendMessage({ text }, { body: { queryVector } });
+        } finally {
+          inFlightRef.current = false;
+        }
+      })();
+      return true;
+    },
+    [busy, sendMessage],
+  );
+
+  const handleSuggestionClick = useCallback((q: string) => {
+    submit(q);
+    clickedSuggestionsRef.current.add(q);
+    setSuggestions((prev) => {
+      const pool = poolsRef.current[language] || (isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT);
+      const clicked = clickedSuggestionsRef.current;
+      const remaining = pool.filter((s) => !prev.includes(s) && !clicked.has(s));
+      
+      if (remaining.length === 0) {
+        const fallbacks = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
+        const fallbackRemaining = fallbacks.filter((s) => !prev.includes(s) && !clicked.has(s) && !pool.includes(s));
+        if (fallbackRemaining.length === 0) return prev;
+        const next = fallbackRemaining[Math.floor(Math.random() * fallbackRemaining.length)];
+        return prev.map((s) => (s === q ? next : s));
+      }
+      
+      const next = remaining[Math.floor(Math.random() * remaining.length)];
+      return prev.map((s) => (s === q ? next : s));
+    });
+  }, [submit, isEn, language]);
+
+  return {
+    messages,
+    status,
+    error,
+    busy,
+    submit,
+    embedderState,
+    suggestions,
+    isLoadingSuggestions,
+    handleSuggestionClick
+  };
+}
+</file>
+
+<file path="src/hooks/useSpeechRecognition.ts">
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useAppStore } from '@/store/useAppStore';
+
+interface UseSpeechRecognitionOptions {
+  onTranscript: (transcript: string) => void;
+}
+
+export function useSpeechRecognition({ onTranscript }: UseSpeechRecognitionOptions) {
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const onTranscriptRef = useRef(onTranscript);
+
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          onTranscriptRef.current(transcript);
+        };
+        
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+      }
+    }
+  }, []);
+
+  const toggleListening = useCallback(() => {
+    if (!recognitionRef.current) return;
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      const language = useAppStore.getState().language;
+      recognitionRef.current.lang = language === 'en' ? 'en-US' : 'it-IT';
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  }, [isListening]);
+
+  return {
+    isListening,
+    toggleListening,
+    hasSupport: typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+  };
+}
+</file>
+
+<file path="src/lib/ratelimit.ts">
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
+// Utilizza un mock fittizio se le chiavi Redis non sono configurate (es. in locale/sviluppo)
+const redis =
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ? new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL.replace(/^['"]|['"]$/g, ''),
+        token: process.env.UPSTASH_REDIS_REST_TOKEN.replace(/^['"]|['"]$/g, ''),
+      })
+    : null;
+
+// Riferimento condiviso del rate limiter: 5 richieste ogni 10 secondi per gli endpoint principali
+export const globalRatelimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, '10 s'),
+      analytics: true,
+      prefix: '@upstash/ratelimit/portfolio',
+    })
+  : {
+      limit: async () => ({ success: true, limit: 10, remaining: 9, reset: 0 }),
+    };
+
+// Rate limiter più permissivo per feedback / piccoli endpoint non LLM
+export const feedbackRatelimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, '60 s'),
+      analytics: false,
+      prefix: '@upstash/ratelimit/feedback',
+    })
+  : {
+      limit: async () => ({ success: true, limit: 10, remaining: 9, reset: 0 }),
+    };
+</file>
 
 <file path=".aidigestignore">
 node_modules
@@ -555,32 +1526,6 @@ describe('HybridRetriever', () => {
     expect(doc1Count).toBeLessThanOrEqual(2);
   });
 });
-</file>
-
-<file path="src/app/api/retrieve/route.ts">
-import { NextResponse } from 'next/server';
-import { getRetriever } from '@/lib/rag/retriever';
-import { z } from 'zod';
-
-const retrieveSchema = z.object({
-  question: z.string(),
-  queryVector: z.array(z.number()).nullable().optional(),
-});
-
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { question, queryVector } = retrieveSchema.parse(body);
-
-    const retriever = await getRetriever();
-    // Return top 8 for client-side reranking
-    const candidates = retriever.retrieve(question, queryVector || null, 8);
-
-    return NextResponse.json({ candidates });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-}
 </file>
 
 <file path="src/app/opengraph-image.tsx">
@@ -1467,6 +2412,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -1899,7 +2845,7 @@ export type SkillIconKey =
 export interface CapabilityTrack {
   title: string;
   icon: SkillIconKey;
-  description: string;
+  description: { it: string; en: string };
   focusAreas: string[];
   stack: string[];
 }
@@ -1907,44 +2853,50 @@ export interface CapabilityTrack {
 export interface ExperienceMetric {
   label: string;
   value: string;
-  caption: string;
+  caption: { it: string; en: string };
 }
 
 export interface ToolHighlight {
   area: string;
   category: string;
-  description: string;
+  description: { it: string; en: string };
   tools: string[];
 }
 
 export interface Language {
-  name: string;
-  level: string;
-  description: string;
+  name: { it: string; en: string };
+  level: { it: string; en: string };
+  description: { it: string; en: string };
 }
 
 export const capabilityTracks: CapabilityTrack[] = [
   {
     title: 'AI/ML & Data Science',
     icon: 'brain',
-    description:
-      'Sviluppo di sistemi di raccomandazione LLM-driven, architetture multi-agente e soluzioni NLP con focus su explainability e RAG.',
+    description: {
+      it: 'Sviluppo di sistemi di raccomandazione LLM-driven, architetture multi-agente e soluzioni NLP con focus su explainability e RAG.',
+      en: 'Development of LLM-driven recommendation systems, multi-agent architectures, and NLP solutions with a focus on explainability and RAG.',
+    },
     focusAreas: ['Recommender Systems', 'Multi-agent orchestration', 'Hybrid RAG', 'Explainability'],
     stack: ['LangGraph', 'LangChain', 'LLMs', 'Python', 'FAISS', 'BM25'],
   },
   {
     title: 'Web Development',
     icon: 'web',
-    description:
-      'Sviluppo full-stack con React e Next.js, API backend con Node.js/Express e integrazione con servizi AI.',
+    description: {
+      it: 'Sviluppo full-stack con React e Next.js, API backend con Node.js/Express e integrazione con servizi AI.',
+      en: 'Full-stack development with React and Next.js, backend APIs with Node.js/Express, and integration with AI services.',
+    },
     focusAreas: ['Frontend React/Next.js', 'Backend Node.js', 'API Integration', 'Responsive Design'],
     stack: ['React', 'Next.js 15', 'Node.js', 'Express', 'Vite', 'Tailwind CSS', 'HTML/CSS'],
   },
   {
     title: 'DevOps & Integration',
     icon: 'code',
-    description:
-      'Automazione workflow, gestione database relazionali e NoSQL, metodologie Agile e version control.',
+    description: {
+      it: 'Automazione workflow, gestione database relazionali e NoSQL, metodologie Agile e version control.',
+      en: 'Workflow automation, relational and NoSQL database management, Agile methodologies, and version control.',
+    },
     focusAreas: ['Workflow Automation', 'Database Management', 'Agile/Scrum', 'CI/CD'],
     stack: ['n8n', 'GitHub', 'MySQL', 'MongoDB', 'Docker', 'npm/yarn'],
   },
@@ -1954,22 +2906,34 @@ export const experienceMetrics: ExperienceMetric[] = [
   {
     label: 'Briefing time',
     value: 'ore → secondi',
-    caption: 'Riduzione tempi report con AI generativa (B.Future Challenge).',
+    caption: {
+      it: 'Riduzione tempi report con AI generativa (B.Future Challenge).',
+      en: 'Reduction of report times with generative AI (B.Future Challenge).',
+    },
   },
   {
     label: 'Recsys novelty',
     value: '+12%',
-    caption: 'Miglioramento diversità/novelty con Llama 3.2 e Multi-Agent.',
+    caption: {
+      it: 'Miglioramento diversità/novelty con Llama 3.2 e Multi-Agent.',
+      en: 'Improvement in diversity/novelty with Llama 3.2 and Multi-Agent.',
+    },
   },
   {
     label: 'Precision@1',
     value: '-0.5%',
-    caption: 'L\'agente aggregatore ha mantenuto quasi intatta la precisione del baseline.',
+    caption: {
+      it: 'L\'agente aggregatore ha mantenuto quasi intatta la precisione del baseline.',
+      en: 'The aggregator agent kept the baseline precision almost intact.',
+    },
   },
   {
     label: 'Laurea triennale',
     value: '107/110',
-    caption: 'Informatica e Tecnologie per la Produzione del Software (UniBa).',
+    caption: {
+      it: 'Informatica e Tecnologie per la Produzione del Software (UniBa).',
+      en: 'Computer Science and Software Production Technologies (UniBa).',
+    },
   },
 ];
 
@@ -1977,54 +2941,69 @@ export const toolHighlights: ToolHighlight[] = [
   {
     area: 'Programming Languages',
     category: 'Core',
-    description: 'Linguaggi di programmazione per sviluppo AI, web e sistemi enterprise.',
+    description: {
+      it: 'Linguaggi di programmazione per sviluppo AI, web e sistemi enterprise.',
+      en: 'Programming languages for AI, web, and enterprise systems development.',
+    },
     tools: ['C', 'Python', 'Java', 'JavaScript', 'SQL', 'HTML/CSS'],
   },
   {
     area: 'AI/ML Stack',
     category: 'AI-first',
-    description: 'Framework e librerie per machine learning, LLM e sistemi di raccomandazione.',
+    description: {
+      it: 'Framework e librerie per machine learning, LLM e sistemi di raccomandazione.',
+      en: 'Frameworks and libraries for machine learning, LLMs, and recommendation systems.',
+    },
     tools: ['LangGraph', 'LangChain', 'FAISS', 'BM25', 'Pandas', 'NumPy', 'Jupyter'],
   },
   {
     area: 'Web & Database',
     category: 'Full-stack',
-    description: 'Tecnologie per sviluppo web moderno e gestione dati.',
+    description: {
+      it: 'Tecnologie per sviluppo web moderno e gestione dati.',
+      en: 'Technologies for modern web development and data management.',
+    },
     tools: ['React', 'Next.js', 'Node.js', 'Express', 'MySQL', 'MongoDB'],
   },
   {
     area: 'DevOps & Automation',
     category: 'Platform',
-    description: 'Strumenti per automazione, version control e metodologie di sviluppo.',
+    description: {
+      it: 'Strumenti per automazione, version control e metodologie di sviluppo.',
+      en: 'Tools for automation, version control, and development methodologies.',
+    },
     tools: ['n8n', 'GitHub', 'npm/yarn', 'VS Code', 'Eclipse', 'Agile/Scrum'],
   },
 ];
 
 export const languages: Language[] = [
   {
-    name: 'Italiano',
-    level: 'Madrelingua',
-    description: 'Lingua madre, comunicazione professionale e tecnica.',
+    name: { it: 'Italiano', en: 'Italian' },
+    level: { it: 'Madrelingua', en: 'Native' },
+    description: {
+      it: 'Lingua madre, comunicazione professionale e tecnica.',
+      en: 'Native language, professional and technical communication.',
+    },
   },
   {
-    name: 'Inglese',
-    level: 'B1 - Base',
-    description: 'Lettura documentazione tecnica, comunicazione scritta e meeting internazionali.',
+    name: { it: 'Inglese', en: 'English' },
+    level: { it: 'B1 - Base', en: 'B1 - Basic' },
+    description: {
+      it: 'Lettura documentazione tecnica, comunicazione scritta e meeting internazionali.',
+      en: 'Reading technical documentation, written communication, and international meetings.',
+    },
   },
 ];
 </file>
 
 <file path="src/lib/rag/providers.ts">
 import { createGroq } from '@ai-sdk/groq';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createDeepSeek } from '@ai-sdk/deepseek';
 import type { LanguageModel } from 'ai';
 
 /**
  * Astrazione per l'utilizzo di LLM.
- * Consente un rapido fallback tra Groq (default), Google o OpenRouter in base
- * alle chiavi configurate nell'ambiente.
+ * Configurato in modo esclusivo per utilizzare Groq (LLaMA-3.3) per
+ * massimizzare la velocità (LPU) e rispettare i requisiti di deployment in EU.
  */
 
 export interface Providers {
@@ -2032,51 +3011,21 @@ export interface Providers {
   chat: LanguageModel;
   /** Modello piccolo e velocissimo per il routing/rewrite. */
   router: LanguageModel;
-  name: 'groq' | 'google' | 'openrouter' | 'deepseek';
+  name: 'groq';
 }
 
 export function getProviders(): Providers | null {
-  const deepseekKey = process.env.DEEPSEEK_API_KEY;
-  if (deepseekKey) {
-    const deepseek = createDeepSeek({ apiKey: deepseekKey });
-    return {
-      chat: deepseek(process.env.RAG_CHAT_MODEL ?? 'deepseek-chat'),
-      router: deepseek(process.env.RAG_ROUTER_MODEL ?? 'deepseek-chat'),
-      name: 'deepseek',
-    };
-  }
-
   const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey) {
-    const groq = createGroq({ apiKey: groqKey });
-    return {
-      chat: groq(process.env.RAG_CHAT_MODEL ?? 'llama-3.3-70b-versatile'),
-      router: groq(process.env.RAG_ROUTER_MODEL ?? 'llama-3.1-8b-instant'),
-      name: 'groq',
-    };
+  if (!groqKey) {
+    return null;
   }
 
-  const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (googleKey) {
-    const google = createGoogleGenerativeAI({ apiKey: googleKey });
-    const model = google(process.env.RAG_CHAT_MODEL ?? 'gemini-1.5-flash');
-    return { chat: model, router: model, name: 'google' };
-  }
-
-  const openRouterKey = process.env.OPENROUTER_API_KEY;
-  if (openRouterKey) {
-    const openrouter = createOpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: openRouterKey,
-    });
-    return {
-      chat: openrouter(process.env.RAG_CHAT_MODEL ?? 'meta-llama/llama-3.3-70b-instruct:free'),
-      router: openrouter(process.env.RAG_ROUTER_MODEL ?? 'google/gemini-2.5-flash-free'),
-      name: 'openrouter',
-    };
-  }
-
-  return null;
+  const groq = createGroq({ apiKey: groqKey });
+  return {
+    chat: groq(process.env.RAG_CHAT_MODEL ?? 'llama-3.3-70b-versatile'),
+    router: groq(process.env.RAG_ROUTER_MODEL ?? 'llama-3.1-8b-instant'),
+    name: 'groq',
+  };
 }
 </file>
 
@@ -2105,22 +3054,6 @@ class PipelineSingleton {
   }
 }
 
-class RerankerSingleton {
-  static task = 'text-classification' as const;
-  static model = 'Xenova/ms-marco-MiniLM-L-6-v2';
-  static instance: any = null;
-
-  static async getInstance(progress_callback?: any) {
-    if (this.instance === null) {
-      this.instance = pipeline(this.task, this.model, {
-        dtype: 'q8',
-        progress_callback,
-      });
-    }
-    return this.instance;
-  }
-}
-
 // Ascolta i messaggi dal thread principale
 self.addEventListener('message', async (event) => {
   const { id, text, type } = event.data;
@@ -2130,10 +3063,7 @@ self.addEventListener('message', async (event) => {
       const p1 = PipelineSingleton.getInstance((x: any) => {
         self.postMessage({ type: 'progress', model: 'embedder', progress: x });
       });
-      const p2 = RerankerSingleton.getInstance((x: any) => {
-        self.postMessage({ type: 'progress', model: 'reranker', progress: x });
-      });
-      await Promise.all([p1, p2]);
+      await p1;
       self.postMessage({ type: 'ready', id });
       return;
     }
@@ -2156,18 +3086,6 @@ self.addEventListener('message', async (event) => {
       return;
     }
 
-    if (type === 'rerank') {
-      const reranker = await RerankerSingleton.getInstance();
-      const pairs = event.data.pairs; // Array of { text: query, text_pair: document }
-      const results = await reranker(pairs);
-      
-      self.postMessage({
-        type: 'rerank_result',
-        id,
-        scores: results,
-      });
-      return;
-    }
   } catch (error) {
     self.postMessage({
       type: 'error',
@@ -2240,7 +3158,7 @@ Browser ──(testo + query-vector*)──▶ /api/chat (Node)
    │   multilingual-e5-small           │
    │   (Transformers.js, lazy,         ├─ Retrieval Semantico (Cosine Similarity con standalone question)
    │   ~30MB quantizzato, cache        │
-   │   del browser)                    ├─ Fusione RRF (k=60) + cap di diversità per documento
+   │   del browser)                    ├─ Fusione RRF diretta lato server
    │                                   ├─ streamText (Groq Llama-3.3-70B)
    ◀──(UIMessage stream + data-sources + UI action deterministica)──┘
 ```
@@ -2251,6 +3169,7 @@ Scelte e perché:
 - **Generazione: Groq free tier** (verificato a giugno 2026: `llama-3.3-70b-versatile` ~30 RPM/1.000 req/giorno; `llama-3.1-8b-instant` fino a ~14.400 req/giorno — perfetto per il router). Endpoint OpenAI-compatibile, latenze da LPU (centinaia di token/s): l'esperienza percepita è "istantanea".
 - **Nota EU importante:** il free tier dell'API Gemini, da ToS, non è utilizzabile per servire utenti in EU/EEA/UK/CH in produzione. Per questo Gemini è solo **fallback opzionale** dietro env var, e le embeddings runtime non dipendono da Google. Con il solo `GROQ_API_KEY` il sistema è completo e conforme.
 - **BM25 vero**, Okapi (k1=1.5, b=0.75), tokenizzazione accent-fold + stoplist IT/EN, ~80 righe senza dipendenze. L'indice si costruisce a cold start in <1 ms (corpus piccolo).
+- **Reranker escluso in prod**: Nonostante i vantaggi metrici (testati in locale), l'uso di un Cross-Encoder su Vercel Serverless causava cold-start estremi (3-10s) a causa di ONNX Runtime Node e del peso del bundle. Dato il corpus limitato (~18 chunk), la pipeline si limita al solo Hybrid (BM25 + Semantic) con risultati eccellenti.
 - **RRF corretta a livello di chunk** + cap di 2 chunk per documento (diversità tipo MMR-lite) → top-4 nel contesto con id citabili `[S1]…[S4]`.
 - **Storico ripristinato:** ultime 8 UIMessage convertite con `convertToModelMessages`; il router produce la *standalone question* per il retrieval, così i follow-up funzionano.
 - **AI SDK v6 nativo:** `inputSchema` nei tool, `createUIMessageStream` con data part `data-sources` (basta header base64), client `useChat` v3 con `parts` tipizzate. Niente `@ts-ignore`.
@@ -2364,7 +3283,7 @@ Da fare al primo avvio (5 minuti, non posso eseguire la rete da qui): `npm run b
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useLenis } from 'lenis/react';
-import { SECTIONS, type SectionId } from '@/store/useAppStore';
+import { SECTIONS, type SectionId, useAppStore } from '@/store/useAppStore';
 
 const LABELS: Record<SectionId, string> = {
   hero: 'Home',
@@ -2386,6 +3305,9 @@ export default function NavigationOverlay() {
   const offsets = useRef<number[]>([]);
   const ticking = useRef(false);
   const lenis = useLenis();
+  const language = useAppStore((s) => s.language);
+  const setLanguage = useAppStore((s) => s.setLanguage);
+  const isEn = language === 'en';
 
   const measure = useCallback(() => {
     offsets.current = SECTIONS.map((id) => {
@@ -2458,6 +3380,18 @@ export default function NavigationOverlay() {
         />
       </div>
 
+      {/* Language Toggle */}
+      <div className="fixed top-5 right-5 z-[100] pointer-events-auto">
+        <button
+          onClick={() => setLanguage(isEn ? 'it' : 'en')}
+          className="glass-panel flex h-9 w-[4.5rem] items-center justify-between rounded-full p-1 text-[10px] font-bold uppercase tracking-widest text-white/50 transition-colors cursor-pointer"
+        >
+          <span className={`flex-1 text-center transition-colors ${!isEn ? 'text-white' : 'hover:text-white/80'}`}>IT</span>
+          <span className="h-full w-[1px] bg-white/20"></span>
+          <span className={`flex-1 text-center transition-colors ${isEn ? 'text-white' : 'hover:text-white/80'}`}>EN</span>
+        </button>
+      </div>
+
       {/* Monogramma */}
       <div className="fixed left-6 top-4 z-40">
         <motion.p
@@ -2521,8 +3455,12 @@ export default function NavigationOverlay() {
 
 import { motion } from 'framer-motion';
 import { capabilityTracks } from '@/data/skills';
+import { useAppStore } from '@/store/useAppStore';
 
 export default function SkillsOverlay() {
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
+
   // Extract tracks for easy radial placement
   const aiTrack = capabilityTracks[0];
   const webTrack = capabilityTracks[1];
@@ -2564,7 +3502,7 @@ export default function SkillsOverlay() {
             Skill Matrix
           </p>
           <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-wide drop-shadow-lg">
-            Capacità AI-first
+            {isEn ? 'AI-first Capabilities' : 'Capacità AI-first'}
           </h2>
         </motion.div>
 
@@ -2582,7 +3520,7 @@ export default function SkillsOverlay() {
             {aiTrack.title}
           </h3>
           <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
-            {aiTrack.description}
+            {isEn && typeof aiTrack.description !== 'string' ? aiTrack.description.en : (typeof aiTrack.description !== 'string' ? aiTrack.description.it : aiTrack.description)}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {aiTrack.stack.slice(0, 5).map(tool => (
@@ -2605,7 +3543,7 @@ export default function SkillsOverlay() {
             <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#60A5FA] shadow-[0_0_8px_#60A5FA]"></span>
           </h3>
           <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
-            {webTrack.description}
+            {isEn ? webTrack.description.en : webTrack.description.it}
           </p>
           <div className="flex flex-wrap gap-1.5 justify-end">
             {webTrack.stack.slice(0, 5).map(tool => (
@@ -2628,7 +3566,7 @@ export default function SkillsOverlay() {
             {devopsTrack.title}
           </h3>
           <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
-            {devopsTrack.description}
+            {isEn ? devopsTrack.description.en : devopsTrack.description.it}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {devopsTrack.stack.slice(0, 4).map(tool => (
@@ -2651,7 +3589,7 @@ export default function SkillsOverlay() {
             <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-white/40 shadow-[0_0_8px_rgba(255,255,255,0.4)]"></span>
           </h3>
           <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
-            Strumenti core e padronanza linguistica per operare in team internazionali.
+            {isEn ? 'Core tools and language mastery to operate in international teams.' : 'Strumenti core e padronanza linguistica per operare in team internazionali.'}
           </p>
           <div className="flex flex-wrap gap-1.5 justify-end">
              <span className="text-[0.5rem] md:text-[0.55rem] border border-white/10 bg-white/5 backdrop-blur-sm rounded px-1.5 py-0.5 text-white/50">Git/GitHub</span>
@@ -2668,9 +3606,9 @@ export default function SkillsOverlay() {
 
 <file path="src/data/projects.ts">
 export interface ProjectMetric {
-  label: string;
-  value: string;
-  caption: string;
+  label: { it: string; en: string } | string;
+  value: { it: string; en: string } | string;
+  caption: { it: string; en: string };
 }
 
 export interface ProjectLink {
@@ -2682,15 +3620,15 @@ export interface ProjectLink {
 export interface ProjectData {
   id: number;
   title: string;
-  subtitle: string;
-  description: string;
+  subtitle: { it: string; en: string };
+  description: { it: string; en: string };
   image: string;
-  longDescription: string;
-  tags: string[];
-  timeline: string;
-  role: string;
-  stack: string[];
-  pillars: string[];
+  longDescription: { it: string; en: string };
+  tags: ({ it: string; en: string } | string)[];
+  timeline: { it: string; en: string } | string;
+  role: { it: string; en: string } | string;
+  stack: ({ it: string; en: string } | string)[];
+  pillars: ({ it: string; en: string } | string)[];
   metrics: ProjectMetric[];
   links?: ProjectLink[];
 }
@@ -2699,87 +3637,122 @@ export const projects: ProjectData[] = [
   {
     id: 1,
     title: 'Talent Program "Next Pulse"',
-    subtitle: 'EnLexi: AI Sales Assistant multi-sorgente per Engine S.p.A.',
-    description:
-      'Sviluppo backend in team per un AI Sales Assistant nel settore Traffic Enforcement e Smart City (Hackathon nazionale).',
+    subtitle: {
+      it: 'EnLexi: AI Sales Assistant multi-sorgente per Engine S.p.A.',
+      en: 'EnLexi: Multi-source AI Sales Assistant for Engine S.p.A.',
+    },
+    description: {
+      it: 'Sviluppo backend in team per un AI Sales Assistant nel settore Traffic Enforcement e Smart City (Hackathon nazionale).',
+      en: 'Team backend development for an AI Sales Assistant in the Traffic Enforcement and Smart City sector (National Hackathon).',
+    },
     image: '/next-pulse-polaroid.jpg',
-    longDescription:
-      'Durante il bootcamp selettivo intensivo (48h) su scala nazionale (320 candidati), ho contribuito allo sviluppo di EnLexi in un team di 5 persone. '
-      + 'EnLexi è un AI Sales Assistant multi-sorgente per Engine S.p.A. Mi sono occupato del backend con focus sulla pipeline di retrieval e '
-      + 'sull\'implementazione della ricerca ibrida (BM25 + ChromaDB/FAISS), gestendo anche l\'organizzazione del team e collaborando alla presentazione finale.',
+    longDescription: {
+      it: 'Durante il bootcamp selettivo intensivo (48h) su scala nazionale (320 candidati), ho contribuito allo sviluppo di EnLexi in un team di 5 persone. '
+        + 'EnLexi è un AI Sales Assistant multi-sorgente per Engine S.p.A. Mi sono occupato del backend con focus sulla pipeline di retrieval e '
+        + 'sull\'implementazione della ricerca ibrida (BM25 + ChromaDB/FAISS), gestendo anche l\'organizzazione del team e collaborando alla presentazione finale.',
+      en: 'During the intensive selective bootcamp (48h) on a national scale (320 candidates), I contributed to the development of EnLexi in a 5-person team. '
+        + 'EnLexi is a multi-source AI Sales Assistant for Engine S.p.A. I worked on the backend focusing on the retrieval pipeline and '
+        + 'implementing hybrid search (BM25 + ChromaDB/FAISS), while also managing team organization and collaborating on the final presentation.',
+    },
     tags: ['Hackathon', 'Python', 'FastAPI', 'RAG', 'ChromaDB', 'FAISS'],
-    timeline: 'Giugno 2026',
-    role: 'Backend Developer / Team Organizer',
+    timeline: { it: 'Giugno 2026', en: 'June 2026' },
+    role: { it: 'Backend Developer / Team Organizer', en: 'Backend Developer / Team Organizer' },
     stack: ['Python', 'FastAPI', 'BM25', 'ChromaDB', 'FAISS'],
     pillars: ['Hybrid RAG', 'AI Sales Assistant', 'Team Management', 'Backend'],
     metrics: [
-      { label: 'Candidati', value: '320', caption: 'Bootcamp selettivo nazionale.' },
-      { label: 'Durata', value: '48h', caption: 'Hackathon intensivo.' },
-      { label: 'Retrieval', value: 'Ibrido', caption: 'Integrazione BM25 + FAISS/ChromaDB.' },
+      { label: { it: 'Candidati', en: 'Candidates' }, value: '320', caption: { it: 'Bootcamp selettivo nazionale.', en: 'National selective bootcamp.' } },
+      { label: { it: 'Durata', en: 'Duration' }, value: '48h', caption: { it: 'Hackathon intensivo.', en: 'Intensive hackathon.' } },
+      { label: 'Retrieval', value: { it: 'Ibrido', en: 'Hybrid' }, caption: { it: 'Integrazione BM25 + FAISS/ChromaDB.', en: 'BM25 + FAISS/ChromaDB integration.' } },
     ],
   },
   {
     id: 2,
     title: 'PugliaHack 2026',
-    subtitle: 'TerraNode: Piattaforma per smart agri-tourism',
-    description:
-      'Sviluppo in autonomia di TerraNode, piattaforma con prenotazioni, gamification, tracciamento CO2 e dashboard real-time.',
+    subtitle: {
+      it: 'TerraNode: Piattaforma per smart agri-tourism',
+      en: 'TerraNode: Smart agri-tourism platform',
+    },
+    description: {
+      it: 'Sviluppo in autonomia di TerraNode, piattaforma con prenotazioni, gamification, tracciamento CO2 e dashboard real-time.',
+      en: 'Solo development of TerraNode, a platform with bookings, gamification, CO2 tracking, and a real-time dashboard.',
+    },
     image: '/pugliahack-2026.png',
-    longDescription:
-      'Nell\'ambito dell\'hackathon PugliaHack 2026 (finestra di sviluppo: 2 ore, piattaforma Lovable), ho sviluppato in autonomia TerraNode, '
-      + 'una piattaforma per lo smart agri-tourism pugliese. La soluzione prevede ruoli distinti per turisti, agricoltori e Pubblica Amministrazione, '
-      + 'includendo prenotazione di esperienze, gamification con crediti, tracciamento della CO2 e dashboard con KPI in tempo reale.',
+    longDescription: {
+      it: 'Nell\'ambito dell\'hackathon PugliaHack 2026 (finestra di sviluppo: 2 ore, piattaforma Lovable), ho sviluppato in autonomia TerraNode, '
+        + 'una piattaforma per lo smart agri-tourism pugliese. La soluzione prevede ruoli distinti per turisti, agricoltori e Pubblica Amministrazione, '
+        + 'includendo prenotazione di esperienze, gamification con crediti, tracciamento della CO2 e dashboard con KPI in tempo reale.',
+      en: 'During the PugliaHack 2026 hackathon (development window: 2 hours, Lovable platform), I independently developed TerraNode, '
+        + 'a platform for smart agri-tourism in Puglia. The solution features distinct roles for tourists, farmers, and Public Administration, '
+        + 'including experience booking, credit-based gamification, CO2 tracking, and real-time KPI dashboards.',
+    },
     tags: ['Hackathon', 'React 19', 'TailwindCSS', 'Supabase', 'Agri-tourism'],
-    timeline: 'Maggio 2026',
-    role: 'Solo Developer',
+    timeline: { it: 'Maggio 2026', en: 'May 2026' },
+    role: { it: 'Solo Developer', en: 'Solo Developer' },
     stack: ['React 19', 'TanStack Query', 'TailwindCSS', 'Supabase (PostgreSQL)'],
     pillars: ['Smart Tourism', 'Gamification', 'CO2 Tracking', 'Real-time Dashboards'],
     metrics: [
-      { label: 'Tempo dev.', value: '2 ore', caption: 'Finestra di sviluppo estremamente ridotta.' },
-      { label: 'Ruoli', value: '3', caption: 'Turisti, Agricoltori, PA.' },
-      { label: 'Stack', value: 'Modern Web', caption: 'React 19 + Supabase.' },
+      { label: { it: 'Tempo dev.', en: 'Dev time' }, value: { it: '2 ore', en: '2 hours' }, caption: { it: 'Finestra di sviluppo estremamente ridotta.', en: 'Extremely short development window.' } },
+      { label: { it: 'Ruoli', en: 'Roles' }, value: '3', caption: { it: 'Turisti, Agricoltori, PA.', en: 'Tourists, Farmers, PA.' } },
+      { label: 'Stack', value: 'Modern Web', caption: { it: 'React 19 + Supabase.', en: 'React 19 + Supabase.' } },
     ],
   },
   {
     id: 3,
     title: 'Hackathon "Space Edition"',
-    subtitle: 'The Pulse: Monitoraggio agricolo globale satellitare',
-    description:
-      '2° Classificato. Collaborazione all\'ideazione di un progetto per una costellazione di piccoli satelliti dedicati all\'agricoltura.',
+    subtitle: {
+      it: 'The Pulse: Monitoraggio agricolo globale satellitare',
+      en: 'The Pulse: Global satellite agricultural monitoring',
+    },
+    description: {
+      it: '2° Classificato. Collaborazione all\'ideazione di un progetto per una costellazione di piccoli satelliti dedicati all\'agricoltura.',
+      en: '2nd Place. Collaboration on the design of a small satellite constellation project dedicated to agriculture.',
+    },
     image: '/leonardo-hackathon.jpg',
-    longDescription:
-      'Hackathon organizzato da Talent Garden e Leonardo a Milano. Mi sono classificato al 2° posto collaborando all\'ideazione di "The Pulse", '
-      + 'un progetto per una costellazione di piccoli satelliti dedicata al monitoraggio agricolo globale, integrando logiche di telerilevamento e AI.',
+    longDescription: {
+      it: 'Hackathon organizzato da Talent Garden e Leonardo a Milano. Mi sono classificato al 2° posto collaborando all\'ideazione di "The Pulse", '
+        + 'un progetto per una costellazione di piccoli satelliti dedicata al monitoraggio agricolo globale, integrando logiche di telerilevamento e AI.',
+      en: 'Hackathon organized by Talent Garden and Leonardo in Milan. I placed 2nd collaborating on the conception of "The Pulse", '
+        + 'a small satellite constellation project dedicated to global agricultural monitoring, integrating remote sensing and AI logic.',
+    },
     tags: ['Hackathon', 'Space Tech', 'Agri-Tech', 'Innovation'],
-    timeline: 'Maggio 2026',
-    role: 'Team Member',
+    timeline: { it: 'Maggio 2026', en: 'May 2026' },
+    role: { it: 'Team Member', en: 'Team Member' },
     stack: ['Ideation', 'Team Collaboration', 'Space/Agri Tech'],
     pillars: ['Space Technology', 'Agriculture', 'Teamwork', 'Innovation'],
     metrics: [
-      { label: 'Piazzamento', value: '2° Posto', caption: 'Hackathon nazionale Talent Garden x Leonardo.' },
-      { label: 'Focus', value: 'Satelliti', caption: 'Monitoraggio agricolo globale.' },
+      { label: { it: 'Piazzamento', en: 'Placement' }, value: { it: '2° Posto', en: '2nd Place' }, caption: { it: 'Hackathon nazionale Talent Garden x Leonardo.', en: 'National Hackathon Talent Garden x Leonardo.' } },
+      { label: 'Focus', value: { it: 'Satelliti', en: 'Satellites' }, caption: { it: 'Monitoraggio agricolo globale.', en: 'Global agricultural monitoring.' } },
     ],
   },
   {
     id: 4,
     title: 'LACAM-SWAP · Orchestratore Multi-Agente',
-    subtitle: 'Ottimizzazione Multi-Metrica nei Sistemi di Raccomandazione',
-    description:
-      'Progetto di tesi: architettura multi-agente LLM orchestrata con LangGraph per raccomandazioni. Include RAG ibrido (BM25 + FAISS).',
+    subtitle: {
+      it: 'Ottimizzazione Multi-Metrica nei Sistemi di Raccomandazione',
+      en: 'Multi-Metric Optimization in Recommendation Systems',
+    },
+    description: {
+      it: 'Progetto di tesi: architettura multi-agente LLM orchestrata con LangGraph per raccomandazioni. Include RAG ibrido (BM25 + FAISS).',
+      en: 'Thesis project: LLM multi-agent architecture orchestrated with LangGraph for recommendations. Includes hybrid RAG (BM25 + FAISS).',
+    },
     image: '/SWAP.jpg',
-    longDescription:
-      'Progetto di tesi sviluppato durante il tirocinio curriculare (marzo–giugno 2025) presso il laboratorio LACAM-SWAP dell\'Università di Bari. '
-      + 'Ho implementato un\'architettura multi-agente basata su LLM (Llama 3.2 3B Instruct), orchestrata con LangGraph, che coordina agenti specializzati '
-      + 'su precisione e copertura del catalogo tramite un agente aggregatore. L\'architettura include anche un sistema RAG ibrido (BM25 + FAISS).',
+    longDescription: {
+      it: 'Progetto di tesi sviluppato durante il tirocinio curriculare (marzo–giugno 2025) presso il laboratorio LACAM-SWAP dell\'Università di Bari. '
+        + 'Ho implementato un\'architettura multi-agente basata su LLM (Llama 3.2 3B Instruct), orchestrata con LangGraph, che coordina agenti specializzati '
+        + 'su precisione e copertura del catalogo tramite un agente aggregatore. L\'architettura include anche un sistema RAG ibrido (BM25 + FAISS).',
+      en: 'Thesis project developed during the curricular internship (March–June 2025) at the LACAM-SWAP lab, University of Bari. '
+        + 'I implemented an LLM-based multi-agent architecture (Llama 3.2 3B Instruct), orchestrated with LangGraph, which coordinates specialized agents '
+        + 'for precision and catalog coverage via an aggregator agent. The architecture also includes a hybrid RAG system (BM25 + FAISS).',
+    },
     tags: ['LangGraph', 'Multi-Agent', 'Recommender Systems', 'RAG', 'Thesis'],
-    timeline: 'Marzo–Giugno 2025 · 3 mesi',
-    role: 'AI Research Intern',
+    timeline: { it: 'Marzo–Giugno 2025 · 3 mesi', en: 'March–June 2025 · 3 months' },
+    role: { it: 'AI Research Intern', en: 'AI Research Intern' },
     stack: ['LangGraph', 'Python', 'Llama 3.2', 'FAISS', 'BM25'],
     pillars: ['Precision & Coverage Agents', 'Hybrid RAG', 'Aggregated-Agent', 'Llama 3.2'],
     metrics: [
-      { label: 'Novelty', value: '+12%', caption: 'Miglioramento novità del catalogo raccomandato.' },
-      { label: 'Precisione', value: '-0.5%', caption: 'Delta minimo rispetto al baseline massimizzato.' },
-      { label: 'Dataset', value: 'MovieLens 1M', caption: 'Testato su benchmark standard.' },
+      { label: { it: 'Novità', en: 'Novelty' }, value: '+12%', caption: { it: 'Miglioramento novità del catalogo raccomandato.', en: 'Improvement in recommended catalog novelty.' } },
+      { label: { it: 'Precisione', en: 'Precision' }, value: '-0.5%', caption: { it: 'Delta minimo rispetto al baseline massimizzato.', en: 'Minimal delta compared to maximized baseline.' } },
+      { label: 'Dataset', value: 'MovieLens 1M', caption: { it: 'Testato su benchmark standard.', en: 'Tested on standard benchmarks.' } },
     ],
     links: [
       { label: 'GitHub', href: 'https://github.com/Hellvisback365/LLM.git', type: 'github' },
@@ -2788,23 +3761,32 @@ export const projects: ProjectData[] = [
   {
     id: 5,
     title: 'B.Future Challenge 2025 · BOOM (CRIF)',
-    subtitle: 'Zenith: Assistente AI per digitalizzare la consulenza',
-    description:
-      'Sviluppo backend in team di Zenith, assistente AI con workflow automatizzato per la digitalizzazione della consulenza aziendale.',
+    subtitle: {
+      it: 'Zenith: Assistente AI per digitalizzare la consulenza',
+      en: 'Zenith: AI Assistant for digitalizing consulting',
+    },
+    description: {
+      it: 'Sviluppo backend in team di Zenith, assistente AI con workflow automatizzato per la digitalizzazione della consulenza aziendale.',
+      en: 'Team backend development of Zenith, an AI assistant with automated workflow for the digitalization of corporate consulting.',
+    },
     image: '/b-future-challenge-2025.png',
-    longDescription:
-      'Hackathon multidisciplinare in team di 6 persone per VAR Group. Abbiamo sviluppato Zenith, assistente AI per automatizzare '
-      + 'il processo di consulenza aziendale. Mi sono occupato della pipeline backend: orchestrazione tramite n8n, integrazione con Google Gemini '
-      + 'e archiviazione su Google Drive. Il prototipo stimava un abbattimento drastico dei tempi di lavorazione.',
+    longDescription: {
+      it: 'Hackathon multidisciplinare in team di 6 persone per VAR Group. Abbiamo sviluppato Zenith, assistente AI per automatizzare '
+        + 'il processo di consulenza aziendale. Mi sono occupato della pipeline backend: orchestrazione tramite n8n, integrazione con Google Gemini '
+        + 'e archiviazione su Google Drive. Il prototipo stimava un abbattimento drastico dei tempi di lavorazione.',
+      en: 'Multidisciplinary hackathon in a 6-person team for VAR Group. We developed Zenith, an AI assistant to automate '
+        + 'the corporate consulting process. I handled the backend pipeline: orchestration via n8n, integration with Google Gemini '
+        + 'and storage on Google Drive. The prototype estimated a drastic reduction in processing times.',
+    },
     tags: ['n8n', 'Gemini', 'API', 'Workflow Automation'],
-    timeline: 'Settembre–Novembre 2025',
-    role: 'Backend AI Developer',
+    timeline: { it: 'Settembre–Novembre 2025', en: 'September–November 2025' },
+    role: { it: 'Backend AI Developer', en: 'Backend AI Developer' },
     stack: ['n8n', 'Google Gemini', 'Google Drive API'],
-    pillars: ['Orchestrazione workflow', 'Automazione API', 'Digitalizzazione', 'Riduzione tempi'],
+    pillars: [{ it: 'Orchestrazione workflow', en: 'Workflow orchestration' }, { it: 'Automazione API', en: 'API automation' }, { it: 'Digitalizzazione', en: 'Digitalization' }, { it: 'Riduzione tempi', en: 'Time reduction' }],
     metrics: [
-      { label: 'Tempo report', value: '7gg → 1gg', caption: 'Riduzione drastica stimata dei tempi di produzione.' },
-      { label: 'Team', value: '6 persone', caption: 'Collaborazione multidisciplinare.' },
-      { label: 'Stack', value: 'n8n + Gemini', caption: 'Pipeline backend automatizzata.' },
+      { label: { it: 'Tempo report', en: 'Report time' }, value: '7gg → 1gg', caption: { it: 'Riduzione drastica stimata dei tempi di produzione.', en: 'Estimated drastic reduction in production times.' } },
+      { label: 'Team', value: { it: '6 persone', en: '6 people' }, caption: { it: 'Collaborazione multidisciplinare.', en: 'Multidisciplinary collaboration.' } },
+      { label: 'Stack', value: 'n8n + Gemini', caption: { it: 'Pipeline backend automatizzata.', en: 'Automated backend pipeline.' } },
     ],
     links: [
       { label: 'GitHub', href: 'https://github.com/Hellvisback365/ChallengeBoomVarGroup2025.git', type: 'github' },
@@ -2813,24 +3795,34 @@ export const projects: ProjectData[] = [
   {
     id: 6,
     title: 'BeFluent',
-    subtitle: 'Web app per supporto alla dislessia',
-    description:
-      'Applicazione web React+Node.js progettata per aiutare bambini con dislessia attraverso un\'interfaccia intuitiva e accessibile.',
+    subtitle: {
+      it: 'Web app per supporto alla dislessia',
+      en: 'Web app for dyslexia support',
+    },
+    description: {
+      it: 'Applicazione web React+Node.js progettata per aiutare bambini con dislessia attraverso un\'interfaccia intuitiva e accessibile.',
+      en: 'React+Node.js web application designed to help children with dyslexia through an intuitive and accessible interface.',
+    },
     image: '/BeFluent_logo.png',
-    longDescription:
-      'BeFluent è un\'applicazione web progettata per aiutare bambini con dislessia attraverso un\'interfaccia intuitiva e accessibile. '
-      + 'L\'app utilizza tecnologie React per il frontend e Node.js per il backend, offrendo esercizi personalizzati e feedback adattivi. '
-      + 'La soluzione è stata progettata con un focus sull\'accessibilità e sulla facilità d\'uso, '
-      + 'permettendo un\'esperienza di apprendimento inclusiva e coinvolgente.',
-    tags: ['React', 'Node.js', 'Accessibilità', 'JavaScript', 'UX Design'],
-    timeline: 'Progetto Universitario',
-    role: 'Developer',
+    longDescription: {
+      it: 'BeFluent è un\'applicazione web progettata per aiutare bambini con dislessia attraverso un\'interfaccia intuitiva e accessibile. '
+        + 'L\'app utilizza tecnologie React per il frontend e Node.js per il backend, offrendo esercizi personalizzati e feedback adattivi. '
+        + 'La soluzione è stata progettata con un focus sull\'accessibilità e sulla facilità d\'uso, '
+        + 'permettendo un\'esperienza di apprendimento inclusiva e coinvolgente.',
+      en: 'BeFluent is a web application designed to help children with dyslexia through an intuitive and accessible interface. '
+        + 'The app uses React for the frontend and Node.js for the backend, offering personalized exercises and adaptive feedback. '
+        + 'The solution was designed with a focus on accessibility and ease of use, '
+        + 'allowing for an inclusive and engaging learning experience.',
+    },
+    tags: ['React', 'Node.js', { it: 'Accessibilità', en: 'Accessibility' }, 'JavaScript', 'UX Design'],
+    timeline: { it: 'Progetto Universitario', en: 'University Project' },
+    role: { it: 'Developer', en: 'Developer' },
     stack: ['React', 'Node.js', 'JavaScript', 'CSS', 'Express'],
-    pillars: ['Accessibilità', 'UX per bambini', 'Supporto dislessia', 'Design inclusivo'],
+    pillars: [{ it: 'Accessibilità', en: 'Accessibility' }, { it: 'UX per bambini', en: 'UX for children' }, { it: 'Supporto dislessia', en: 'Dyslexia support' }, { it: 'Design inclusivo', en: 'Inclusive design' }],
     metrics: [
-      { label: 'Target', value: 'Bambini', caption: 'Interfaccia pensata per utenti con dislessia.' },
-      { label: 'Stack', value: 'React + Node.js', caption: 'Frontend moderno e backend robusto.' },
-      { label: 'Focus', value: 'Accessibilità', caption: 'Design inclusivo e facilità d\'uso.' },
+      { label: 'Target', value: { it: 'Bambini', en: 'Children' }, caption: { it: 'Interfaccia pensata per utenti con dislessia.', en: 'Interface designed for users with dyslexia.' } },
+      { label: 'Stack', value: 'React + Node.js', caption: { it: 'Frontend moderno e backend robusto.', en: 'Modern frontend and robust backend.' } },
+      { label: 'Focus', value: { it: 'Accessibilità', en: 'Accessibility' }, caption: { it: 'Design inclusivo e facilità d\'uso.', en: 'Inclusive design and ease of use.' } },
     ],
     links: [
       { label: 'GitHub', href: 'https://github.com/Hellvisback365/BeFluentVITO.git', type: 'github' },
@@ -2839,23 +3831,32 @@ export const projects: ProjectData[] = [
   {
     id: 7,
     title: 'POSD System',
-    subtitle: 'Privacy-Oriented System Design conforme GDPR',
-    description:
-      'Soluzione software privacy-oriented con architettura MVC, progettata per garantire conformità GDPR e sicurezza dei dati.',
+    subtitle: {
+      it: 'Privacy-Oriented System Design conforme GDPR',
+      en: 'GDPR compliant Privacy-Oriented System Design',
+    },
+    description: {
+      it: 'Soluzione software privacy-oriented con architettura MVC, progettata per garantire conformità GDPR e sicurezza dei dati.',
+      en: 'Privacy-oriented software solution with MVC architecture, designed to ensure GDPR compliance and data security.',
+    },
     image: '/POSD.png',
-    longDescription:
-      'POSD System (Privacy-Oriented System Design) è una soluzione software che implementa un\'architettura MVC con focus sulla conformità GDPR. '
-      + 'Il sistema è progettato per garantire la sicurezza dei dati utente end-to-end, con crittografia avanzata e controlli di accesso granulari. '
-      + 'La piattaforma include funzionalità per la gestione del consenso degli utenti e strumenti per l\'analisi dell\'impatto sulla privacy.',
-    tags: ['Privacy', 'GDPR', 'MVC', 'Sicurezza', 'Python'],
-    timeline: 'Progetto Universitario',
-    role: 'Developer',
-    stack: ['Python', 'MVC Architecture', 'Crittografia', 'GDPR Compliance'],
-    pillars: ['Privacy by Design', 'GDPR Compliance', 'Crittografia E2E', 'Gestione consenso'],
+    longDescription: {
+      it: 'POSD System (Privacy-Oriented System Design) è una soluzione software che implementa un\'architettura MVC con focus sulla conformità GDPR. '
+        + 'Il sistema è progettato per garantire la sicurezza dei dati utente end-to-end, con crittografia avanzata e controlli di accesso granulari. '
+        + 'La piattaforma include funzionalità per la gestione del consenso degli utenti e strumenti per l\'analisi dell\'impatto sulla privacy.',
+      en: 'POSD System (Privacy-Oriented System Design) is a software solution that implements an MVC architecture focusing on GDPR compliance. '
+        + 'The system is designed to ensure end-to-end user data security, with advanced encryption and granular access controls. '
+        + 'The platform includes features for managing user consent and tools for analyzing privacy impact.',
+    },
+    tags: ['Privacy', 'GDPR', 'MVC', { it: 'Sicurezza', en: 'Security' }, 'Python'],
+    timeline: { it: 'Progetto Universitario', en: 'University Project' },
+    role: { it: 'Developer', en: 'Developer' },
+    stack: ['Python', 'MVC Architecture', { it: 'Crittografia', en: 'Cryptography' }, 'GDPR Compliance'],
+    pillars: ['Privacy by Design', 'GDPR Compliance', { it: 'Crittografia E2E', en: 'E2E Cryptography' }, { it: 'Gestione consenso', en: 'Consent Management' }],
     metrics: [
-      { label: 'Standard', value: 'GDPR', caption: 'Piena conformità alle normative europee.' },
-      { label: 'Sicurezza', value: 'End-to-End', caption: 'Crittografia avanzata dei dati.' },
-      { label: 'Architettura', value: 'MVC', caption: 'Design modulare e manutenibile.' },
+      { label: { it: 'Standard', en: 'Standard' }, value: 'GDPR', caption: { it: 'Piena conformità alle normative europee.', en: 'Full compliance with European regulations.' } },
+      { label: { it: 'Sicurezza', en: 'Security' }, value: 'End-to-End', caption: { it: 'Crittografia avanzata dei dati.', en: 'Advanced data encryption.' } },
+      { label: { it: 'Architettura', en: 'Architecture' }, value: 'MVC', caption: { it: 'Design modulare e manutenibile.', en: 'Modular and maintainable design.' } },
     ],
   },
 ];
@@ -2923,12 +3924,7 @@ function initWorker() {
           promise.resolve(vector);
           pendingPromises.delete(id);
         }
-      } else if (type === 'rerank_result') {
-        const promise = pendingPromises.get(id);
-        if (promise) {
-          promise.resolve(event.data.scores);
-          pendingPromises.delete(id);
-        }
+
       } else if (type === 'error') {
         console.warn('[embedder] Worker error:', error);
         if (id !== undefined && pendingPromises.has(id)) {
@@ -2983,39 +3979,10 @@ export async function embedQuery(text: string): Promise<number[] | null> {
     worker!.postMessage({ type: 'embed', id, text });
   });
 }
-
-/**
- * Richiede il reranking di un array di documenti usando il Cross-Encoder.
- */
-export async function rerankPairs(pairs: { text: string; text_pair: string }[]): Promise<any[] | null> {
-  if (!worker || state !== 'ready') {
-    return null; // Fallback silently
-  }
-
-  return new Promise((resolve, reject) => {
-    const id = messageIdCounter++;
-    pendingPromises.set(id, { resolve, reject });
-    worker!.postMessage({ type: 'rerank', id, pairs });
-  });
-}
 </file>
 
 <file path="src/lib/rag/retriever.ts">
 import { Bm25Index } from './bm25';
-
-/**
- * Retrieval ibrido a livello di CHUNK (il vecchio stack deduplicava per
- * id di documento, collassando chunk distinti dello stesso doc):
- *
- *   BM25 (sempre) ─┐
- *                  ├─ RRF (k=60) ─ cap di diversità per documento ─ top-K
- *   cosine (se c'è ├
- *   il query vector)┘
- *
- * Il query vector arriva dal browser (Transformers.js, multilingual-e5-
- * small): nessuna API di embedding lato server, nessun rate limit.
- * Se manca, si lavora in BM25-only: degradazione progressiva, mai errore.
- */
 
 export interface RagChunk {
   id: string;
@@ -3051,19 +4018,73 @@ function cosine(a: number[], b: number[]): number {
     na += a[i] * a[i];
     nb += b[i] * b[i];
   }
-  if (na === 0 || nb === 0) return 0;
-  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+  return (na === 0 || nb === 0) ? 0 : dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+function performVectorSearch(
+  queryVector: number[] | null,
+  hasVectors: boolean,
+  chunks: RagChunk[]
+): Map<string, number> {
+  const vecRank = new Map<string, number>();
+  if (!queryVector || !hasVectors) return vecRank;
+
+  const scored = chunks
+    .filter((c) => c.vec && c.vec.length > 0)
+    .map((c) => ({ id: c.id, score: cosine(queryVector, c.vec!) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 24);
+
+  scored.forEach((r, i) => vecRank.set(r.id, i + 1));
+  return vecRank;
+}
+
+function fuseResultsRRF(lexRank: Map<string, number>, vecRank: Map<string, number>): Array<{ id: string; score: number }> {
+  const ids = new Set([...lexRank.keys(), ...vecRank.keys()]);
+  const fused: Array<{ id: string; score: number }> = [];
+  
+  for (const id of ids) {
+    let score = 0;
+    const lr = lexRank.get(id);
+    const vr = vecRank.get(id);
+    if (lr) score += 1 / (RRF_K + lr);
+    if (vr) score += 1 / (RRF_K + vr);
+    fused.push({ id, score });
+  }
+  
+  return fused.sort((a, b) => b.score - a.score);
+}
+
+function applyDiversityCap(
+  fused: Array<{ id: string; score: number }>,
+  byId: Map<string, RagChunk>,
+  topK: number
+): RetrievedChunk[] {
+  const perDoc = new Map<string, number>();
+  const result: RetrievedChunk[] = [];
+  
+  for (const { id, score } of fused) {
+    const chunk = byId.get(id);
+    if (!chunk) continue;
+    
+    const used = perDoc.get(chunk.docId) ?? 0;
+    if (used >= MAX_PER_DOC) continue;
+    
+    perDoc.set(chunk.docId, used + 1);
+    result.push({ ...chunk, score });
+    if (result.length >= topK) break;
+  }
+  
+  return result;
 }
 
 export class HybridRetriever {
   private bm25: Bm25Index;
   private byId: Map<string, RagChunk>;
-  private cache = new Map<string, RetrievedChunk[]>(); // LRU exact-match
+  private cache = new Map<string, RetrievedChunk[]>();
   readonly hasVectors: boolean;
 
   constructor(private readonly chunks: RagChunk[]) {
-    // Titolo e tag entrano nel testo indicizzato: il lessico delle
-    // domande ("LACAM", "hackathon") spesso vive lì.
     this.bm25 = new Bm25Index(
       chunks.map((c) => ({
         id: c.id,
@@ -3082,51 +4103,24 @@ export class HybridRetriever {
   }
 
   semanticAndFuse(lexRank: Map<string, number>, queryVector: number[] | null, topK = 4): RetrievedChunk[] {
-    // ── Gamba semantica (solo se il client ha mandato il vettore
-    //    e l'indice è stato generato con le embeddings) ──
-    const vecRank = new Map<string, number>();
-    if (queryVector && this.hasVectors) {
-      const scored = this.chunks
-        .filter((c) => c.vec && c.vec.length > 0)
-        .map((c) => ({ id: c.id, score: cosine(queryVector, c.vec!) }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 24);
-      scored.forEach((r, i) => vecRank.set(r.id, i + 1));
-    }
+    const vecRank = performVectorSearch(queryVector, this.hasVectors, this.chunks);
+    const fused = fuseResultsRRF(lexRank, vecRank);
+    return applyDiversityCap(fused, this.byId, topK);
+  }
 
-    // ── Fusione RRF a livello di chunk ──
-    const ids = new Set([...lexRank.keys(), ...vecRank.keys()]);
-    const fused: Array<{ id: string; score: number }> = [];
-    for (const id of ids) {
-      let score = 0;
-      const lr = lexRank.get(id);
-      const vr = vecRank.get(id);
-      if (lr) score += 1 / (RRF_K + lr);
-      if (vr) score += 1 / (RRF_K + vr);
-      fused.push({ id, score });
+  private manageCacheLRU(cacheKey: string, result: RetrievedChunk[]) {
+    this.cache.set(cacheKey, result);
+    if (this.cache.size > 64) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest !== undefined) this.cache.delete(oldest);
     }
-    fused.sort((a, b) => b.score - a.score);
-
-    // ── Diversità: max 2 chunk per documento nel contesto finale ──
-    const perDoc = new Map<string, number>();
-    const result: RetrievedChunk[] = [];
-    for (const { id, score } of fused) {
-      const chunk = this.byId.get(id);
-      if (!chunk) continue;
-      const used = perDoc.get(chunk.docId) ?? 0;
-      if (used >= MAX_PER_DOC) continue;
-      perDoc.set(chunk.docId, used + 1);
-      result.push({ ...chunk, score });
-      if (result.length >= topK) break;
-    }
-    return result;
   }
 
   retrieve(query: string, queryVector: number[] | null, topK = 4): RetrievedChunk[] {
     const cacheKey = `${query.trim().toLowerCase()}|${queryVector ? 'v' : 't'}|${topK}`;
     const cached = this.cache.get(cacheKey);
+    
     if (cached) {
-      // LRU touch
       this.cache.delete(cacheKey);
       this.cache.set(cacheKey, cached);
       return cached;
@@ -3135,22 +4129,15 @@ export class HybridRetriever {
     const lexRank = this.lexicalSearch(query);
     const result = this.semanticAndFuse(lexRank, queryVector, topK);
 
-    this.cache.set(cacheKey, result);
-    if (this.cache.size > 64) {
-      const oldest = this.cache.keys().next().value;
-      if (oldest !== undefined) this.cache.delete(oldest);
-    }
+    this.manageCacheLRU(cacheKey, result);
     return result;
   }
 }
 
-// ── Singleton per istanza serverless ──
 let retriever: HybridRetriever | null = null;
 
 export async function getRetriever(): Promise<HybridRetriever> {
   if (retriever) return retriever;
-  // Import statico del JSON: Next lo bundla, niente fs a runtime
-  // (stesso accorgimento del vecchio vectorStore, mantenuto).
   const index = (await import('@/data/rag-index.json')) as unknown as {
     default?: RagIndexFile;
   } & RagIndexFile;
@@ -3261,6 +4248,7 @@ import Image from 'next/image';
 import { projects as projectsData, type ProjectData } from '@/data/projects';
 import Badge from '@/components/ui/Badge';
 import CTAButton from '@/components/ui/CTAButton';
+import { useAppStore } from '@/store/useAppStore';
 
 const ProjectModal = dynamic(() => import('@/components/ProjectModal'), {
   ssr: false,
@@ -3277,6 +4265,8 @@ const fadeIn = {
 
 export default function ProjectsOverlay() {
   const [selectedProject, setSelectedProject] = useState<ProjectData | null>(null);
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
 
   return (
     <>
@@ -3295,11 +4285,10 @@ export default function ProjectsOverlay() {
               Case Studies
             </p>
             <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
-              Esperienze AI & Platform
+              {isEn ? 'AI & Platform Experiences' : 'Esperienze AI & Platform'}
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm text-white/60">
-              Ogni progetto combina discovery, progettazione tecnica e un layer di osservabilità per
-              consegne senza attriti.
+              {isEn ? 'Each project combines discovery, technical design, and an observability layer for frictionless delivery.' : 'Ogni progetto combina discovery, progettazione tecnica e un layer di osservabilità per consegne senza attriti.'}
             </p>
           </motion.div>
 
@@ -3338,14 +4327,17 @@ export default function ProjectsOverlay() {
                       <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-t from-[#05060d]/60 via-transparent to-transparent" />
                     </div>
                     <div className="mt-4 flex flex-wrap gap-1.5">
-                      {project.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full border border-white/8 bg-white/5 px-2.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.15em] text-white/60"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                      {project.tags.map((tag, idx) => {
+                        const tagLabel = typeof tag !== 'string' ? (isEn ? tag.en : tag.it) : tag;
+                        return (
+                          <span
+                            key={`tag-${idx}`}
+                            className="rounded-full border border-white/8 bg-white/5 px-2.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.15em] text-white/60"
+                          >
+                            {tagLabel}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -3354,50 +4346,60 @@ export default function ProjectsOverlay() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="text-[0.6rem] uppercase tracking-[0.35em] text-white/50">
-                          {project.timeline}
+                          {typeof project.timeline !== 'string' ? (isEn ? project.timeline.en : project.timeline.it) : project.timeline}
                         </p>
-                        <h3 className="text-xl font-semibold text-white">{project.title}</h3>
-                        <p className="text-xs text-white/60">{project.subtitle}</p>
+                        <h3 className="text-xl font-semibold text-white">{typeof project.title !== 'string' ? (isEn ? (project.title as any).en : (project.title as any).it) : project.title}</h3>
+                        <p className="text-xs text-white/60">{isEn ? project.subtitle.en : project.subtitle.it}</p>
                       </div>
                       <Badge variant="glow" className="text-[0.6rem]">
-                        {project.role}
+                        {typeof project.role !== 'string' ? (isEn ? project.role.en : project.role.it) : project.role}
                       </Badge>
                     </div>
 
-                    <p className="text-sm text-white/70">{project.description}</p>
+                    <p className="text-sm text-white/70">{isEn ? project.description.en : project.description.it}</p>
 
                     {/* Metrics */}
                     <div className="grid gap-3 sm:grid-cols-3">
-                      {project.metrics.map((metric) => (
-                        <div
-                          key={`${project.id}-${metric.label}`}
-                          className="rounded-xl border border-white/8 bg-white/5 p-3"
-                        >
-                          <p className="text-[0.55rem] uppercase tracking-[0.3em] text-white/50">
-                            {metric.label}
-                          </p>
-                          <p className="mt-1 text-xl font-semibold text-white">{metric.value}</p>
-                          <p className="mt-0.5 text-[0.6rem] text-white/60">{metric.caption}</p>
-                        </div>
-                      ))}
+                      {project.metrics.map((metric, idx) => {
+                        const mLabel = typeof metric.label !== 'string' ? (isEn ? metric.label.en : metric.label.it) : metric.label;
+                        const mValue = typeof metric.value !== 'string' ? (isEn ? metric.value.en : metric.value.it) : metric.value;
+                        const mCaption = typeof metric.caption !== 'string' ? (isEn ? metric.caption.en : metric.caption.it) : metric.caption;
+                        return (
+                          <div
+                            key={`${project.id}-metric-${idx}`}
+                            className="rounded-xl border border-white/8 bg-white/5 p-3"
+                          >
+                            <p className="text-[0.55rem] uppercase tracking-[0.3em] text-white/50">
+                              {mLabel}
+                            </p>
+                            <p className="mt-1 text-xl font-semibold text-white">{mValue}</p>
+                            <p className="mt-0.5 text-[0.6rem] text-white/60">
+                              {mCaption}
+                            </p>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* Stack */}
                     <div className="flex flex-wrap gap-1.5">
-                      {project.stack.map((tech) => (
-                        <span
-                          key={tech}
-                          className="rounded-full bg-white/5 px-2.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-white/50"
-                        >
-                          {tech}
-                        </span>
-                      ))}
+                      {project.stack.map((tech, idx) => {
+                        const techLabel = typeof tech !== 'string' ? (isEn ? tech.en : tech.it) : tech;
+                        return (
+                          <span
+                            key={`stack-${idx}`}
+                            className="rounded-full bg-white/5 px-2.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-white/50"
+                          >
+                            {techLabel}
+                          </span>
+                        );
+                      })}
                     </div>
 
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2">
                       <CTAButton variant="primary" onClick={() => setSelectedProject(project)}>
-                        Apri case study
+                        {isEn ? 'Open case study' : 'Apri case study'}
                       </CTAButton>
                       {project.links?.map((link) => (
                         <CTAButton
@@ -3414,13 +4416,15 @@ export default function ProjectsOverlay() {
                   </div>
                 </div>
 
-                {/* Pillars */}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {project.pillars.map((pillar) => (
-                    <Badge key={pillar} variant="outline" className="text-[0.55rem]">
-                      {pillar}
-                    </Badge>
-                  ))}
+                  {project.pillars.map((pillar, idx) => {
+                    const pillarLabel = typeof pillar !== 'string' ? (isEn ? pillar.en : pillar.it) : pillar;
+                    return (
+                      <Badge key={`pillar-${idx}`} variant="outline" className="text-[0.55rem]">
+                        {pillarLabel}
+                      </Badge>
+                    );
+                  })}
                 </div>
               </motion.article>
             ))}
@@ -3446,159 +4450,177 @@ export const personalInfo = {
   name: 'Vito Piccolini',
   role: 'AI Developer / Studente in Computer Science – AI',
   location: 'Noicattaro, Provincia di Bari (Italia)',
-  shortBio: 'Sviluppo sistemi di raccomandazione LLM-driven, architetture multi-agente e automazioni workflow con Python e LangGraph.',
-  longBio: 'Dopo la laurea triennale in Informatica (107/110) sto proseguendo con la LM-18 in Computer Science – Artificial Intelligence presso l\'Università di Bari. Durante il tirocinio nel laboratorio LACAM-SWAP ho sviluppato un\'architettura multi-agente basata su LLM, orchestrata con LangGraph, ottenendo +12% di diversità e +53% precision@1. Competenze in Python, LangChain, LangGraph, React, Node.js e n8n per prototipazione rapida in team multidisciplinari.',
-  focusPills: ['Assistenti enterprise', 'Multi-agent Recsys', 'Workflow automation', 'AI compliance'],
+  shortBio: {
+    it: 'Sviluppo sistemi di raccomandazione LLM-driven, architetture multi-agente e automazioni workflow con Python e LangGraph.',
+    en: 'I develop LLM-driven recommendation systems, multi-agent architectures, and workflow automations with Python and LangGraph.'
+  },
+  longBio: {
+    it: 'Dopo la laurea triennale in Informatica (107/110) sto proseguendo con la LM-18 in Computer Science – Artificial Intelligence presso l\'Università di Bari. Durante il tirocinio nel laboratorio LACAM-SWAP ho sviluppato un\'architettura multi-agente basata su LLM, orchestrata con LangGraph, ottenendo +12% di diversità e +53% precision@1. Competenze in Python, LangChain, LangGraph, React, Node.js e n8n per prototipazione rapida in team multidisciplinari.',
+    en: 'After my Bachelor\'s degree in Computer Science (107/110), I am pursuing a Master\'s degree in Computer Science – Artificial Intelligence at the University of Bari. During my internship at the LACAM-SWAP lab, I developed an LLM-based multi-agent architecture, orchestrated with LangGraph, achieving +12% diversity and +53% precision@1. Skills in Python, LangChain, LangGraph, React, Node.js, and n8n for rapid prototyping in multidisciplinary teams.'
+  },
+  focusPills: {
+    it: ['Assistenti enterprise', 'Multi-agent Recsys', 'Workflow automation', 'AI compliance'],
+    en: ['Enterprise assistants', 'Multi-agent Recsys', 'Workflow automation', 'AI compliance']
+  },
 };
 
 export const formationItems = [
   {
-    label: 'LM-18 · Computer Science – AI',
-    detail: 'Università degli Studi di Bari Aldo Moro · Da Ottobre 2025',
+    label: { it: 'LM-18 · Computer Science – AI', en: 'Master\'s · Computer Science – AI' },
+    detail: { it: 'Università degli Studi di Bari Aldo Moro · Da Ottobre 2025', en: 'University of Bari Aldo Moro · From October 2025' },
   },
   {
-    label: 'Laurea L-31 · 107/110',
-    detail: 'Informatica e Tecnologia per la Produzione del Software · UniBa (2022-2025)',
+    label: { it: 'Laurea L-31 · 107/110', en: 'Bachelor\'s L-31 · 107/110' },
+    detail: { it: 'Informatica e Tecnologia per la Produzione del Software · UniBa (2022-2025)', en: 'Computer Science and Software Production Technology · UniBa (2022-2025)' },
   },
   {
-    label: 'Diploma · Amministrazione, Finanza e Marketing · 75/100',
-    detail: 'I.I.S.S Alpi-Montale, Rutigliano (BA) · 2011-2016',
+    label: { it: 'Diploma · Amministrazione, Finanza e Marketing · 75/100', en: 'High School Diploma · Administration, Finance and Marketing · 75/100' },
+    detail: { it: 'I.I.S.S Alpi-Montale, Rutigliano (BA) · 2011-2016', en: 'I.I.S.S Alpi-Montale, Rutigliano (BA) · 2011-2016' },
   },
 ];
 
 export const timelineMilestones = [
   {
     id: 1,
-    date: 'Giugno 2026',
+    date: { it: 'Giugno 2026', en: 'June 2026' },
     title: 'Talent Program "Next Pulse"',
     location: 'Chieti',
-    description: 'Sviluppo backend in team per EnLexi: un AI Sales Assistant multi-sorgente.',
-    highlights: [
-      'Bootcamp selettivo intensivo su scala nazionale (320 candidati).',
-      'Implementazione pipeline di retrieval ibrida (BM25 + ChromaDB/FAISS) con FastAPI.',
-    ],
+    description: {
+      it: 'Sviluppo backend in team per EnLexi: un AI Sales Assistant multi-sorgente.',
+      en: 'Backend development in a team for EnLexi: a multi-source AI Sales Assistant.',
+    },
+    highlights: {
+      it: [
+        'Bootcamp selettivo intensivo su scala nazionale (320 candidati).',
+        'Implementazione pipeline di retrieval ibrida (BM25 + ChromaDB/FAISS) con FastAPI.',
+      ],
+      en: [
+        'Intensive selective bootcamp on a national scale (320 candidates).',
+        'Implementation of a hybrid retrieval pipeline (BM25 + ChromaDB/FAISS) with FastAPI.',
+      ],
+    },
   },
   {
     id: 2,
-    date: 'Maggio 2026',
+    date: { it: 'Maggio 2026', en: 'May 2026' },
     title: 'PugliaHack 2026',
     location: 'Bari',
-    description: 'Sviluppo in autonomia di TerraNode, piattaforma per lo smart agri-tourism.',
-    highlights: [
-      'Stack React 19, TailwindCSS, Supabase (PostgreSQL).',
-      'Sviluppato in sole 2 ore. Gamification, tracciamento CO2 e dashboard KPI in tempo reale.',
-    ],
+    description: {
+      it: 'Sviluppo in autonomia di TerraNode, piattaforma per lo smart agri-tourism.',
+      en: 'Solo development of TerraNode, a smart agri-tourism platform.',
+    },
+    highlights: {
+      it: [
+        'Stack React 19, TailwindCSS, Supabase (PostgreSQL).',
+        'Sviluppato in sole 2 ore. Gamification, tracciamento CO2 e dashboard KPI in tempo reale.',
+      ],
+      en: [
+        'React 19, TailwindCSS, Supabase (PostgreSQL) stack.',
+        'Developed in just 2 hours. Gamification, CO2 tracking, and real-time KPI dashboard.',
+      ],
+    },
   },
   {
     id: 3,
-    date: 'Maggio 2026',
+    date: { it: 'Maggio 2026', en: 'May 2026' },
     title: 'Hackathon "Space Edition"',
     location: 'Milano · Talent Garden x Leonardo',
-    description: '2° Classificato all\'hackathon nazionale per l\'ideazione di The Pulse.',
-    highlights: [
-      'Progetto per una costellazione di piccoli satelliti dedicati al monitoraggio agricolo globale.',
-      'Integrazione di logiche di telerilevamento e Artificial Intelligence.',
-    ],
+    description: {
+      it: '2° Classificato all\'hackathon nazionale per l\'ideazione di The Pulse.',
+      en: '2nd Place at the national hackathon for the conception of The Pulse.',
+    },
+    highlights: {
+      it: [
+        'Progetto per una costellazione di piccoli satelliti dedicati al monitoraggio agricolo globale.',
+        'Integrazione di logiche di telerilevamento e Artificial Intelligence.',
+      ],
+      en: [
+        'Project for a constellation of small satellites dedicated to global agricultural monitoring.',
+        'Integration of remote sensing and Artificial Intelligence logic.',
+      ],
+    },
   },
   {
     id: 4,
-    date: 'Settembre–Novembre 2025',
+    date: { it: 'Settembre–Novembre 2025', en: 'September–November 2025' },
     title: 'B.Future Challenge 2025 · VAR Group x CRIF',
     location: 'Bologna · Remote',
-    description: 'Partecipante alla challenge aziendale: sviluppo in team di Zenith, assistente AI per consulenza.',
-    highlights: [
-      'Workflow automatizzato con n8n, Gemini e Google Drive API.',
-      'Riduzione stimata dei tempi di reportistica da 7 giorni a 1.',
-    ],
+    description: {
+      it: 'Partecipante alla challenge aziendale: sviluppo in team di Zenith, assistente AI per consulenza.',
+      en: 'Participant in the corporate challenge: team development of Zenith, an AI consultant assistant.',
+    },
+    highlights: {
+      it: [
+        'Workflow automatizzato con n8n, Gemini e Google Drive API.',
+        'Riduzione stimata dei tempi di reportistica da 7 giorni a 1.',
+      ],
+      en: [
+        'Automated workflow with n8n, Gemini, and Google Drive API.',
+        'Estimated reduction in reporting times from 7 days to 1.',
+      ],
+    },
   },
   {
     id: 5,
-    date: 'Marzo–Giugno 2025',
-    title: 'Tirocinio Curriculare · LACAM-SWAP',
-    location: 'Università di Bari',
-    description: 'Progetto di tesi: Orchestrazione di Agenti LLM per l\'Ottimizzazione Multi-Metrica nei Sistemi di Raccomandazione.',
-    highlights: [
-      'Architettura multi-agente LangGraph + RAG Ibrido (BM25 e FAISS).',
-      '+12% novelty mantenendo inalterata la precisione media del baseline con Llama 3.2 3B.',
-    ],
+    date: { it: 'Marzo–Giugno 2025', en: 'March–June 2025' },
+    title: { it: 'Tirocinio Curriculare · LACAM-SWAP', en: 'Curricular Internship · LACAM-SWAP' },
+    location: { it: 'Università di Bari', en: 'University of Bari' },
+    description: {
+      it: 'Progetto di tesi: Orchestrazione di Agenti LLM per l\'Ottimizzazione Multi-Metrica nei Sistemi di Raccomandazione.',
+      en: 'Thesis project: Orchestration of LLM Agents for Multi-Metric Optimization in Recommendation Systems.',
+    },
+    highlights: {
+      it: [
+        'Architettura multi-agente LangGraph + RAG Ibrido (BM25 e FAISS).',
+        '+12% novelty mantenendo inalterata la precisione media del baseline con Llama 3.2 3B.',
+      ],
+      en: [
+        'Multi-agent architecture LangGraph + Hybrid RAG (BM25 and FAISS).',
+        '+12% novelty while maintaining the average precision of the baseline with Llama 3.2 3B.',
+      ],
+    },
   },
   {
     id: 6,
-    date: 'Settembre 2022–Luglio 2025',
-    title: 'Laurea Triennale L-31 · 107/110',
-    location: 'Università degli Studi di Bari Aldo Moro',
-    description: 'Informatica e Tecnologia per la Produzione del Software.',
-    highlights: [
-      'Tesi su orchestrazione multi-agente LLM applicata ai sistemi di raccomandazione.',
-      'Prosecuzione in LM-18 Computer Science – Artificial Intelligence.',
-    ],
+    date: { it: 'Settembre 2022–Luglio 2025', en: 'September 2022–July 2025' },
+    title: { it: 'Laurea Triennale L-31 · 107/110', en: 'Bachelor\'s Degree L-31 · 107/110' },
+    location: { it: 'Università degli Studi di Bari Aldo Moro', en: 'University of Bari Aldo Moro' },
+    description: {
+      it: 'Informatica e Tecnologia per la Produzione del Software.',
+      en: 'Computer Science and Software Production Technology.',
+    },
+    highlights: {
+      it: [
+        'Tesi su orchestrazione multi-agente LLM applicata ai sistemi di raccomandazione.',
+        'Prosecuzione in LM-18 Computer Science – Artificial Intelligence.',
+      ],
+      en: [
+        'Thesis on multi-agent LLM orchestration applied to recommendation systems.',
+        'Continuation in LM-18 Computer Science – Artificial Intelligence.',
+      ],
+    },
   },
   {
     id: 7,
     date: '2016–2022',
-    title: 'Operaio Generico e Retail',
+    title: { it: 'Operaio Generico e Retail', en: 'General Worker and Retail' },
     location: 'Bari',
-    description: 'Esperienza lavorativa in settori trasversali (edilizia, agricoltura, reception, gestione negozio).',
-    highlights: [
-      '6 anni di esperienza prima di intraprendere il percorso in Informatica.',
-      'Forte focus su resilienza, problem-solving, e capacità di adattamento in team.',
-    ],
+    description: {
+      it: 'Esperienza lavorativa in settori trasversali (edilizia, agricoltura, reception, gestione negozio).',
+      en: 'Work experience in transversal sectors (construction, agriculture, reception, shop management).',
+    },
+    highlights: {
+      it: [
+        '6 anni di esperienza prima di intraprendere il percorso in Informatica.',
+        'Forte focus su resilienza, problem-solving, e capacità di adattamento in team.',
+      ],
+      en: [
+        '6 years of experience before embarking on the Computer Science path.',
+        'Strong focus on resilience, problem-solving, and adaptability in teams.',
+      ],
+    },
   },
 ];
-</file>
-
-<file path="README.md">
-# 🌌 Portfolio 3D & AI Copilot
-
-Il mio portfolio personale, costruito con le tecnologie più recenti in ambito **Web 3D** e **Agentic AI**.  
-Combina un motore 3D leggero (React Three Fiber) con un assistente virtuale alimentato da un sistema **RAG (Retrieval-Augmented Generation) Ibrido**, permettendo ai visitatori di esplorare i miei progetti e chiedermi domande in linguaggio naturale.
-
-## 🚀 Funzionalità Principali
-
-- **UI 3D Immersiva:** Sviluppata in React Three Fiber, con navigazione tramite particelle intelligenti e transizioni fluide.
-- **Agentic RAG Copilot:** Un assistente AI integrato, multilingua, che risponde alle domande basandosi esclusivamente sul mio CV, sui miei progetti e sulla mia tesi.
-  - *Parallel Routing:* Classificazione dell'intento (Llama-3.1-8B) in parallelo al retrieval lessicale per minimizzare la latenza.
-  - *Hybrid Retrieval:* Ricerca ibrida avanzata. Utilizza **BM25 Okapi** per la ricerca testuale e **Semantic Search (Cosine Similarity)** eseguita lato client (grazie a `transformers.js` via Web Worker) senza costi API aggiuntivi.
-  - *Reciprocal Rank Fusion (RRF):* Combinazione intelligente dei rank lessicali e semantici per trovare sempre i documenti più rilevanti.
-  - *Tool-Calling Deterministico:* L'assistente capisce l'intento e guida autonomamente l'interfaccia utente (es. mostrare i progetti, aprire lo stack radar).
-- **Prestazioni al Top:** Bundle analizzato e ottimizzato. Modello di embedding (`multilingual-e5-small`) caricato asincronamente in background sul browser.
-
-## 🛠️ Stack Tecnologico
-
-- **Frontend / 3D:** Next.js 14 (App Router), React, Tailwind CSS, Framer Motion, React Three Fiber, Drei, Lenis (Smooth Scrolling).
-- **AI / RAG:** Vercel AI SDK, Groq (per Llama-3.3-70B e 8B), `@xenova/transformers` (Web Worker), TypeScript.
-- **Analytics / Telemetry:** Langfuse (per il tracciamento delle risposte e feedback degli utenti).
-
-## 🏃‍♂️ Come Avviare il Progetto
-
-1. **Clona la repository:**
-   ```bash
-   git clone https://github.com/Hellvisback365/portfolio.git
-   cd portfolio
-   ```
-
-2. **Installa le dipendenze:**
-   ```bash
-   npm install
-   ```
-
-3. **Configura le variabili d'ambiente:**
-   Copia il file `.env.example` in `.env.local` e inserisci le tue API Key:
-   - `GROQ_API_KEY` (per l'inferenza LLM velocissima).
-   - `LANGFUSE_*` (se desideri la telemetria).
-
-4. **Avvia il server di sviluppo:**
-   ```bash
-   npm run dev
-   ```
-   Apri [http://localhost:3000](http://localhost:3000) nel browser.
-
-## 📝 Script Utili
-- `npm run build`: Compila l'applicazione per la produzione.
-- `npm run rag:ingest`: Legge il file `codebase.md`, divide in chunk, estrae keywords e genera il `rag-index.json`.
-
----
-*Progettato e sviluppato da [Vito Piccolini](https://www.linkedin.com/in/vitopiccolini/)*
 </file>
 
 <file path="scripts/rag-ingest.mts">
@@ -3901,16 +4923,6 @@ export default function HeroOverlay() {
 
   return (
     <>
-      <div className="fixed top-5 right-5 z-40">
-        <button
-          onClick={() => setLanguage(isEn ? 'it' : 'en')}
-          className="glass-panel flex h-9 w-[4.5rem] items-center justify-between rounded-full p-1 text-[10px] font-bold uppercase tracking-widest text-white/50 transition-colors"
-        >
-          <span className={`flex-1 text-center transition-colors ${!isEn ? 'text-white' : 'hover:text-white/80'}`}>IT</span>
-          <span className="h-full w-[1px] bg-white/20"></span>
-          <span className={`flex-1 text-center transition-colors ${isEn ? 'text-white' : 'hover:text-white/80'}`}>EN</span>
-        </button>
-      </div>
 
       <div className="flex min-h-dvh w-full items-center justify-center px-6">
         <motion.div
@@ -3963,7 +4975,7 @@ export default function HeroOverlay() {
           transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
           aria-hidden="true"
         >
-          <span className="font-mono text-[0.58rem] uppercase tracking-[0.5em]">Scorri</span>
+          <span className="font-mono text-[0.58rem] uppercase tracking-[0.5em]">{isEn ? 'Scroll' : 'Scorri'}</span>
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.25} d="M19 9l-7 7-7-7" />
           </svg>
@@ -3980,9 +4992,7 @@ declare namespace NodeJS {
   interface ProcessEnv {
     NODE_ENV: 'development' | 'production' | 'test';
     GROQ_API_KEY: string;
-    GOOGLE_GENERATIVE_AI_API_KEY: string;
     DEEPSEEK_API_KEY?: string;
-    OPENROUTER_API_KEY?: string;
     RAG_CHAT_MODEL: string;
     RAG_ROUTER_MODEL: string;
     UPSTASH_REDIS_REST_URL?: string;
@@ -3994,17 +5004,99 @@ declare namespace NodeJS {
 }
 </file>
 
+<file path="README.md">
+# 🌌 Portfolio 3D & AI Copilot
+
+Il mio portfolio personale, costruito con tecnologie avanzate in ambito **Web 3D** e **Agentic AI**.  
+Combina un motore 3D leggero (React Three Fiber) con un assistente virtuale alimentato da un sistema **RAG (Retrieval-Augmented Generation) Ibrido**, permettendo ai visitatori di esplorare i miei progetti e pormi domande in linguaggio naturale.
+
+## 🚀 Funzionalità Principali
+
+- **UI 3D Immersiva:** Sviluppata in React Three Fiber, con navigazione tramite particelle intelligenti, shader personalizzati e transizioni fluide.
+- **Agentic RAG Copilot:** Un assistente AI integrato e deterministico, che risponde alle domande basandosi esclusivamente sul mio CV, sui miei progetti e sulle mie esperienze.
+  - *Hybrid Retrieval & RRF:* Ricerca ibrida che combina **BM25 Okapi** (lessicale) e **Semantic Search** (Cosine Similarity vettoriale). I punteggi vengono fusi tramite Reciprocal Rank Fusion direttamente lato server, garantendo bassissima latenza (TTFT). Il Reranker (Cross-Encoder) è stato valutato ma rimosso intenzionalmente in produzione per via dei tempi di cold-start eccessivi in ambienti serverless, a fronte di un guadagno trascurabile su un corpus ridotto.
+  - *Continuous Evaluation:* Il sistema include una suite di benchmark proprietaria misurata sul reale approccio ibrido in produzione (Hit Rate: 70.0%, MRR: 0.454) e uno script di valutazione end-to-end "LLM-as-a-Judge", che certifica il **98% di assenza di allucinazioni** (Faithfulness).
+  - *Data Stream Automation:* L'assistente comprende l'intento dell'utente e guida autonomamente l'interfaccia (es. evidenziare progetti o aprire la sezione competenze) tramite Data Streams.
+- **SEO & Telemetria:** Metadata completi (JSON-LD, OpenGraph, sitemap), e limitazione avanzata del rate tramite Upstash Redis.
+
+## 🛠️ Stack Tecnologico
+
+- **Frontend / 3D:** Next.js 16 (App Router), React 19, Tailwind CSS 4, Framer Motion, React Three Fiber, Drei, Lenis (Smooth Scrolling).
+- **AI / RAG Pipeline:** Vercel AI SDK, `@huggingface/transformers` (Embeddings in Web Worker), API Provider **Groq** per inference ultra-veloce.
+- **Testing & Eval:** Vitest, script custom TSX per benchmark MRR/HitRate.
+- **Sicurezza:** `@upstash/ratelimit` per limitare l'abuso degli endpoint LLM.
+
+## 🏃‍♂️ Come Avviare il Progetto
+
+1. **Clona la repository:**
+   ```bash
+   git clone https://github.com/Hellvisback365/portfolio.git
+   cd portfolio
+   ```
+
+2. **Installa le dipendenze:**
+   ```bash
+   npm install
+   ```
+
+3. **Configura le variabili d'ambiente:**
+   Copia il file `.env.example` in `.env.local` e inserisci le tue API Key:
+   - `GROQ_API_KEY` (configurata in `src/lib/rag/providers.ts`).
+   - `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN`.
+
+4. **Genera l'Indice RAG Locale:**
+   Se hai modificato i documenti sorgente (es. `codebase.md` o i file JSON), esegui l'ingestione per aggiornare i chunk:
+   ```bash
+   npm run rag:ingest
+   ```
+
+5. **Avvia il server di sviluppo:**
+   ```bash
+   npm run dev
+   ```
+   Apri [http://localhost:3000](http://localhost:3000) nel browser.
+
+## 📝 Script di Valutazione
+
+- **Test Unitari:** `npm run test` (verifica degli algoritmi BM25 e Hybrid Retriever).
+- **Valutazione Retrieval (MRR/Hit Rate):** `npm run rag:eval`
+- **Valutazione Generazione (LLM come Giudice):** `npm run rag:judge`
+
+---
+*Progettato e sviluppato da [Vito Piccolini](https://www.linkedin.com/in/vitopiccolini/)*
+</file>
+
 <file path="src/app/api/suggestions/route.ts">
-import { NextResponse } from 'next/server';
-import { generateObject } from 'ai';
+import { NextRequest, NextResponse } from 'next/server';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import { getProviders } from '@/lib/rag/providers';
 import ragIndex from '@/data/rag-index.json';
 
 export const maxDuration = 30;
-export const revalidate = 3600;
+export const revalidate = 0; // Disable cache so it refetches dynamically
 
-export async function GET() {
+function parseLLMJSON<T>(text: string, fallback: T): T {
+  try { return JSON.parse(text) as T; } catch (e) {}
+  try {
+    const blockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (blockMatch && blockMatch[1]) return JSON.parse(blockMatch[1].trim()) as T;
+  } catch (e) {}
+  try {
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+      return JSON.parse(text.substring(first, last + 1)) as T;
+    }
+  } catch (e) {}
+  return fallback;
+}
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const lang = searchParams.get('lang') || 'it';
+  const isEn = lang === 'en';
+
   try {
     const providers = getProviders();
     if (!providers) {
@@ -4020,31 +5112,47 @@ export async function GET() {
     const shuffled = [...chunks].sort(() => 0.5 - Math.random());
     const randomChunks = shuffled.slice(0, sampleSize).map((c) => c.text).join('\n\n');
 
-    const { object } = await generateObject({
+
+
+    const { text } = await generateText({
       model: providers.router, // Usiamo il modello veloce (es. Llama 8B / Flash)
       temperature: 0.8,
-      schema: z.object({
-        questions: z
-          .array(z.string())
-          .length(8)
-          .describe('Array di 8 domande brevi e in italiano.'),
-      }),
-      system: `Sei l'assistente virtuale del portfolio di Vito Piccolini.
+      system: isEn 
+        ? `You are the virtual assistant of Vito Piccolini's portfolio.
+Your task is to generate 8 very short, natural, and interesting questions that a user might ask you regarding Vito's background, skills, or projects, based on the PROVIDED CONTEXT.
+The questions must strictly be in the THIRD PERSON because the user is talking to you (the assistant) ABOUT Vito (e.g., "What languages does Vito know?", "Tell me about TerraNode", "What was his role in Zenith?"). Never use the second person ("What languages do you use?"). Do not exceed 8 words per question. Be varied.
+
+You MUST respond ONLY with a valid JSON object matching this schema:
+{ "questions": ["Question 1", "Question 2", ...] }`
+        : `Sei l'assistente virtuale del portfolio di Vito Piccolini.
 Il tuo compito è generare 8 domande molto brevi, naturali e interessanti che un utente potrebbe farti riguardo al background, alle competenze o ai progetti di Vito, basandoti SUL CONTESTO FORNITO.
-Le domande devono essere rigorosamente IN TERZA PERSONA perché l'utente sta parlando con te (l'assistente) DI Vito (es. "Che linguaggi sa usare Vito?", "Parlami di TerraNode", "Qual è stato il suo ruolo in Zenith?"). Non usare MAI la seconda persona ("Che linguaggi usi?"). Non superare le 8 parole per domanda. Sii vario.`,
-      prompt: `CONTESTO REALE DI VITO:\n${randomChunks}\n\nGenera 8 domande basate su questo contesto.`,
-      experimental_telemetry: {
-        isEnabled: true,
-        functionId: 'suggestions',
-      },
+Le domande devono essere rigorosamente IN TERZA PERSONA perché l'utente sta parlando con te (l'assistente) DI Vito (es. "Che linguaggi sa usare Vito?", "Parlami di TerraNode", "Qual è stato il suo ruolo in Zenith?"). Non usare MAI la seconda persona ("Che linguaggi usi?"). Non superare le 8 parole per domanda. Sii vario.
+
+Devi rispondere SOLO ED ESCLUSIVAMENTE con un JSON valido che rispetta questo schema:
+{ "questions": ["Domanda 1", "Domanda 2", ...] }`,
+      prompt: isEn
+        ? `REAL CONTEXT ABOUT VITO:\n${randomChunks}\n\nGenerate 8 questions based on this context.`
+        : `CONTESTO REALE DI VITO:\n${randomChunks}\n\nGenera 8 domande basate su questo contesto.`,
     });
 
-    return NextResponse.json(object);
+    const typedObject = parseLLMJSON<{ questions: string[] }>(text, { questions: [] });
+    
+    // Validazione extra: se il JSON parse è andato ma manca l'array 'questions'
+    if (!typedObject.questions || !Array.isArray(typedObject.questions)) {
+      throw new Error('Formato JSON non valido: array questions mancante');
+    }
+    
+    return NextResponse.json(typedObject);
   } catch (error: any) {
     console.error('[Suggestions API Error]', error?.message || error);
     // Invece di restituire 500 e causare un errore sulla UI, facciamo fallback nativo
     return NextResponse.json({
-      questions: [
+      questions: isEn ? [
+        'What are Vito\'s most recent projects?',
+        'What technologies does Vito mainly use?',
+        'Tell me about Vito\'s experience in Zenith.',
+        'What is his thesis about?',
+      ] : [
         'Quali sono i progetti più recenti di Vito?',
         'Che tecnologie usa principalmente Vito?',
         'Parlami dell\'esperienza di Vito in Zenith.',
@@ -4071,15 +5179,16 @@ import {
   FaEnvelope,
 } from 'react-icons/fa';
 import Badge from '@/components/ui/Badge';
+import { useAppStore } from '@/store/useAppStore';
 
 import { personalInfo, formationItems, timelineMilestones } from '@/data/about';
 
 const focusPills = personalInfo.focusPills;
 
-const interestItems = [
-  { label: 'Recommender Systems & Multi-Agent LLM', icon: <FaBrain className="text-[white]" /> },
-  { label: 'NLP, Transformer & Explainability', icon: <FaLanguage className="text-[white]" /> },
-  { label: 'Workflow Automation (n8n · API Integration)', icon: <FaShieldAlt className="text-[white]" /> },
+const getInterestItems = (isEn: boolean) => [
+  { label: isEn ? 'Recommender Systems & Multi-Agent LLM' : 'Recommender Systems & Multi-Agent LLM', icon: <FaBrain className="text-[white]" /> },
+  { label: isEn ? 'NLP, Transformer & Explainability' : 'NLP, Transformer & Explainability', icon: <FaLanguage className="text-[white]" /> },
+  { label: isEn ? 'Workflow Automation (n8n · API Integration)' : 'Workflow Automation (n8n · API Integration)', icon: <FaShieldAlt className="text-[white]" /> },
 ];
 
 const socialLinks = [
@@ -4097,21 +5206,26 @@ const fadeIn = {
   }),
 };
 
-const portraitImages = [
-  { id: 'me', src: '/me.jpg', label: 'Laurea triennale · Bari 2025', position: 'center 18%' },
+const getPortraitImages = (isEn: boolean) => [
+  { id: 'me', src: '/me.jpg', label: isEn ? 'Bachelor\'s degree · Bari 2025' : 'Laurea triennale · Bari 2025', position: 'center 18%' },
   { id: 'next', src: '/next-pulse-polaroid.jpg', label: 'Next Pulse · Chieti 2026', position: 'center' },
-  { id: 'leonardo', src: '/leonardo-hackathon.jpg', label: 'Hackathon Leonardo · Milano', position: 'center' },
+  { id: 'leonardo', src: '/leonardo-hackathon.jpg', label: isEn ? 'Leonardo Hackathon · Milan' : 'Hackathon Leonardo · Milano', position: 'center' },
 ];
 
 export default function AboutOverlay() {
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
+
+  const portraitImages = getPortraitImages(isEn);
+  const interestItems = getInterestItems(isEn);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImgIndex((prev) => (prev + 1) % portraitImages.length);
     }, 6000); // Cambia immagine ogni 6 secondi
     return () => clearInterval(interval);
-  }, []);
+  }, [portraitImages.length]);
 
   return (
     <div className="flex min-h-screen w-screen items-start justify-center px-4 py-20 sm:px-8">
@@ -4124,12 +5238,12 @@ export default function AboutOverlay() {
           custom={0}
           variants={fadeIn}
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">Chi sono</p>
+          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">{isEn ? 'About me' : 'Chi sono'}</p>
           <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
             {personalInfo.role}
           </h2>
           <p className="mt-3 max-w-2xl text-sm text-white/60">
-            {personalInfo.shortBio}
+            {isEn ? personalInfo.shortBio.en : personalInfo.shortBio.it}
           </p>
         </motion.div>
 
@@ -4221,7 +5335,7 @@ export default function AboutOverlay() {
               <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">AI Developer</p>
               <h3 className="mt-1 text-xl font-semibold text-white">{personalInfo.name}</h3>
               <p className="mt-1 text-xs text-white/60">
-                {personalInfo.shortBio}
+                {isEn ? personalInfo.shortBio.en : personalInfo.shortBio.it}
               </p>
               <div className="mt-3 flex gap-2">
                 {socialLinks.map((social) => (
@@ -4251,10 +5365,10 @@ export default function AboutOverlay() {
               className="glass-holographic rounded-2xl p-5"
             >
               <div className="space-y-3 text-sm text-white/70">
-                <p>{personalInfo.longBio}</p>
+                <p>{isEn ? personalInfo.longBio.en : personalInfo.longBio.it}</p>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                {focusPills.map((pill) => (
+                {(isEn ? personalInfo.focusPills.en : personalInfo.focusPills.it).map((pill) => (
                   <Badge key={pill} variant="outline" className="text-[0.6rem]">
                     {pill}
                   </Badge>
@@ -4272,17 +5386,17 @@ export default function AboutOverlay() {
                 variants={fadeIn}
                 className="glass-holographic rounded-2xl p-5"
               >
-                <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">Formazione</p>
+                <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">{isEn ? 'Education' : 'Formazione'}</p>
                 <div className="mt-3 space-y-3">
                   {formationItems.map((item) => (
                     <div
-                      key={item.label}
+                      key={isEn ? item.label.en : item.label.it}
                       className="flex items-start gap-2 rounded-xl border border-white/8 bg-white/5 p-3"
                     >
                       <FaGraduationCap className="mt-0.5 shrink-0 text-[white] text-sm" />
                       <div>
-                        <p className="text-xs font-semibold text-white">{item.label}</p>
-                        <p className="text-[0.65rem] text-white/60">{item.detail}</p>
+                        <p className="text-xs font-semibold text-white">{isEn ? item.label.en : item.label.it}</p>
+                        <p className="text-[0.65rem] text-white/60">{isEn ? item.detail.en : item.detail.it}</p>
                       </div>
                     </div>
                   ))}
@@ -4298,7 +5412,7 @@ export default function AboutOverlay() {
                 variants={fadeIn}
                 className="glass-holographic rounded-2xl p-5"
               >
-                <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">Interessi</p>
+                <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">{isEn ? 'Interests' : 'Interessi'}</p>
                 <div className="mt-3 space-y-2">
                   {interestItems.map((item) => (
                     <div
@@ -4323,8 +5437,8 @@ export default function AboutOverlay() {
           custom={5}
           variants={fadeIn}
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">Percorso</p>
-          <h3 className="mt-2 text-2xl font-semibold text-white">Ricerca, challenge e delivery</h3>
+          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">{isEn ? 'Journey' : 'Percorso'}</p>
+          <h3 className="mt-2 text-2xl font-semibold text-white">{isEn ? 'Research, challenges and delivery' : 'Ricerca, challenge e delivery'}</h3>
         </motion.div>
 
         <div className="relative">
@@ -4346,16 +5460,20 @@ export default function AboutOverlay() {
                 <div className="glass-holographic rounded-2xl p-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline" className="text-[0.6rem]">
-                      {item.date}
+                      {isEn && typeof item.date !== 'string' ? item.date.en : (typeof item.date !== 'string' ? item.date.it : item.date)}
                     </Badge>
                     <span className="text-[0.6rem] uppercase tracking-[0.3em] text-white/40">
-                      {item.location}
+                      {isEn && typeof item.location !== 'string' ? (item.location as any).en : (typeof item.location !== 'string' ? (item.location as any).it : item.location)}
                     </span>
                   </div>
-                  <h4 className="mt-3 text-lg font-semibold text-white">{item.title}</h4>
-                  <p className="mt-1 text-xs text-white/70">{item.description}</p>
+                  <h4 className="mt-3 text-lg font-semibold text-white">
+                    {isEn && typeof item.title !== 'string' ? (item.title as any).en : (typeof item.title !== 'string' ? (item.title as any).it : item.title)}
+                  </h4>
+                  <p className="mt-1 text-xs text-white/70">
+                    {isEn ? item.description.en : item.description.it}
+                  </p>
                   <ul className="mt-3 space-y-1.5">
-                    {item.highlights.map((h) => (
+                    {(isEn ? item.highlights.en : item.highlights.it).map((h) => (
                       <li key={h} className="flex items-start gap-2 text-xs text-white/60">
                         <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-[white]" />
                         {h}
@@ -4383,13 +5501,7 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['three', '@react-three/fiber', '@react-three/drei'],
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'example.com',
-        pathname: '/**',
-      },
-    ],
+    remotePatterns: [],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     formats: ['image/webp'],
@@ -4399,13 +5511,18 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   async headers() {
+    const isDev = process.env.NODE_ENV !== 'production';
+    const scriptSrc = isDev 
+      ? "'self' 'wasm-unsafe-eval' 'unsafe-eval' 'unsafe-inline'" 
+      : "'self' 'wasm-unsafe-eval' 'unsafe-inline'";
+
     return [
       {
         source: '/(.*)',
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src 'self' https://cloud.langfuse.com https://api.groq.com https://generativelanguage.googleapis.com https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn.jsdelivr.net https://vitals.vercel-insights.com; img-src 'self' blob: data:; font-src 'self' data:;",
+            value: `default-src 'self'; script-src ${scriptSrc} https://va.vercel-scripts.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src 'self' https://formsubmit.co https://cloud.langfuse.com https://api.groq.com https://generativelanguage.googleapis.com https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn.jsdelivr.net https://vitals.vercel-insights.com; img-src 'self' blob: data:; font-src 'self' data:; frame-src 'self' https://formsubmit.co;`,
           },
           {
             key: 'X-Content-Type-Options',
@@ -4418,6 +5535,18 @@ const nextConfig = {
           {
             key: 'X-XSS-Protection',
             value: '1; mode=block',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(self), geolocation=()',
           },
         ],
       },
@@ -4589,6 +5718,7 @@ import {
   FaFilePdf, FaFileWord, FaFileImage, FaFileAlt, FaCloudUploadAlt,
 } from 'react-icons/fa';
 import useResponsive from '@/hooks/useResponsive';
+import { useAppStore } from '@/store/useAppStore';
 
 /* ───────────────────── Types ───────────────────── */
 interface ContactFormData {
@@ -4652,31 +5782,31 @@ const categories = [
   { id: 'other', label: 'Altro', emoji: '💬' },
 ];
 
-const contactDetails = [
+const getContactDetails = (isEn: boolean) => [
   {
     label: 'Email',
     value: 'vitopiccolini@live.it',
-    helper: 'Preferita per brief strutturati (risposta entro 24h).',
+    helper: isEn ? 'Preferred for structured briefs (response within 24h).' : 'Preferita per brief strutturati (risposta entro 24h).',
     icon: <FaEnvelope className="text-white" />,
     href: 'mailto:vitopiccolini@live.it',
   },
   {
-    label: 'Telefono',
+    label: isEn ? 'Phone' : 'Telefono',
     value: '+39 3937382774',
-    helper: 'Disponibile 9:00–18:00, anche WhatsApp.',
+    helper: isEn ? 'Available 9:00–18:00, WhatsApp too.' : 'Disponibile 9:00–18:00, anche WhatsApp.',
     icon: <FaPhoneAlt className="text-white" />,
     href: 'tel:+393937382774',
   },
   {
-    label: 'Base operativa',
+    label: isEn ? 'Location' : 'Base operativa',
     value: 'Bari · Remote EU',
-    helper: 'Patente B, trasferte in giornata su richiesta.',
+    helper: isEn ? 'Driving license B, day trips on request.' : 'Patente B, trasferte in giornata su richiesta.',
     icon: <FaMapMarkerAlt className="text-white" />,
   },
   {
-    label: 'Disponibilità',
-    value: 'Immediata - Giugno 2026',
-    helper: 'Stage curriculare LM-18 o collaborazione AI-first.',
+    label: isEn ? 'Availability' : 'Disponibilità',
+    value: isEn ? 'Immediate - June 2026' : 'Immediata - Giugno 2026',
+    helper: isEn ? 'LM-18 curricular internship or AI-first collaboration.' : 'Stage curriculare LM-18 o collaborazione AI-first.',
     icon: <FaCalendarAlt className="text-white" />,
   },
 ];
@@ -4720,6 +5850,10 @@ const errorInputClasses =
 /* ═══════════════════════════════════════════════════════ */
 export default function ContactOverlay() {
   const { isMobile } = useResponsive();
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
+  
+  const contactDetails = getContactDetails(isEn);
 
   const [formData, setFormData] = useState<ContactFormData>({
     name: '', email: '', subject: '', category: '', message: '',
@@ -4736,17 +5870,17 @@ export default function ContactOverlay() {
   /* ── Validation ── */
   const validateForm = (): boolean => {
     const e: FormErrors = {};
-    if (!formData.name.trim()) e.name = 'Il nome è richiesto';
+    if (!formData.name.trim()) e.name = isEn ? 'Name is required' : 'Il nome è richiesto';
     if (!formData.email.trim()) {
-      e.email = "L'email è richiesta";
+      e.email = isEn ? 'Email is required' : "L'email è richiesta";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      e.email = 'Formato email non valido';
+      e.email = isEn ? 'Invalid email format' : 'Formato email non valido';
     }
-    if (!formData.subject.trim()) e.subject = "L'oggetto è richiesto";
+    if (!formData.subject.trim()) e.subject = isEn ? 'Subject is required' : "L'oggetto è richiesto";
     if (!formData.message.trim()) {
-      e.message = 'Il messaggio è richiesto';
+      e.message = isEn ? 'Message is required' : 'Il messaggio è richiesto';
     } else if (formData.message.trim().length < 10) {
-      e.message = 'Almeno 10 caratteri';
+      e.message = isEn ? 'At least 10 characters' : 'Almeno 10 caratteri';
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -4776,15 +5910,15 @@ export default function ContactOverlay() {
 
     for (const file of list) {
       if (files.length + newFiles.length >= MAX_FILES) {
-        setFileError(`Massimo ${MAX_FILES} allegati.`);
+        setFileError(isEn ? `Max ${MAX_FILES} attachments.` : `Massimo ${MAX_FILES} allegati.`);
         break;
       }
       if (file.size > MAX_FILE_SIZE) {
-        setFileError(`"${file.name}" supera il limite di 10 MB.`);
+        setFileError(isEn ? `"${file.name}" exceeds the 10 MB limit.` : `"${file.name}" supera il limite di 10 MB.`);
         continue;
       }
       if (!isAllowedFile(file)) {
-        setFileError(`"${file.name}": tipo non supportato.`);
+        setFileError(isEn ? `"${file.name}": unsupported type.` : `"${file.name}": tipo non supportato.`);
         continue;
       }
       newFiles.push({ file, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
@@ -4905,7 +6039,7 @@ export default function ContactOverlay() {
       setFiles([]);
       setTimeout(() => setSubmitSuccess(false), 6000);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Si è verificato un errore');
+      setSubmitError(err instanceof Error ? err.message : (isEn ? 'An error occurred' : 'Si è verificato un errore'));
     } finally {
       setIsSubmitting(false);
     }
@@ -4928,11 +6062,10 @@ export default function ContactOverlay() {
           transition={{ duration: 0.5 }}
           className="text-center"
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-white/70">Contatto</p>
-          <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Contattami</h2>
+          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-white/70">{isEn ? 'Contact' : 'Contatto'}</p>
+          <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{isEn ? 'Contact Me' : 'Contattami'}</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/60">
-            Sto entrando nella Laurea Magistrale in Computer Science – AI (UniBa) e sono disponibile
-            per stage, R&D o progetti AI-first.
+            {isEn ? 'I am entering my Master\'s degree in Computer Science – AI (UniBa) and I am available for internships, R&D or AI-first projects.' : 'Sto entrando nella Laurea Magistrale in Computer Science – AI (UniBa) e sono disponibile per stage, R&D o progetti AI-first.'}
           </p>
         </motion.div>
 
@@ -4986,8 +6119,8 @@ export default function ContactOverlay() {
                   <FaCheck className="text-emerald-400 text-sm" />
                 </span>
                 <div>
-                  <p className="text-sm font-medium text-emerald-300">Messaggio inviato!</p>
-                  <p className="text-xs text-emerald-300/60">Ti risponderò al più presto.</p>
+                  <p className="text-sm font-medium text-emerald-300">{isEn ? 'Message sent!' : 'Messaggio inviato!'}</p>
+                  <p className="text-xs text-emerald-300/60">{isEn ? 'I will reply as soon as possible.' : 'Ti risponderò al più presto.'}</p>
                 </div>
               </motion.div>
             )}
@@ -5017,7 +6150,7 @@ export default function ContactOverlay() {
 
             {/* Category chips */}
             <div>
-              <p className="mb-2.5 text-xs font-medium text-white/60">Motivo del contatto</p>
+              <p className="mb-2.5 text-xs font-medium text-white/60">{isEn ? 'Reason for contact' : 'Motivo del contatto'}</p>
               <div className="flex flex-wrap gap-2">
                 {categories.map((cat) => (
                   <button
@@ -5039,7 +6172,7 @@ export default function ContactOverlay() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="contact-name" className="mb-1.5 block text-xs font-medium text-white/60">
-                  Nome *
+                  {isEn ? 'Name *' : 'Nome *'}
                 </label>
                 <input
                   type="text"
@@ -5048,7 +6181,7 @@ export default function ContactOverlay() {
                   value={formData.name}
                   onChange={handleChange}
                   className={`${inputClasses} ${errors.name ? errorInputClasses : ''}`}
-                  placeholder="Il tuo nome"
+                  placeholder={isEn ? 'Your name' : 'Il tuo nome'}
                   aria-required="true"
                   aria-invalid={Boolean(errors.name)}
                 />
@@ -5065,7 +6198,7 @@ export default function ContactOverlay() {
                   value={formData.email}
                   onChange={handleChange}
                   className={`${inputClasses} ${errors.email ? errorInputClasses : ''}`}
-                  placeholder="La tua email"
+                  placeholder={isEn ? 'Your email' : 'La tua email'}
                   aria-required="true"
                   aria-invalid={Boolean(errors.email)}
                 />
@@ -5076,7 +6209,7 @@ export default function ContactOverlay() {
             {/* Subject */}
             <div>
               <label htmlFor="contact-subject" className="mb-1.5 block text-xs font-medium text-white/60">
-                Oggetto *
+                {isEn ? 'Subject *' : 'Oggetto *'}
               </label>
               <input
                 type="text"
@@ -5085,7 +6218,7 @@ export default function ContactOverlay() {
                 value={formData.subject}
                 onChange={handleChange}
                 className={`${inputClasses} ${errors.subject ? errorInputClasses : ''}`}
-                placeholder="es. Proposta di collaborazione su progetto AI"
+                placeholder={isEn ? 'e.g. Collaboration proposal on AI project' : 'es. Proposta di collaborazione su progetto AI'}
                 aria-required="true"
                 aria-invalid={Boolean(errors.subject)}
               />
@@ -5096,7 +6229,7 @@ export default function ContactOverlay() {
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <label htmlFor="contact-message" className="text-xs font-medium text-white/60">
-                  Messaggio *
+                  {isEn ? 'Message *' : 'Messaggio *'}
                 </label>
                 <span className={`text-[0.6rem] tabular-nums ${charsLeft < 100 ? 'text-amber-400' : 'text-white/30'}`}>
                   {formData.message.length}/{MAX_MESSAGE_LENGTH}
@@ -5109,7 +6242,7 @@ export default function ContactOverlay() {
                 onChange={handleChange}
                 rows={isMobile ? 4 : 6}
                 className={`${inputClasses} resize-none ${errors.message ? errorInputClasses : ''}`}
-                placeholder="Descrivi il progetto, il ruolo, le tempistiche…"
+                placeholder={isEn ? 'Describe the project, role, timelines…' : 'Descrivi il progetto, il ruolo, le tempistiche…'}
                 aria-required="true"
                 aria-invalid={Boolean(errors.message)}
               />
@@ -5120,7 +6253,7 @@ export default function ContactOverlay() {
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs font-medium text-white/60">
-                  📎 Allegati
+                  📎 {isEn ? 'Attachments' : 'Allegati'}
                   <span className="ml-1.5 text-[0.6rem] text-white/30">
                     ({files.length}/{MAX_FILES} · max 10 MB)
                   </span>
@@ -5131,7 +6264,7 @@ export default function ContactOverlay() {
                     onClick={() => fileInputRef.current?.click()}
                     className="text-[0.65rem] font-medium text-[var(--color-accent-soft)] transition-colors hover:text-[var(--color-accent)]"
                   >
-                    + Sfoglia
+                    + {isEn ? 'Browse' : 'Sfoglia'}
                   </button>
                 )}
               </div>
@@ -5159,10 +6292,10 @@ export default function ContactOverlay() {
                 >
                   <FaCloudUploadAlt className={`mb-2 text-xl ${isDragging ? 'text-[var(--color-accent-soft)]' : 'text-white/20'}`} />
                   <p className="text-xs text-white/40">
-                    {isDragging ? 'Rilascia qui' : 'Trascina file o clicca per sfogliare'}
+                    {isDragging ? (isEn ? 'Drop here' : 'Rilascia qui') : (isEn ? 'Drag files or click to browse' : 'Trascina file o clicca per sfogliare')}
                   </p>
                   <p className="mt-1 text-[0.6rem] text-white/20">
-                    PDF, Office, Markdown, Media, JSON, Archivi — max 10 MB
+                    {isEn ? 'PDF, Office, Markdown, Media, JSON, Archives — max 10 MB' : 'PDF, Office, Markdown, Media, JSON, Archivi — max 10 MB'}
                   </p>
                 </div>
               )}
@@ -5212,7 +6345,7 @@ export default function ContactOverlay() {
               {/* Total file size indicator */}
               {files.length > 0 && (
                 <p className="mt-1.5 text-[0.6rem] text-white/25">
-                  Totale: {formatFileSize(totalFileSize)}
+                  {isEn ? 'Total:' : 'Totale:'} {formatFileSize(totalFileSize)}
                 </p>
               )}
             </div>
@@ -5223,7 +6356,7 @@ export default function ContactOverlay() {
             {/* Submit */}
             <div className="flex items-center justify-between gap-4">
               <p className="hidden text-[0.6rem] text-white/25 sm:block">
-                I tuoi dati non saranno condivisi con terzi.
+                {isEn ? 'Your data will not be shared with third parties.' : 'I tuoi dati non saranno condivisi con terzi.'}
               </p>
               <button
                 type="submit"
@@ -5236,12 +6369,12 @@ export default function ContactOverlay() {
                 {isSubmitting ? (
                   <>
                     <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-                    Invio in corso…
+                    {isEn ? 'Sending...' : 'Invio in corso…'}
                   </>
                 ) : (
                   <>
                     <FaEnvelope className="text-[0.65rem] transition-transform duration-300 group-hover:-translate-y-0.5" />
-                    Invia Messaggio
+                    {isEn ? 'Send Message' : 'Invia Messaggio'}
                   </>
                 )}
               </button>
@@ -5285,23 +6418,7 @@ export default function ContactOverlay() {
 import { NextResponse } from 'next/server';
 import { Langfuse } from 'langfuse';
 import { z } from 'zod';
-import { Redis } from '@upstash/redis';
-import { Ratelimit } from '@upstash/ratelimit';
-
-const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-  ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL.replace(/^"|"$/g, '').trim(),
-      token: process.env.UPSTASH_REDIS_REST_TOKEN.replace(/^"|"$/g, '').trim(),
-    })
-  : null;
-
-const ratelimit = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(20, '1 m'),
-      analytics: true,
-    })
-  : null;
+import { feedbackRatelimit } from '@/lib/ratelimit';
 
 const langfuse = new Langfuse({
   publicKey: process.env.LANGFUSE_PUBLIC_KEY?.replace(/^"|"$/g, '').trim(),
@@ -5316,12 +6433,10 @@ const feedbackSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    if (ratelimit) {
-      const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
-      const { success } = await ratelimit.limit(ip);
-      if (!success) {
-        return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
-      }
+    const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+    const { success } = await feedbackRatelimit.limit(ip);
+    if (!success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
     }
 
     const body = await req.json();
@@ -5469,6 +6584,7 @@ import { createPortal } from 'react-dom';
 import type { ProjectData } from '@/data/projects';
 import Badge from '@/components/ui/Badge';
 import CTAButton from '@/components/ui/CTAButton';
+import { useAppStore } from '@/store/useAppStore';
 
 interface ProjectModalProps {
   project: ProjectData;
@@ -5477,6 +6593,8 @@ interface ProjectModalProps {
 
 export default function ProjectModal({ project, onClose }: ProjectModalProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
 
   // Animation variants
   const backdropVariants = {
@@ -5573,10 +6691,18 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             variants={contentVariants}
             className="flex flex-col gap-2"
           >
-            <p className="text-xs uppercase tracking-[0.35em] text-white/60">{project.timeline}</p>
-            <h2 className="text-3xl font-semibold text-white">{project.title}</h2>
-            <p className="text-base text-white/70">{project.subtitle}</p>
-            <Badge variant="glow" className="w-fit text-[0.65rem]">{project.role}</Badge>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">
+              {typeof project.timeline !== 'string' ? (isEn ? project.timeline.en : project.timeline.it) : project.timeline}
+            </p>
+            <h2 className="text-3xl font-semibold text-white">
+              {typeof project.title !== 'string' ? (isEn ? (project.title as any).en : (project.title as any).it) : project.title}
+            </h2>
+            <p className="text-base text-white/70">
+              {isEn ? project.subtitle.en : project.subtitle.it}
+            </p>
+            <Badge variant="glow" className="w-fit text-[0.65rem]">
+              {typeof project.role !== 'string' ? (isEn ? project.role.en : project.role.it) : project.role}
+            </Badge>
           </motion.div>
           
           <motion.p 
@@ -5584,7 +6710,7 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             variants={contentVariants}
             className="text-base text-white/80"
           >
-            {project.longDescription}
+            {isEn ? project.longDescription.en : project.longDescription.it}
           </motion.p>
           
           <motion.div 
@@ -5592,16 +6718,23 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             variants={contentVariants}
             className="grid gap-4 sm:grid-cols-3"
           >
-            {project.metrics.map((metric) => (
-              <div
-                key={`${project.id}-metric-${metric.label}`}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4"
-              >
-                <p className="text-xs uppercase tracking-[0.3em] text-white/60">{metric.label}</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{metric.value}</p>
-                <p className="mt-1 text-xs text-white/70">{metric.caption}</p>
-              </div>
-            ))}
+            {project.metrics.map((metric, idx) => {
+              const mLabel = typeof metric.label !== 'string' ? (isEn ? metric.label.en : metric.label.it) : metric.label;
+              const mValue = typeof metric.value !== 'string' ? (isEn ? metric.value.en : metric.value.it) : metric.value;
+              const mCaption = typeof metric.caption !== 'string' ? (isEn ? metric.caption.en : metric.caption.it) : metric.caption;
+              return (
+                <div
+                  key={`${project.id}-metric-${idx}`}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                >
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/60">{mLabel}</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{mValue}</p>
+                  <p className="mt-1 text-xs text-white/70">
+                    {mCaption}
+                  </p>
+                </div>
+              );
+            })}
           </motion.div>
 
           <motion.div
@@ -5611,14 +6744,17 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
           >
             <p className="text-xs uppercase tracking-[0.3em] text-white/60">Stack</p>
             <div className="flex flex-wrap gap-2">
-              {project.stack.map((tool) => (
-                <span
-                  key={tool}
-                  className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/70"
-                >
-                  {tool}
-                </span>
-              ))}
+              {project.stack.map((tool, idx) => {
+                const toolLabel = typeof tool !== 'string' ? (isEn ? tool.en : tool.it) : tool;
+                return (
+                  <span
+                    key={`modal-stack-${idx}`}
+                    className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/70"
+                  >
+                    {toolLabel}
+                  </span>
+                );
+              })}
             </div>
           </motion.div>
 
@@ -5629,11 +6765,14 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
           >
             <p className="text-xs uppercase tracking-[0.3em] text-white/60">Focus</p>
             <div className="flex flex-wrap gap-2">
-              {project.pillars.map((pillar) => (
-                <Badge key={pillar} variant="outline" className="text-[0.6rem]">
-                  {pillar}
-                </Badge>
-              ))}
+              {project.pillars.map((pillar, idx) => {
+                const pillarLabel = typeof pillar !== 'string' ? (isEn ? pillar.en : pillar.it) : pillar;
+                return (
+                  <Badge key={`modal-pillar-${idx}`} variant="outline" className="text-[0.6rem]">
+                    {pillarLabel}
+                  </Badge>
+                );
+              })}
             </div>
           </motion.div>
 
@@ -5648,7 +6787,7 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
               </CTAButton>
             ))}
             <CTAButton variant="primary" onClick={onClose}>
-              Chiudi
+              {isEn ? 'Close' : 'Chiudi'}
             </CTAButton>
           </motion.div>
         </div>
@@ -5749,14 +6888,14 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
   generateObject,
+  generateText,
   stepCountIs,
   streamText,
-  tool,
-  type LanguageModel,
   type UIMessage,
 } from 'ai';
 import { z } from 'zod';
 import { getRetriever, type RetrievedChunk } from '@/lib/rag/retriever';
+import { globalRatelimit } from '@/lib/ratelimit';
 import { getProviders } from '@/lib/rag/providers';
 import { SECTIONS } from '@/store/useAppStore';
 
@@ -5796,7 +6935,6 @@ const bodySchema = z.object({
     .min(8)
     .max(1024)
     .nullish(),
-  contextChunks: z.array(z.unknown()).optional(),
 });
 
 const routerSchema = z.object({
@@ -5806,9 +6944,25 @@ const routerSchema = z.object({
   uiActionTarget: z.string().optional().describe('Se uiAction è navigateToSection usa una tra about, skills, projects, contact. Se showProject usa il nome del progetto.'),
 });
 
-type RouterDecision = z.infer<typeof routerSchema>;
+export type RouterDecision = z.infer<typeof routerSchema>;
 
 // ── Helpers ───────────────────────────────────────────────────────────
+function parseLLMJSON<T>(text: string, fallback: T): T {
+  try { return JSON.parse(text) as T; } catch (e) {}
+  try {
+    const blockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (blockMatch && blockMatch[1]) return JSON.parse(blockMatch[1].trim()) as T;
+  } catch (e) {}
+  try {
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+      return JSON.parse(text.substring(first, last + 1)) as T;
+    }
+  } catch (e) {}
+  return fallback;
+}
+
 function textOf(message: UIMessage): string {
   return (message.parts ?? [])
     .map((p) => (p.type === 'text' ? p.text : ''))
@@ -5863,10 +7017,7 @@ ${context}
 CONTATTI PUBBLICI (puoi condividerli liberamente)
 - Email: vitopiccolini@live.it
 - LinkedIn: https://www.linkedin.com/in/vitopiccolini/
-- GitHub: https://github.com/Hellvisback365
-
-FONTI
-${context}`;
+- GitHub: https://github.com/Hellvisback365`;
   return SYSTEM_PROMPT;
 }
 
@@ -5874,12 +7025,18 @@ ${context}`;
 
 // ── Route ─────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
+  const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+  const { success } = await globalRatelimit.limit(ip);
+  if (!success) {
+    return NextResponse.json({ error: 'Rate limit superato. Riprova più tardi.' }, { status: 429 });
+  }
+
   const providers = getProviders();
   if (!providers) {
     return NextResponse.json(
       {
         error:
-          'Copilot non configurato: aggiungi OPENROUTER_API_KEY o GROQ_API_KEY alle variabili d\'ambiente.',
+          'Copilot non configurato: aggiungi GROQ_API_KEY alle variabili d\'ambiente.',
       },
       { status: 503 },
     );
@@ -5896,52 +7053,62 @@ export async function POST(req: Request) {
 
   const messages = parsed.messages as UIMessage[];
   const queryVector = parsed.queryVector ?? null;
-  const contextChunks = parsed.contextChunks;
   const question = lastUserText(messages);
   const history = messages.slice(-HISTORY_WINDOW);
 
   const retriever = await getRetriever();
 
-  const routerPrompt = `Classifica l'ultimo messaggio dell'utente in una chat sul portfolio di Vito Piccolini.
-intent:
-- "smalltalk": saluti, ringraziamenti
-- "navigate": richieste di aprire sezioni
-- "portfolio": domande su progetti, skills, Vito
+  const routerPrompt = `Sei il router di sistema. Classifica l'intento dell'utente.
+Devi rispondere SOLO ED ESCLUSIVAMENTE con un JSON valido che rispetta questo schema:
+{
+  "intent": "portfolio" | "smalltalk",
+  "standalone": "La query riformulata senza contesto",
+  "uiAction": "navigateToSection" | "showProject" | "showSkillsRadar" | "none",
+  "uiActionTarget": "skills" | "projects" | "hero" | o il nome del progetto (se applicabile)
+}
 
-standalone: riscrivi l'ultimo messaggio come domanda autonoma.
+Regole per intent:
+- "smalltalk": saluti generici, chiacchiere.
+- "portfolio": qualsiasi domanda su Vito, competenze, progetti o carriera.
 
-uiAction: scegli un'azione UI per accompagnare la risposta.
-- "navigateToSection": se chiede chi è Vito, studi, contatti.
-- "showSkillsRadar": se chiede di competenze, linguaggi.
-- "showProject": se cita un progetto specifico.
-- "none": altrimenti.
+Regole per standalone:
+Riscrivi la domanda dell'utente in modo che sia comprensibile da sola (coreference resolution).
+
+Regole per uiAction:
+Devi SEMPRE pilotare il sito verso la sezione più pertinente per qualsiasi domanda sul portfolio. Usa "none" SOLO per lo smalltalk.
+- "showProject": se la domanda riguarda un progetto specifico (es. TerraNode). uiActionTarget = nome del progetto.
+- "showSkillsRadar": se la domanda riguarda linguaggi, tecnologie, stack o competenze.
+- "navigateToSection": per qualsiasi altra domanda. uiActionTarget DEVE ESSERE uno tra: "hero" (info generali, studio, chi è), "about" (percorso, località), "projects" (lista progetti generica), "contact" (contatti, email).
+- "none": solo se intent = smalltalk.
 
 CONVERSAZIONE:
 ${recentDialogue(history)}`;
 
   // Esecuzione parallela: Router (LLM) e Retrieval Lessicale (BM25)
-  const routerPromise = generateObject({
+  const routerPromise = generateText({
     model: providers.router,
-    schema: routerSchema,
     temperature: 0,
     prompt: routerPrompt,
     abortSignal: AbortSignal.timeout(ROUTER_TIMEOUT_MS),
-  }).catch((err) => {
+  }).catch((err: any) => {
     console.error('[Router] Fallito o andato in timeout:', err);
     return null;
   });
 
+  // Avvio la ricerca lessicale (BM25) in parallelo al router LLM
+  const lexPromise = retriever.lexicalSearch(question);
+
   let sources: RetrievedChunk[] = [];
   const routerRes = await routerPromise;
-  const routerState = routerRes?.object || { intent: 'portfolio', standalone: question, uiAction: 'none' };
+  
+  let routerState: RouterDecision = { intent: 'portfolio', standalone: question, uiAction: 'none' };
+  if (routerRes && routerRes.text) {
+    routerState = parseLLMJSON<RouterDecision>(routerRes.text, routerState);
+  }
 
   if (routerState.intent !== 'smalltalk') {
-    if (contextChunks && Array.isArray(contextChunks) && contextChunks.length > 0) {
-      sources = contextChunks as RetrievedChunk[];
-    } else {
-      const lexRank = await retriever.lexicalSearch(question);
-      sources = retriever.semanticAndFuse(lexRank, queryVector ?? null, TOP_K);
-    }
+    const lexRank = await lexPromise;
+    sources = retriever.semanticAndFuse(lexRank, queryVector ?? null, TOP_K);
   }
 
   const result = streamText({
@@ -5949,10 +7116,6 @@ ${recentDialogue(history)}`;
     system: buildSystemPrompt(sources),
     messages: await convertToModelMessages(history),
     temperature: 0.4,
-    experimental_telemetry: {
-      isEnabled: true,
-      functionId: 'copilot-rag',
-    },
     stopWhen: stepCountIs(1),
   });
 
@@ -5982,7 +7145,7 @@ ${recentDialogue(history)}`;
         writer.write({ type: 'text-start', id: actionId } as any);
         writer.write({
           type: 'text-delta',
-          delta: `__UI_ACTION__${actionPayload}__UI_ACTION__\n`,
+          delta: `\n\n__UI_ACTION__${actionPayload}__UI_ACTION__\n\n`,
           id: actionId,
         } as any);
         writer.write({ type: 'text-end', id: actionId } as any);
@@ -6016,11 +7179,10 @@ import { useAppStore } from '@/store/useAppStore';
 import {
   embedQuery,
   getEmbedderState,
-  rerankPairs,
   subscribeEmbedder,
   warmupEmbedder,
-  type EmbedderState,
 } from '@/lib/rag/embedder';
+import type { EmbedderState } from '@/lib/rag/embedder';
 import ProjectCard from '@/components/ui/rag/ProjectCard';
 import SkillsRadar from '@/components/ui/rag/SkillsRadar';
 
@@ -6046,7 +7208,7 @@ interface SourceChip {
   score: number;
 }
 
-const ALL_SUGGESTIONS = [
+const ALL_SUGGESTIONS_IT = [
   'Di cosa parla la tesi di Vito?',
   'Raccontami del progetto Zenith',
   'Che esperienza ha con i sistemi RAG?',
@@ -6057,6 +7219,19 @@ const ALL_SUGGESTIONS = [
   'Che università frequenta?',
   'Vito ha esperienza lavorativa?',
   'Portami alla sezione progetti',
+];
+
+const ALL_SUGGESTIONS_EN = [
+  'What is Vito\'s thesis about?',
+  'Tell me about the Zenith project',
+  'What is his experience with RAG systems?',
+  'Show me Vito\'s contacts',
+  'What languages does he use in the backend?',
+  'Tell me about the Space Edition hackathon',
+  'How is TerraNode built?',
+  'What university does he attend?',
+  'Does Vito have work experience?',
+  'Take me to the projects section',
 ];
 
 // Narrowing helper: con UIMessage non parametrizzato le parts custom
@@ -6072,15 +7247,15 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 
 
 
-function prettyError(err: Error | undefined): string {
-  if (!err) return 'Si è verificato un errore.';
+function prettyError(err: Error | undefined, isEn: boolean): string {
+  if (!err) return isEn ? 'An error occurred.' : 'Si è verificato un errore.';
   try {
     const parsed = JSON.parse(err.message) as { error?: string };
     if (parsed.error) return parsed.error;
   } catch {
     /* il body non era JSON */
   }
-  return err.message || 'Si è verificato un errore.';
+  return err.message || (isEn ? 'An error occurred.' : 'Si è verificato un errore.');
 }
 
 function renderMarkdownBold(text: string) {
@@ -6096,12 +7271,12 @@ function renderMarkdownBold(text: string) {
   );
 }
 
-function EmbedderDot({ state }: { state: EmbedderState }) {
+function EmbedderDot({ state, isEn }: { state: EmbedderState, isEn: boolean }) {
   if (state === 'error') return null; // degradazione silenziosa
   const label =
     state === 'ready'
-      ? 'retrieval semantico attivo'
-      : 'carico il modello semantico…';
+      ? (isEn ? 'semantic retrieval active' : 'retrieval semantico attivo')
+      : (isEn ? 'loading semantic model…' : 'carico il modello semantico…');
   return (
     <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-white/40">
       <span
@@ -6135,6 +7310,10 @@ export default function CopilotOverlay() {
   const setCopilotOpen = useAppStore((s) => s.setCopilotOpen);
   const flyToSection = useAppStore((s) => s.flyToSection);
   const reduceMotion = useReducedMotion();
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
+
+  const ALL_SUGGESTIONS = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
 
   const [input, setInput] = useState('');
   const [embedderState, setEmbedderState] = useState<EmbedderState>(() =>
@@ -6142,7 +7321,7 @@ export default function CopilotOverlay() {
   );
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
-  const suggestionPoolRef = useRef<string[]>(ALL_SUGGESTIONS);
+  const poolsRef = useRef<Record<string, string[]>>({});
   const clickedSuggestionsRef = useRef<Set<string>>(new Set());
   const processedTools = useRef<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
@@ -6202,16 +7381,23 @@ export default function CopilotOverlay() {
 
   // Fetch dynamic suggestions on open
   useEffect(() => {
-    if (!copilotOpen || suggestionPoolRef.current !== ALL_SUGGESTIONS) return;
+    if (!copilotOpen) return;
+    
+    if (poolsRef.current[language]) {
+      const pool = poolsRef.current[language];
+      setSuggestions(pool.slice(0, 3));
+      return;
+    }
+
     setIsLoadingSuggestions(true);
-    fetch('/api/suggestions')
+    fetch(`/api/suggestions?lang=${language}`)
       .then((res) => {
         if (!res.ok) throw new Error('API error');
         return res.json();
       })
       .then((data) => {
         if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
-          suggestionPoolRef.current = data.questions;
+          poolsRef.current[language] = data.questions;
           setSuggestions(data.questions.slice(0, 3));
         } else {
           throw new Error('Invalid schema');
@@ -6219,14 +7405,15 @@ export default function CopilotOverlay() {
       })
       .catch((err) => {
         console.error('[Copilot] Fallback to static suggestions:', err);
-        const shuffled = [...ALL_SUGGESTIONS].sort(() => 0.5 - Math.random());
-        suggestionPoolRef.current = shuffled;
+        const fallbacks = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
+        const shuffled = [...fallbacks].sort(() => 0.5 - Math.random());
+        poolsRef.current[language] = shuffled;
         setSuggestions(shuffled.slice(0, 3));
       })
       .finally(() => {
         setIsLoadingSuggestions(false);
       });
-  }, [copilotOpen]);
+  }, [copilotOpen, language, isEn]);
 
 
   const transport = useMemo(
@@ -6274,9 +7461,8 @@ export default function CopilotOverlay() {
       let actionFound = false;
       for (const part of message.parts as AnyPart[]) {
         if (part.type === 'text') {
-          const text = part.text as string;
-          const match = text.match(/__UI_ACTION__(.*?)__UI_ACTION__/);
-          if (match) {
+          const match = (part.text as string).match(/__UI_ACTION__(.*?)__UI_ACTION__/);
+          if (match && match[1]) {
             try {
               const actionData = JSON.parse(match[1]);
               actionFound = true;
@@ -6288,9 +7474,7 @@ export default function CopilotOverlay() {
               } else if (actionData.action === 'showSkillsRadar') {
                 flyToSection('skills');
               }
-            } catch (e) {
-              console.error('Failed to parse embedded action', e);
-            }
+            } catch (e) {}
           }
         }
       }
@@ -6326,36 +7510,8 @@ export default function CopilotOverlay() {
           const queryVector = attachVector
             ? await withTimeout(embedQuery(text), 1500, null)
             : null;
-            
-          let contextChunks = undefined;
-          if (attachVector) {
-             try {
-               const res = await fetch('/api/retrieve', {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({ question: text, queryVector })
-               });
-               if (res.ok) {
-                 const data = await res.json();
-                 if (data.candidates && data.candidates.length > 0) {
-                   const pairs = data.candidates.map((c: any) => ({ text, text_pair: c.text }));
-                   // Timeout per il reranking: se il worker è troppo lento (es. sta ancora caricando ms-marco), passiamo oltre
-                   const scores = await withTimeout(rerankPairs(pairs), 2500, null);
-                   if (scores && scores.length === data.candidates.length) {
-                     const scored = data.candidates.map((c: any, i: number) => ({ ...c, score: scores[i].score }));
-                     scored.sort((a: any, b: any) => b.score - a.score);
-                     contextChunks = scored.slice(0, 4);
-                   } else {
-                     contextChunks = data.candidates.slice(0, 4); // BM25 fallback
-                   }
-                 }
-               }
-             } catch (e) {
-               console.error('[Copilot] Retrieval override failed', e);
-             }
-          }
 
-          sendMessage({ text }, { body: { queryVector, contextChunks } });
+          sendMessage({ text }, { body: { queryVector } });
         } finally {
           inFlightRef.current = false;
         }
@@ -6368,14 +7524,15 @@ export default function CopilotOverlay() {
     submit(q);
     clickedSuggestionsRef.current.add(q);
     setSuggestions((prev) => {
-      const pool = suggestionPoolRef.current;
+      const pool = poolsRef.current[language] || (isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT);
       const clicked = clickedSuggestionsRef.current;
       // Trova le domande dinamiche non ancora mostrate su schermo (prev) e non ancora cliccate
       const remaining = pool.filter((s) => !prev.includes(s) && !clicked.has(s));
       
       if (remaining.length === 0) {
         // Fallback to static if dynamic pool is exhausted
-        const fallbackRemaining = ALL_SUGGESTIONS.filter((s) => !prev.includes(s) && !clicked.has(s) && !pool.includes(s));
+        const fallbacks = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
+        const fallbackRemaining = fallbacks.filter((s) => !prev.includes(s) && !clicked.has(s) && !pool.includes(s));
         if (fallbackRemaining.length === 0) return prev; // Se abbiamo finito TUTTE le domande, lascia quelle attuali
         const next = fallbackRemaining[Math.floor(Math.random() * fallbackRemaining.length)];
         return prev.map((s) => (s === q ? next : s));
@@ -6384,7 +7541,7 @@ export default function CopilotOverlay() {
       const next = remaining[Math.floor(Math.random() * remaining.length)];
       return prev.map((s) => (s === q ? next : s));
     });
-  }, [submit]);
+  }, [submit, isEn, language]);
 
   const renderPart = (
     messageId: string,
@@ -6394,48 +7551,47 @@ export default function CopilotOverlay() {
     const key = `${messageId}-${index}`;
     switch (part.type) {
       case 'text': {
-        let clean = (part.text as string).trim();
-        let embeddedAction = null;
+        let clean = (part.text as string);
         
-        // Estrai l'azione se presente per nasconderla e preparare il rendering del widget
         const match = clean.match(/__UI_ACTION__(.*?)__UI_ACTION__/);
-        if (match) {
-          clean = clean.replace(/__UI_ACTION__(.*?)__UI_ACTION__\n?/g, '').trim();
+        let embeddedAction = null;
+        if (match && match[1]) {
           try {
             embeddedAction = JSON.parse(match[1]);
-          } catch (e) {}
+          } catch(e) {}
+          clean = clean.replace(/__UI_ACTION__(.*?)__UI_ACTION__/g, '');
         }
         
+        clean = clean.trim();
         const textNode = clean ? (
           <p key={key + '-text'} className="whitespace-pre-wrap break-words leading-relaxed">
             {renderMarkdownBold(clean)}
           </p>
         ) : null;
 
-        if (!embeddedAction) return textNode;
-
         let widgetNode = null;
-        if (embeddedAction.action === 'showProject' && embeddedAction.target) {
-          widgetNode = (
-            <ProjectCard
-              key={key + '-widget'}
-              projectName={embeddedAction.target}
-              onExplore={() => {
-                flyToSection('projects');
-                setCopilotOpen(false);
-              }}
-            />
-          );
-        } else if (embeddedAction.action === 'showSkillsRadar') {
-          widgetNode = <SkillsRadar key={key + '-widget'} />;
-        } else if (embeddedAction.action === 'navigateToSection' && embeddedAction.target) {
-          widgetNode = (
-            <p key={key + '-widget'} className="font-mono text-[11px] text-accent-soft mt-2">
-              → ti porto alla sezione {embeddedAction.target}
-            </p>
-          );
+        if (embeddedAction) {
+          if (embeddedAction.action === 'showProject' && embeddedAction.target) {
+            widgetNode = (
+              <ProjectCard
+                key={key + '-widget'}
+                projectName={embeddedAction.target}
+                onExplore={() => {
+                  flyToSection('projects');
+                  setCopilotOpen(false);
+                }}
+              />
+            );
+          } else if (embeddedAction.action === 'showSkillsRadar') {
+            widgetNode = <SkillsRadar key={key + '-widget'} />;
+          } else if (embeddedAction.action === 'navigateToSection' && embeddedAction.target) {
+            widgetNode = (
+              <p key={key + '-widget'} className="font-mono text-[11px] text-accent-soft mt-2">
+                → {isEn ? `taking you to the ${embeddedAction.target} section` : `ti porto alla sezione ${embeddedAction.target}`}
+              </p>
+            );
+          }
         }
-
         return (
           <Fragment key={key}>
             {textNode}
@@ -6462,7 +7618,7 @@ export default function CopilotOverlay() {
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.25 }}
             onClick={() => setCopilotOpen(true)}
-            aria-label="Apri il copilot del portfolio"
+            aria-label={isEn ? 'Open portfolio copilot' : 'Apri il copilot del portfolio'}
             className="glass-panel fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full text-accent-soft transition-colors hover:text-white"
           >
             <FiMessageCircle className="h-5 w-5" />
@@ -6477,7 +7633,7 @@ export default function CopilotOverlay() {
             key="panel"
             role="dialog"
             aria-modal="true"
-            aria-label="Copilot del portfolio"
+            aria-label={isEn ? 'Portfolio copilot' : 'Copilot del portfolio'}
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 48 }}
             animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 48 }}
@@ -6495,11 +7651,11 @@ export default function CopilotOverlay() {
                     BM25 + e5 · {process.env.NEXT_PUBLIC_LLM_PROVIDER || 'AI'}
                   </span>
                 </span>
-                <EmbedderDot state={embedderState} />
+                <EmbedderDot state={embedderState} isEn={isEn} />
               </div>
               <button
                 onClick={() => setCopilotOpen(false)}
-                aria-label="Chiudi il copilot"
+                aria-label={isEn ? 'Close copilot' : 'Chiudi il copilot'}
                 className="rounded-full p-2 text-white/50 transition-colors hover:text-white"
               >
                 <FiX className="h-4 w-4" />
@@ -6511,9 +7667,7 @@ export default function CopilotOverlay() {
               {messages.length === 0 && (
                 <div className="flex h-full flex-col justify-end gap-3 pb-2">
                   <p className="text-white/55">
-                    Chiedimi della tesi, dei progetti o del percorso di Vito:
-                    rispondo solo sulla base dei documenti del portfolio,
-                    citando le fonti.
+                    {isEn ? 'Ask me about Vito\'s thesis, projects, or background: I only answer based on portfolio documents, citing sources.' : 'Chiedimi della tesi, dei progetti o del percorso di Vito: rispondo solo sulla base dei documenti del portfolio, citando le fonti.'}
                   </p>
                   <div className="flex flex-col items-start gap-2">
                     {isLoadingSuggestions ? (
@@ -6568,12 +7722,12 @@ export default function CopilotOverlay() {
 
               {status === 'submitted' && (
                 <p className="font-mono text-[11px] text-white/40">
-                  <span className="animate-pulse">retrieval in corso…</span>
+                  <span className="animate-pulse">{isEn ? 'retrieval in progress…' : 'retrieval in corso…'}</span>
                 </p>
               )}
               {status === 'error' && (
                 <p className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-red-200">
-                  {prettyError(error)}
+                  {prettyError(error, isEn)}
                 </p>
               )}
 
@@ -6616,22 +7770,22 @@ export default function CopilotOverlay() {
                     }
                   }}
                   rows={2}
-                  placeholder="Scrivi una domanda…"
-                  aria-label="Messaggio per il copilot"
+                  placeholder={isEn ? 'Ask a question…' : 'Scrivi una domanda…'}
+                  aria-label={isEn ? 'Message for the copilot' : 'Messaggio per il copilot'}
                   className="max-h-32 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35 overscroll-contain"
                 />
                 <button
                   type="button"
                   onClick={toggleListening}
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}
-                  aria-label="Microfono"
+                  aria-label={isEn ? 'Microphone' : 'Microfono'}
                 >
                   <FiMic className="h-4 w-4" />
                 </button>
                 <button
                   type="submit"
                   disabled={busy || (!input.trim() && !isListening)}
-                  aria-label="Invia"
+                  aria-label={isEn ? 'Send' : 'Invia'}
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-white transition-opacity disabled:opacity-30"
                 >
                   <FiArrowUp className="h-4 w-4" />
@@ -6658,13 +7812,13 @@ export default function CopilotOverlay() {
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "rag:ingest": "tsx scripts/rag-ingest.mts"
+    "rag:ingest": "tsx scripts/rag-ingest.mts",
+    "rag:eval": "tsx scripts/rag-eval.mts",
+    "rag:judge": "tsx scripts/rag-judge.mts"
   },
   "dependencies": {
     "@ai-sdk/deepseek": "^2.0.39",
-    "@ai-sdk/google": "^3.0.0",
     "@ai-sdk/groq": "^3.0.42",
-    "@ai-sdk/openai": "^3.0.72",
     "@ai-sdk/react": "^3.0.200",
     "@huggingface/transformers": "^3.7.0",
     "@react-three/drei": "^10.7.7",
@@ -6672,7 +7826,6 @@ export default function CopilotOverlay() {
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "@vercel/analytics": "^1.5.0",
-    "@vercel/otel": "^2.1.3",
     "@vercel/speed-insights": "^1.2.0",
     "ai": "^6.0.198",
     "clsx": "^2.1.1",

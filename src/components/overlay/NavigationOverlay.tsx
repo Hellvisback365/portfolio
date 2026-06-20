@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useLenis } from 'lenis/react';
-import { SECTIONS, type SectionId } from '@/store/useAppStore';
+import { SECTIONS, type SectionId, useAppStore } from '@/store/useAppStore';
 
 const LABELS: Record<SectionId, string> = {
   hero: 'Home',
@@ -25,6 +25,9 @@ export default function NavigationOverlay() {
   const offsets = useRef<number[]>([]);
   const ticking = useRef(false);
   const lenis = useLenis();
+  const language = useAppStore((s) => s.language);
+  const setLanguage = useAppStore((s) => s.setLanguage);
+  const isEn = language === 'en';
 
   const measure = useCallback(() => {
     offsets.current = SECTIONS.map((id) => {
@@ -95,6 +98,18 @@ export default function NavigationOverlay() {
           className="h-full bg-accent transition-[width] duration-150 ease-out"
           style={{ width: `${progress * 100}%` }}
         />
+      </div>
+
+      {/* Language Toggle */}
+      <div className="fixed top-5 right-5 z-[100] pointer-events-auto">
+        <button
+          onClick={() => setLanguage(isEn ? 'it' : 'en')}
+          className="glass-panel flex h-9 w-[4.5rem] items-center justify-between rounded-full p-1 text-[10px] font-bold uppercase tracking-widest text-white/50 transition-colors cursor-pointer"
+        >
+          <span className={`flex-1 text-center transition-colors ${!isEn ? 'text-white' : 'hover:text-white/80'}`}>IT</span>
+          <span className="h-full w-[1px] bg-white/20"></span>
+          <span className={`flex-1 text-center transition-colors ${isEn ? 'text-white' : 'hover:text-white/80'}`}>EN</span>
+        </button>
       </div>
 
       {/* Monogramma */}

@@ -4,14 +4,14 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
   generateObject,
+  generateText,
   stepCountIs,
   streamText,
-  tool,
-  type LanguageModel,
   type UIMessage,
 } from 'ai';
 import { z } from 'zod';
 import { getRetriever, type RetrievedChunk } from '@/lib/rag/retriever';
+import { globalRatelimit } from '@/lib/ratelimit';
 import { getProviders } from '@/lib/rag/providers';
 import { SECTIONS } from '@/store/useAppStore';
 
@@ -51,7 +51,6 @@ const bodySchema = z.object({
     .min(8)
     .max(1024)
     .nullish(),
-  contextChunks: z.array(z.unknown()).optional(),
 });
 
 const routerSchema = z.object({
@@ -61,9 +60,25 @@ const routerSchema = z.object({
   uiActionTarget: z.string().optional().describe('Se uiAction è navigateToSection usa una tra about, skills, projects, contact. Se showProject usa il nome del progetto.'),
 });
 
-type RouterDecision = z.infer<typeof routerSchema>;
+export type RouterDecision = z.infer<typeof routerSchema>;
 
 // ── Helpers ───────────────────────────────────────────────────────────
+function parseLLMJSON<T>(text: string, fallback: T): T {
+  try { return JSON.parse(text) as T; } catch (e) {}
+  try {
+    const blockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (blockMatch && blockMatch[1]) return JSON.parse(blockMatch[1].trim()) as T;
+  } catch (e) {}
+  try {
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+      return JSON.parse(text.substring(first, last + 1)) as T;
+    }
+  } catch (e) {}
+  return fallback;
+}
+
 function textOf(message: UIMessage): string {
   return (message.parts ?? [])
     .map((p) => (p.type === 'text' ? p.text : ''))
@@ -118,10 +133,7 @@ ${context}
 CONTATTI PUBBLICI (puoi condividerli liberamente)
 - Email: vitopiccolini@live.it
 - LinkedIn: https://www.linkedin.com/in/vitopiccolini/
-- GitHub: https://github.com/Hellvisback365
-
-FONTI
-${context}`;
+- GitHub: https://github.com/Hellvisback365`;
   return SYSTEM_PROMPT;
 }
 
@@ -129,12 +141,18 @@ ${context}`;
 
 // ── Route ─────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
+  const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+  const { success } = await globalRatelimit.limit(ip);
+  if (!success) {
+    return NextResponse.json({ error: 'Rate limit superato. Riprova più tardi.' }, { status: 429 });
+  }
+
   const providers = getProviders();
   if (!providers) {
     return NextResponse.json(
       {
         error:
-          'Copilot non configurato: aggiungi OPENROUTER_API_KEY o GROQ_API_KEY alle variabili d\'ambiente.',
+          'Copilot non configurato: aggiungi GROQ_API_KEY alle variabili d\'ambiente.',
       },
       { status: 503 },
     );
@@ -151,52 +169,62 @@ export async function POST(req: Request) {
 
   const messages = parsed.messages as UIMessage[];
   const queryVector = parsed.queryVector ?? null;
-  const contextChunks = parsed.contextChunks;
   const question = lastUserText(messages);
   const history = messages.slice(-HISTORY_WINDOW);
 
   const retriever = await getRetriever();
 
-  const routerPrompt = `Classifica l'ultimo messaggio dell'utente in una chat sul portfolio di Vito Piccolini.
-intent:
-- "smalltalk": saluti, ringraziamenti
-- "navigate": richieste di aprire sezioni
-- "portfolio": domande su progetti, skills, Vito
+  const routerPrompt = `Sei il router di sistema. Classifica l'intento dell'utente.
+Devi rispondere SOLO ED ESCLUSIVAMENTE con un JSON valido che rispetta questo schema:
+{
+  "intent": "portfolio" | "smalltalk",
+  "standalone": "La query riformulata senza contesto",
+  "uiAction": "navigateToSection" | "showProject" | "showSkillsRadar" | "none",
+  "uiActionTarget": "skills" | "projects" | "hero" | o il nome del progetto (se applicabile)
+}
 
-standalone: riscrivi l'ultimo messaggio come domanda autonoma.
+Regole per intent:
+- "smalltalk": saluti generici, chiacchiere.
+- "portfolio": qualsiasi domanda su Vito, competenze, progetti o carriera.
 
-uiAction: scegli un'azione UI per accompagnare la risposta.
-- "navigateToSection": se chiede chi è Vito, studi, contatti.
-- "showSkillsRadar": se chiede di competenze, linguaggi.
-- "showProject": se cita un progetto specifico.
-- "none": altrimenti.
+Regole per standalone:
+Riscrivi la domanda dell'utente in modo che sia comprensibile da sola (coreference resolution).
+
+Regole per uiAction:
+Devi SEMPRE pilotare il sito verso la sezione più pertinente per qualsiasi domanda sul portfolio. Usa "none" SOLO per lo smalltalk.
+- "showProject": se la domanda riguarda un progetto specifico (es. TerraNode). uiActionTarget = nome del progetto.
+- "showSkillsRadar": se la domanda riguarda linguaggi, tecnologie, stack o competenze.
+- "navigateToSection": per qualsiasi altra domanda. uiActionTarget DEVE ESSERE uno tra: "hero" (info generali, studio, chi è), "about" (percorso, località), "projects" (lista progetti generica), "contact" (contatti, email).
+- "none": solo se intent = smalltalk.
 
 CONVERSAZIONE:
 ${recentDialogue(history)}`;
 
   // Esecuzione parallela: Router (LLM) e Retrieval Lessicale (BM25)
-  const routerPromise = generateObject({
+  const routerPromise = generateText({
     model: providers.router,
-    schema: routerSchema,
     temperature: 0,
     prompt: routerPrompt,
     abortSignal: AbortSignal.timeout(ROUTER_TIMEOUT_MS),
-  }).catch((err) => {
+  }).catch((err: any) => {
     console.error('[Router] Fallito o andato in timeout:', err);
     return null;
   });
 
+  // Avvio la ricerca lessicale (BM25) in parallelo al router LLM
+  const lexPromise = retriever.lexicalSearch(question);
+
   let sources: RetrievedChunk[] = [];
   const routerRes = await routerPromise;
-  const routerState = routerRes?.object || { intent: 'portfolio', standalone: question, uiAction: 'none' };
+  
+  let routerState: RouterDecision = { intent: 'portfolio', standalone: question, uiAction: 'none' };
+  if (routerRes && routerRes.text) {
+    routerState = parseLLMJSON<RouterDecision>(routerRes.text, routerState);
+  }
 
   if (routerState.intent !== 'smalltalk') {
-    if (contextChunks && Array.isArray(contextChunks) && contextChunks.length > 0) {
-      sources = contextChunks as RetrievedChunk[];
-    } else {
-      const lexRank = await retriever.lexicalSearch(question);
-      sources = retriever.semanticAndFuse(lexRank, queryVector ?? null, TOP_K);
-    }
+    const lexRank = await lexPromise;
+    sources = retriever.semanticAndFuse(lexRank, queryVector ?? null, TOP_K);
   }
 
   const result = streamText({
@@ -204,10 +232,6 @@ ${recentDialogue(history)}`;
     system: buildSystemPrompt(sources),
     messages: await convertToModelMessages(history),
     temperature: 0.4,
-    experimental_telemetry: {
-      isEnabled: true,
-      functionId: 'copilot-rag',
-    },
     stopWhen: stepCountIs(1),
   });
 
@@ -237,7 +261,7 @@ ${recentDialogue(history)}`;
         writer.write({ type: 'text-start', id: actionId } as any);
         writer.write({
           type: 'text-delta',
-          delta: `__UI_ACTION__${actionPayload}__UI_ACTION__\n`,
+          delta: `\n\n__UI_ACTION__${actionPayload}__UI_ACTION__\n\n`,
           id: actionId,
         } as any);
         writer.write({ type: 'text-end', id: actionId } as any);

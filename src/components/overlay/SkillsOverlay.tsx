@@ -2,8 +2,12 @@
 
 import { motion } from 'framer-motion';
 import { capabilityTracks } from '@/data/skills';
+import { useAppStore } from '@/store/useAppStore';
 
 export default function SkillsOverlay() {
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
+
   // Extract tracks for easy radial placement
   const aiTrack = capabilityTracks[0];
   const webTrack = capabilityTracks[1];
@@ -45,7 +49,7 @@ export default function SkillsOverlay() {
             Skill Matrix
           </p>
           <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-wide drop-shadow-lg">
-            Capacità AI-first
+            {isEn ? 'AI-first Capabilities' : 'Capacità AI-first'}
           </h2>
         </motion.div>
 
@@ -63,7 +67,7 @@ export default function SkillsOverlay() {
             {aiTrack.title}
           </h3>
           <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
-            {aiTrack.description}
+            {isEn && typeof aiTrack.description !== 'string' ? aiTrack.description.en : (typeof aiTrack.description !== 'string' ? aiTrack.description.it : aiTrack.description)}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {aiTrack.stack.slice(0, 5).map(tool => (
@@ -86,7 +90,7 @@ export default function SkillsOverlay() {
             <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#60A5FA] shadow-[0_0_8px_#60A5FA]"></span>
           </h3>
           <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
-            {webTrack.description}
+            {isEn ? webTrack.description.en : webTrack.description.it}
           </p>
           <div className="flex flex-wrap gap-1.5 justify-end">
             {webTrack.stack.slice(0, 5).map(tool => (
@@ -109,7 +113,7 @@ export default function SkillsOverlay() {
             {devopsTrack.title}
           </h3>
           <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
-            {devopsTrack.description}
+            {isEn ? devopsTrack.description.en : devopsTrack.description.it}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {devopsTrack.stack.slice(0, 4).map(tool => (
@@ -132,7 +136,7 @@ export default function SkillsOverlay() {
             <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-white/40 shadow-[0_0_8px_rgba(255,255,255,0.4)]"></span>
           </h3>
           <p className="text-[0.55rem] md:text-xs text-white/60 mb-3 leading-relaxed hidden sm:block">
-            Strumenti core e padronanza linguistica per operare in team internazionali.
+            {isEn ? 'Core tools and language mastery to operate in international teams.' : 'Strumenti core e padronanza linguistica per operare in team internazionali.'}
           </p>
           <div className="flex flex-wrap gap-1.5 justify-end">
              <span className="text-[0.5rem] md:text-[0.55rem] border border-white/10 bg-white/5 backdrop-blur-sm rounded px-1.5 py-0.5 text-white/50">Git/GitHub</span>

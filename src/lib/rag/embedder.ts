@@ -59,12 +59,7 @@ function initWorker() {
           promise.resolve(vector);
           pendingPromises.delete(id);
         }
-      } else if (type === 'rerank_result') {
-        const promise = pendingPromises.get(id);
-        if (promise) {
-          promise.resolve(event.data.scores);
-          pendingPromises.delete(id);
-        }
+
       } else if (type === 'error') {
         console.warn('[embedder] Worker error:', error);
         if (id !== undefined && pendingPromises.has(id)) {
@@ -120,17 +115,3 @@ export async function embedQuery(text: string): Promise<number[] | null> {
   });
 }
 
-/**
- * Richiede il reranking di un array di documenti usando il Cross-Encoder.
- */
-export async function rerankPairs(pairs: { text: string; text_pair: string }[]): Promise<any[] | null> {
-  if (!worker || state !== 'ready') {
-    return null; // Fallback silently
-  }
-
-  return new Promise((resolve, reject) => {
-    const id = messageIdCounter++;
-    pendingPromises.set(id, { resolve, reject });
-    worker!.postMessage({ type: 'rerank', id, pairs });
-  });
-}

@@ -1,23 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Langfuse } from 'langfuse';
 import { z } from 'zod';
-import { Redis } from '@upstash/redis';
-import { Ratelimit } from '@upstash/ratelimit';
-
-const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-  ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL.replace(/^"|"$/g, '').trim(),
-      token: process.env.UPSTASH_REDIS_REST_TOKEN.replace(/^"|"$/g, '').trim(),
-    })
-  : null;
-
-const ratelimit = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(20, '1 m'),
-      analytics: true,
-    })
-  : null;
+import { feedbackRatelimit } from '@/lib/ratelimit';
 
 const langfuse = new Langfuse({
   publicKey: process.env.LANGFUSE_PUBLIC_KEY?.replace(/^"|"$/g, '').trim(),
@@ -32,12 +16,10 @@ const feedbackSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    if (ratelimit) {
-      const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
-      const { success } = await ratelimit.limit(ip);
-      if (!success) {
-        return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
-      }
+    const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+    const { success } = await feedbackRatelimit.limit(ip);
+    if (!success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
     }
 
     const body = await req.json();

@@ -59,7 +59,7 @@ Browser ──(testo + query-vector*)──▶ /api/chat (Node)
    │   multilingual-e5-small           │
    │   (Transformers.js, lazy,         ├─ Retrieval Semantico (Cosine Similarity con standalone question)
    │   ~30MB quantizzato, cache        │
-   │   del browser)                    ├─ Fusione RRF (k=60) + cap di diversità per documento
+   │   del browser)                    ├─ Fusione RRF diretta lato server
    │                                   ├─ streamText (Groq Llama-3.3-70B)
    ◀──(UIMessage stream + data-sources + UI action deterministica)──┘
 ```
@@ -70,6 +70,7 @@ Scelte e perché:
 - **Generazione: Groq free tier** (verificato a giugno 2026: `llama-3.3-70b-versatile` ~30 RPM/1.000 req/giorno; `llama-3.1-8b-instant` fino a ~14.400 req/giorno — perfetto per il router). Endpoint OpenAI-compatibile, latenze da LPU (centinaia di token/s): l'esperienza percepita è "istantanea".
 - **Nota EU importante:** il free tier dell'API Gemini, da ToS, non è utilizzabile per servire utenti in EU/EEA/UK/CH in produzione. Per questo Gemini è solo **fallback opzionale** dietro env var, e le embeddings runtime non dipendono da Google. Con il solo `GROQ_API_KEY` il sistema è completo e conforme.
 - **BM25 vero**, Okapi (k1=1.5, b=0.75), tokenizzazione accent-fold + stoplist IT/EN, ~80 righe senza dipendenze. L'indice si costruisce a cold start in <1 ms (corpus piccolo).
+- **Reranker escluso in prod**: Nonostante i vantaggi metrici (testati in locale), l'uso di un Cross-Encoder su Vercel Serverless causava cold-start estremi (3-10s) a causa di ONNX Runtime Node e del peso del bundle. Dato il corpus limitato (~18 chunk), la pipeline si limita al solo Hybrid (BM25 + Semantic) con risultati eccellenti.
 - **RRF corretta a livello di chunk** + cap di 2 chunk per documento (diversità tipo MMR-lite) → top-4 nel contesto con id citabili `[S1]…[S4]`.
 - **Storico ripristinato:** ultime 8 UIMessage convertite con `convertToModelMessages`; il router produce la *standalone question* per il retrieval, così i follow-up funzionano.
 - **AI SDK v6 nativo:** `inputSchema` nei tool, `createUIMessageStream` con data part `data-sources` (basta header base64), client `useChat` v3 con `parts` tipizzate. Niente `@ts-ignore`.

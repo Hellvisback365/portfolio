@@ -22,22 +22,6 @@ class PipelineSingleton {
   }
 }
 
-class RerankerSingleton {
-  static task = 'text-classification' as const;
-  static model = 'Xenova/ms-marco-MiniLM-L-6-v2';
-  static instance: any = null;
-
-  static async getInstance(progress_callback?: any) {
-    if (this.instance === null) {
-      this.instance = pipeline(this.task, this.model, {
-        dtype: 'q8',
-        progress_callback,
-      });
-    }
-    return this.instance;
-  }
-}
-
 // Ascolta i messaggi dal thread principale
 self.addEventListener('message', async (event) => {
   const { id, text, type } = event.data;
@@ -47,10 +31,7 @@ self.addEventListener('message', async (event) => {
       const p1 = PipelineSingleton.getInstance((x: any) => {
         self.postMessage({ type: 'progress', model: 'embedder', progress: x });
       });
-      const p2 = RerankerSingleton.getInstance((x: any) => {
-        self.postMessage({ type: 'progress', model: 'reranker', progress: x });
-      });
-      await Promise.all([p1, p2]);
+      await p1;
       self.postMessage({ type: 'ready', id });
       return;
     }
@@ -73,18 +54,6 @@ self.addEventListener('message', async (event) => {
       return;
     }
 
-    if (type === 'rerank') {
-      const reranker = await RerankerSingleton.getInstance();
-      const pairs = event.data.pairs; // Array of { text: query, text_pair: document }
-      const results = await reranker(pairs);
-      
-      self.postMessage({
-        type: 'rerank_result',
-        id,
-        scores: results,
-      });
-      return;
-    }
   } catch (error) {
     self.postMessage({
       type: 'error',

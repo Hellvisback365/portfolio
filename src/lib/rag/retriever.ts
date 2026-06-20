@@ -1,19 +1,5 @@
 import { Bm25Index } from './bm25';
 
-/**
- * Retrieval ibrido a livello di CHUNK (il vecchio stack deduplicava per
- * id di documento, collassando chunk distinti dello stesso doc):
- *
- *   BM25 (sempre) ─┐
- *                  ├─ RRF (k=60) ─ cap di diversità per documento ─ top-K
- *   cosine (se c'è ├
- *   il query vector)┘
- *
- * Il query vector arriva dal browser (Transformers.js, multilingual-e5-
- * small): nessuna API di embedding lato server, nessun rate limit.
- * Se manca, si lavora in BM25-only: degradazione progressiva, mai errore.
- */
-
 export interface RagChunk {
   id: string;
   docId: string;
@@ -48,19 +34,73 @@ function cosine(a: number[], b: number[]): number {
     na += a[i] * a[i];
     nb += b[i] * b[i];
   }
-  if (na === 0 || nb === 0) return 0;
-  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+  return (na === 0 || nb === 0) ? 0 : dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+function performVectorSearch(
+  queryVector: number[] | null,
+  hasVectors: boolean,
+  chunks: RagChunk[]
+): Map<string, number> {
+  const vecRank = new Map<string, number>();
+  if (!queryVector || !hasVectors) return vecRank;
+
+  const scored = chunks
+    .filter((c) => c.vec && c.vec.length > 0)
+    .map((c) => ({ id: c.id, score: cosine(queryVector, c.vec!) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 24);
+
+  scored.forEach((r, i) => vecRank.set(r.id, i + 1));
+  return vecRank;
+}
+
+function fuseResultsRRF(lexRank: Map<string, number>, vecRank: Map<string, number>): Array<{ id: string; score: number }> {
+  const ids = new Set([...lexRank.keys(), ...vecRank.keys()]);
+  const fused: Array<{ id: string; score: number }> = [];
+  
+  for (const id of ids) {
+    let score = 0;
+    const lr = lexRank.get(id);
+    const vr = vecRank.get(id);
+    if (lr) score += 1 / (RRF_K + lr);
+    if (vr) score += 1 / (RRF_K + vr);
+    fused.push({ id, score });
+  }
+  
+  return fused.sort((a, b) => b.score - a.score);
+}
+
+function applyDiversityCap(
+  fused: Array<{ id: string; score: number }>,
+  byId: Map<string, RagChunk>,
+  topK: number
+): RetrievedChunk[] {
+  const perDoc = new Map<string, number>();
+  const result: RetrievedChunk[] = [];
+  
+  for (const { id, score } of fused) {
+    const chunk = byId.get(id);
+    if (!chunk) continue;
+    
+    const used = perDoc.get(chunk.docId) ?? 0;
+    if (used >= MAX_PER_DOC) continue;
+    
+    perDoc.set(chunk.docId, used + 1);
+    result.push({ ...chunk, score });
+    if (result.length >= topK) break;
+  }
+  
+  return result;
 }
 
 export class HybridRetriever {
   private bm25: Bm25Index;
   private byId: Map<string, RagChunk>;
-  private cache = new Map<string, RetrievedChunk[]>(); // LRU exact-match
+  private cache = new Map<string, RetrievedChunk[]>();
   readonly hasVectors: boolean;
 
   constructor(private readonly chunks: RagChunk[]) {
-    // Titolo e tag entrano nel testo indicizzato: il lessico delle
-    // domande ("LACAM", "hackathon") spesso vive lì.
     this.bm25 = new Bm25Index(
       chunks.map((c) => ({
         id: c.id,
@@ -79,51 +119,24 @@ export class HybridRetriever {
   }
 
   semanticAndFuse(lexRank: Map<string, number>, queryVector: number[] | null, topK = 4): RetrievedChunk[] {
-    // ── Gamba semantica (solo se il client ha mandato il vettore
-    //    e l'indice è stato generato con le embeddings) ──
-    const vecRank = new Map<string, number>();
-    if (queryVector && this.hasVectors) {
-      const scored = this.chunks
-        .filter((c) => c.vec && c.vec.length > 0)
-        .map((c) => ({ id: c.id, score: cosine(queryVector, c.vec!) }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 24);
-      scored.forEach((r, i) => vecRank.set(r.id, i + 1));
-    }
+    const vecRank = performVectorSearch(queryVector, this.hasVectors, this.chunks);
+    const fused = fuseResultsRRF(lexRank, vecRank);
+    return applyDiversityCap(fused, this.byId, topK);
+  }
 
-    // ── Fusione RRF a livello di chunk ──
-    const ids = new Set([...lexRank.keys(), ...vecRank.keys()]);
-    const fused: Array<{ id: string; score: number }> = [];
-    for (const id of ids) {
-      let score = 0;
-      const lr = lexRank.get(id);
-      const vr = vecRank.get(id);
-      if (lr) score += 1 / (RRF_K + lr);
-      if (vr) score += 1 / (RRF_K + vr);
-      fused.push({ id, score });
+  private manageCacheLRU(cacheKey: string, result: RetrievedChunk[]) {
+    this.cache.set(cacheKey, result);
+    if (this.cache.size > 64) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest !== undefined) this.cache.delete(oldest);
     }
-    fused.sort((a, b) => b.score - a.score);
-
-    // ── Diversità: max 2 chunk per documento nel contesto finale ──
-    const perDoc = new Map<string, number>();
-    const result: RetrievedChunk[] = [];
-    for (const { id, score } of fused) {
-      const chunk = this.byId.get(id);
-      if (!chunk) continue;
-      const used = perDoc.get(chunk.docId) ?? 0;
-      if (used >= MAX_PER_DOC) continue;
-      perDoc.set(chunk.docId, used + 1);
-      result.push({ ...chunk, score });
-      if (result.length >= topK) break;
-    }
-    return result;
   }
 
   retrieve(query: string, queryVector: number[] | null, topK = 4): RetrievedChunk[] {
     const cacheKey = `${query.trim().toLowerCase()}|${queryVector ? 'v' : 't'}|${topK}`;
     const cached = this.cache.get(cacheKey);
+    
     if (cached) {
-      // LRU touch
       this.cache.delete(cacheKey);
       this.cache.set(cacheKey, cached);
       return cached;
@@ -132,22 +145,15 @@ export class HybridRetriever {
     const lexRank = this.lexicalSearch(query);
     const result = this.semanticAndFuse(lexRank, queryVector, topK);
 
-    this.cache.set(cacheKey, result);
-    if (this.cache.size > 64) {
-      const oldest = this.cache.keys().next().value;
-      if (oldest !== undefined) this.cache.delete(oldest);
-    }
+    this.manageCacheLRU(cacheKey, result);
     return result;
   }
 }
 
-// ── Singleton per istanza serverless ──
 let retriever: HybridRetriever | null = null;
 
 export async function getRetriever(): Promise<HybridRetriever> {
   if (retriever) return retriever;
-  // Import statico del JSON: Next lo bundla, niente fs a runtime
-  // (stesso accorgimento del vecchio vectorStore, mantenuto).
   const index = (await import('@/data/rag-index.json')) as unknown as {
     default?: RagIndexFile;
   } & RagIndexFile;

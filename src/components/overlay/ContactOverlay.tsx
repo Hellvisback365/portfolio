@@ -8,6 +8,7 @@ import {
   FaFilePdf, FaFileWord, FaFileImage, FaFileAlt, FaCloudUploadAlt,
 } from 'react-icons/fa';
 import useResponsive from '@/hooks/useResponsive';
+import { useAppStore } from '@/store/useAppStore';
 
 /* ───────────────────── Types ───────────────────── */
 interface ContactFormData {
@@ -71,31 +72,31 @@ const categories = [
   { id: 'other', label: 'Altro', emoji: '💬' },
 ];
 
-const contactDetails = [
+const getContactDetails = (isEn: boolean) => [
   {
     label: 'Email',
     value: 'vitopiccolini@live.it',
-    helper: 'Preferita per brief strutturati (risposta entro 24h).',
+    helper: isEn ? 'Preferred for structured briefs (response within 24h).' : 'Preferita per brief strutturati (risposta entro 24h).',
     icon: <FaEnvelope className="text-white" />,
     href: 'mailto:vitopiccolini@live.it',
   },
   {
-    label: 'Telefono',
+    label: isEn ? 'Phone' : 'Telefono',
     value: '+39 3937382774',
-    helper: 'Disponibile 9:00–18:00, anche WhatsApp.',
+    helper: isEn ? 'Available 9:00–18:00, WhatsApp too.' : 'Disponibile 9:00–18:00, anche WhatsApp.',
     icon: <FaPhoneAlt className="text-white" />,
     href: 'tel:+393937382774',
   },
   {
-    label: 'Base operativa',
+    label: isEn ? 'Location' : 'Base operativa',
     value: 'Bari · Remote EU',
-    helper: 'Patente B, trasferte in giornata su richiesta.',
+    helper: isEn ? 'Driving license B, day trips on request.' : 'Patente B, trasferte in giornata su richiesta.',
     icon: <FaMapMarkerAlt className="text-white" />,
   },
   {
-    label: 'Disponibilità',
-    value: 'Immediata - Giugno 2026',
-    helper: 'Stage curriculare LM-18 o collaborazione AI-first.',
+    label: isEn ? 'Availability' : 'Disponibilità',
+    value: isEn ? 'Immediate - June 2026' : 'Immediata - Giugno 2026',
+    helper: isEn ? 'LM-18 curricular internship or AI-first collaboration.' : 'Stage curriculare LM-18 o collaborazione AI-first.',
     icon: <FaCalendarAlt className="text-white" />,
   },
 ];
@@ -139,6 +140,10 @@ const errorInputClasses =
 /* ═══════════════════════════════════════════════════════ */
 export default function ContactOverlay() {
   const { isMobile } = useResponsive();
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
+  
+  const contactDetails = getContactDetails(isEn);
 
   const [formData, setFormData] = useState<ContactFormData>({
     name: '', email: '', subject: '', category: '', message: '',
@@ -155,17 +160,17 @@ export default function ContactOverlay() {
   /* ── Validation ── */
   const validateForm = (): boolean => {
     const e: FormErrors = {};
-    if (!formData.name.trim()) e.name = 'Il nome è richiesto';
+    if (!formData.name.trim()) e.name = isEn ? 'Name is required' : 'Il nome è richiesto';
     if (!formData.email.trim()) {
-      e.email = "L'email è richiesta";
+      e.email = isEn ? 'Email is required' : "L'email è richiesta";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      e.email = 'Formato email non valido';
+      e.email = isEn ? 'Invalid email format' : 'Formato email non valido';
     }
-    if (!formData.subject.trim()) e.subject = "L'oggetto è richiesto";
+    if (!formData.subject.trim()) e.subject = isEn ? 'Subject is required' : "L'oggetto è richiesto";
     if (!formData.message.trim()) {
-      e.message = 'Il messaggio è richiesto';
+      e.message = isEn ? 'Message is required' : 'Il messaggio è richiesto';
     } else if (formData.message.trim().length < 10) {
-      e.message = 'Almeno 10 caratteri';
+      e.message = isEn ? 'At least 10 characters' : 'Almeno 10 caratteri';
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -195,15 +200,15 @@ export default function ContactOverlay() {
 
     for (const file of list) {
       if (files.length + newFiles.length >= MAX_FILES) {
-        setFileError(`Massimo ${MAX_FILES} allegati.`);
+        setFileError(isEn ? `Max ${MAX_FILES} attachments.` : `Massimo ${MAX_FILES} allegati.`);
         break;
       }
       if (file.size > MAX_FILE_SIZE) {
-        setFileError(`"${file.name}" supera il limite di 10 MB.`);
+        setFileError(isEn ? `"${file.name}" exceeds the 10 MB limit.` : `"${file.name}" supera il limite di 10 MB.`);
         continue;
       }
       if (!isAllowedFile(file)) {
-        setFileError(`"${file.name}": tipo non supportato.`);
+        setFileError(isEn ? `"${file.name}": unsupported type.` : `"${file.name}": tipo non supportato.`);
         continue;
       }
       newFiles.push({ file, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
@@ -324,7 +329,7 @@ export default function ContactOverlay() {
       setFiles([]);
       setTimeout(() => setSubmitSuccess(false), 6000);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Si è verificato un errore');
+      setSubmitError(err instanceof Error ? err.message : (isEn ? 'An error occurred' : 'Si è verificato un errore'));
     } finally {
       setIsSubmitting(false);
     }
@@ -347,11 +352,10 @@ export default function ContactOverlay() {
           transition={{ duration: 0.5 }}
           className="text-center"
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-white/70">Contatto</p>
-          <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Contattami</h2>
+          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-white/70">{isEn ? 'Contact' : 'Contatto'}</p>
+          <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{isEn ? 'Contact Me' : 'Contattami'}</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/60">
-            Sto entrando nella Laurea Magistrale in Computer Science – AI (UniBa) e sono disponibile
-            per stage, R&D o progetti AI-first.
+            {isEn ? 'I am entering my Master\'s degree in Computer Science – AI (UniBa) and I am available for internships, R&D or AI-first projects.' : 'Sto entrando nella Laurea Magistrale in Computer Science – AI (UniBa) e sono disponibile per stage, R&D o progetti AI-first.'}
           </p>
         </motion.div>
 
@@ -405,8 +409,8 @@ export default function ContactOverlay() {
                   <FaCheck className="text-emerald-400 text-sm" />
                 </span>
                 <div>
-                  <p className="text-sm font-medium text-emerald-300">Messaggio inviato!</p>
-                  <p className="text-xs text-emerald-300/60">Ti risponderò al più presto.</p>
+                  <p className="text-sm font-medium text-emerald-300">{isEn ? 'Message sent!' : 'Messaggio inviato!'}</p>
+                  <p className="text-xs text-emerald-300/60">{isEn ? 'I will reply as soon as possible.' : 'Ti risponderò al più presto.'}</p>
                 </div>
               </motion.div>
             )}
@@ -436,7 +440,7 @@ export default function ContactOverlay() {
 
             {/* Category chips */}
             <div>
-              <p className="mb-2.5 text-xs font-medium text-white/60">Motivo del contatto</p>
+              <p className="mb-2.5 text-xs font-medium text-white/60">{isEn ? 'Reason for contact' : 'Motivo del contatto'}</p>
               <div className="flex flex-wrap gap-2">
                 {categories.map((cat) => (
                   <button
@@ -458,7 +462,7 @@ export default function ContactOverlay() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="contact-name" className="mb-1.5 block text-xs font-medium text-white/60">
-                  Nome *
+                  {isEn ? 'Name *' : 'Nome *'}
                 </label>
                 <input
                   type="text"
@@ -467,7 +471,7 @@ export default function ContactOverlay() {
                   value={formData.name}
                   onChange={handleChange}
                   className={`${inputClasses} ${errors.name ? errorInputClasses : ''}`}
-                  placeholder="Il tuo nome"
+                  placeholder={isEn ? 'Your name' : 'Il tuo nome'}
                   aria-required="true"
                   aria-invalid={Boolean(errors.name)}
                 />
@@ -484,7 +488,7 @@ export default function ContactOverlay() {
                   value={formData.email}
                   onChange={handleChange}
                   className={`${inputClasses} ${errors.email ? errorInputClasses : ''}`}
-                  placeholder="La tua email"
+                  placeholder={isEn ? 'Your email' : 'La tua email'}
                   aria-required="true"
                   aria-invalid={Boolean(errors.email)}
                 />
@@ -495,7 +499,7 @@ export default function ContactOverlay() {
             {/* Subject */}
             <div>
               <label htmlFor="contact-subject" className="mb-1.5 block text-xs font-medium text-white/60">
-                Oggetto *
+                {isEn ? 'Subject *' : 'Oggetto *'}
               </label>
               <input
                 type="text"
@@ -504,7 +508,7 @@ export default function ContactOverlay() {
                 value={formData.subject}
                 onChange={handleChange}
                 className={`${inputClasses} ${errors.subject ? errorInputClasses : ''}`}
-                placeholder="es. Proposta di collaborazione su progetto AI"
+                placeholder={isEn ? 'e.g. Collaboration proposal on AI project' : 'es. Proposta di collaborazione su progetto AI'}
                 aria-required="true"
                 aria-invalid={Boolean(errors.subject)}
               />
@@ -515,7 +519,7 @@ export default function ContactOverlay() {
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <label htmlFor="contact-message" className="text-xs font-medium text-white/60">
-                  Messaggio *
+                  {isEn ? 'Message *' : 'Messaggio *'}
                 </label>
                 <span className={`text-[0.6rem] tabular-nums ${charsLeft < 100 ? 'text-amber-400' : 'text-white/30'}`}>
                   {formData.message.length}/{MAX_MESSAGE_LENGTH}
@@ -528,7 +532,7 @@ export default function ContactOverlay() {
                 onChange={handleChange}
                 rows={isMobile ? 4 : 6}
                 className={`${inputClasses} resize-none ${errors.message ? errorInputClasses : ''}`}
-                placeholder="Descrivi il progetto, il ruolo, le tempistiche…"
+                placeholder={isEn ? 'Describe the project, role, timelines…' : 'Descrivi il progetto, il ruolo, le tempistiche…'}
                 aria-required="true"
                 aria-invalid={Boolean(errors.message)}
               />
@@ -539,7 +543,7 @@ export default function ContactOverlay() {
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs font-medium text-white/60">
-                  📎 Allegati
+                  📎 {isEn ? 'Attachments' : 'Allegati'}
                   <span className="ml-1.5 text-[0.6rem] text-white/30">
                     ({files.length}/{MAX_FILES} · max 10 MB)
                   </span>
@@ -550,7 +554,7 @@ export default function ContactOverlay() {
                     onClick={() => fileInputRef.current?.click()}
                     className="text-[0.65rem] font-medium text-[var(--color-accent-soft)] transition-colors hover:text-[var(--color-accent)]"
                   >
-                    + Sfoglia
+                    + {isEn ? 'Browse' : 'Sfoglia'}
                   </button>
                 )}
               </div>
@@ -578,10 +582,10 @@ export default function ContactOverlay() {
                 >
                   <FaCloudUploadAlt className={`mb-2 text-xl ${isDragging ? 'text-[var(--color-accent-soft)]' : 'text-white/20'}`} />
                   <p className="text-xs text-white/40">
-                    {isDragging ? 'Rilascia qui' : 'Trascina file o clicca per sfogliare'}
+                    {isDragging ? (isEn ? 'Drop here' : 'Rilascia qui') : (isEn ? 'Drag files or click to browse' : 'Trascina file o clicca per sfogliare')}
                   </p>
                   <p className="mt-1 text-[0.6rem] text-white/20">
-                    PDF, Office, Markdown, Media, JSON, Archivi — max 10 MB
+                    {isEn ? 'PDF, Office, Markdown, Media, JSON, Archives — max 10 MB' : 'PDF, Office, Markdown, Media, JSON, Archivi — max 10 MB'}
                   </p>
                 </div>
               )}
@@ -631,7 +635,7 @@ export default function ContactOverlay() {
               {/* Total file size indicator */}
               {files.length > 0 && (
                 <p className="mt-1.5 text-[0.6rem] text-white/25">
-                  Totale: {formatFileSize(totalFileSize)}
+                  {isEn ? 'Total:' : 'Totale:'} {formatFileSize(totalFileSize)}
                 </p>
               )}
             </div>
@@ -642,7 +646,7 @@ export default function ContactOverlay() {
             {/* Submit */}
             <div className="flex items-center justify-between gap-4">
               <p className="hidden text-[0.6rem] text-white/25 sm:block">
-                I tuoi dati non saranno condivisi con terzi.
+                {isEn ? 'Your data will not be shared with third parties.' : 'I tuoi dati non saranno condivisi con terzi.'}
               </p>
               <button
                 type="submit"
@@ -655,12 +659,12 @@ export default function ContactOverlay() {
                 {isSubmitting ? (
                   <>
                     <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-                    Invio in corso…
+                    {isEn ? 'Sending...' : 'Invio in corso…'}
                   </>
                 ) : (
                   <>
                     <FaEnvelope className="text-[0.65rem] transition-transform duration-300 group-hover:-translate-y-0.5" />
-                    Invia Messaggio
+                    {isEn ? 'Send Message' : 'Invia Messaggio'}
                   </>
                 )}
               </button>

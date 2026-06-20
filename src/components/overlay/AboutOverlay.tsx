@@ -13,15 +13,16 @@ import {
   FaEnvelope,
 } from 'react-icons/fa';
 import Badge from '@/components/ui/Badge';
+import { useAppStore } from '@/store/useAppStore';
 
 import { personalInfo, formationItems, timelineMilestones } from '@/data/about';
 
 const focusPills = personalInfo.focusPills;
 
-const interestItems = [
-  { label: 'Recommender Systems & Multi-Agent LLM', icon: <FaBrain className="text-[white]" /> },
-  { label: 'NLP, Transformer & Explainability', icon: <FaLanguage className="text-[white]" /> },
-  { label: 'Workflow Automation (n8n · API Integration)', icon: <FaShieldAlt className="text-[white]" /> },
+const getInterestItems = (isEn: boolean) => [
+  { label: isEn ? 'Recommender Systems & Multi-Agent LLM' : 'Recommender Systems & Multi-Agent LLM', icon: <FaBrain className="text-[white]" /> },
+  { label: isEn ? 'NLP, Transformer & Explainability' : 'NLP, Transformer & Explainability', icon: <FaLanguage className="text-[white]" /> },
+  { label: isEn ? 'Workflow Automation (n8n · API Integration)' : 'Workflow Automation (n8n · API Integration)', icon: <FaShieldAlt className="text-[white]" /> },
 ];
 
 const socialLinks = [
@@ -39,21 +40,26 @@ const fadeIn = {
   }),
 };
 
-const portraitImages = [
-  { id: 'me', src: '/me.jpg', label: 'Laurea triennale · Bari 2025', position: 'center 18%' },
+const getPortraitImages = (isEn: boolean) => [
+  { id: 'me', src: '/me.jpg', label: isEn ? 'Bachelor\'s degree · Bari 2025' : 'Laurea triennale · Bari 2025', position: 'center 18%' },
   { id: 'next', src: '/next-pulse-polaroid.jpg', label: 'Next Pulse · Chieti 2026', position: 'center' },
-  { id: 'leonardo', src: '/leonardo-hackathon.jpg', label: 'Hackathon Leonardo · Milano', position: 'center' },
+  { id: 'leonardo', src: '/leonardo-hackathon.jpg', label: isEn ? 'Leonardo Hackathon · Milan' : 'Hackathon Leonardo · Milano', position: 'center' },
 ];
 
 export default function AboutOverlay() {
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
+  const language = useAppStore((s) => s.language);
+  const isEn = language === 'en';
+
+  const portraitImages = getPortraitImages(isEn);
+  const interestItems = getInterestItems(isEn);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImgIndex((prev) => (prev + 1) % portraitImages.length);
     }, 6000); // Cambia immagine ogni 6 secondi
     return () => clearInterval(interval);
-  }, []);
+  }, [portraitImages.length]);
 
   return (
     <div className="flex min-h-screen w-screen items-start justify-center px-4 py-20 sm:px-8">
@@ -66,12 +72,12 @@ export default function AboutOverlay() {
           custom={0}
           variants={fadeIn}
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">Chi sono</p>
+          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">{isEn ? 'About me' : 'Chi sono'}</p>
           <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
             {personalInfo.role}
           </h2>
           <p className="mt-3 max-w-2xl text-sm text-white/60">
-            {personalInfo.shortBio}
+            {isEn ? personalInfo.shortBio.en : personalInfo.shortBio.it}
           </p>
         </motion.div>
 
@@ -163,7 +169,7 @@ export default function AboutOverlay() {
               <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">AI Developer</p>
               <h3 className="mt-1 text-xl font-semibold text-white">{personalInfo.name}</h3>
               <p className="mt-1 text-xs text-white/60">
-                {personalInfo.shortBio}
+                {isEn ? personalInfo.shortBio.en : personalInfo.shortBio.it}
               </p>
               <div className="mt-3 flex gap-2">
                 {socialLinks.map((social) => (
@@ -193,10 +199,10 @@ export default function AboutOverlay() {
               className="glass-holographic rounded-2xl p-5"
             >
               <div className="space-y-3 text-sm text-white/70">
-                <p>{personalInfo.longBio}</p>
+                <p>{isEn ? personalInfo.longBio.en : personalInfo.longBio.it}</p>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                {focusPills.map((pill) => (
+                {(isEn ? personalInfo.focusPills.en : personalInfo.focusPills.it).map((pill) => (
                   <Badge key={pill} variant="outline" className="text-[0.6rem]">
                     {pill}
                   </Badge>
@@ -214,17 +220,17 @@ export default function AboutOverlay() {
                 variants={fadeIn}
                 className="glass-holographic rounded-2xl p-5"
               >
-                <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">Formazione</p>
+                <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">{isEn ? 'Education' : 'Formazione'}</p>
                 <div className="mt-3 space-y-3">
                   {formationItems.map((item) => (
                     <div
-                      key={item.label}
+                      key={isEn ? item.label.en : item.label.it}
                       className="flex items-start gap-2 rounded-xl border border-white/8 bg-white/5 p-3"
                     >
                       <FaGraduationCap className="mt-0.5 shrink-0 text-[white] text-sm" />
                       <div>
-                        <p className="text-xs font-semibold text-white">{item.label}</p>
-                        <p className="text-[0.65rem] text-white/60">{item.detail}</p>
+                        <p className="text-xs font-semibold text-white">{isEn ? item.label.en : item.label.it}</p>
+                        <p className="text-[0.65rem] text-white/60">{isEn ? item.detail.en : item.detail.it}</p>
                       </div>
                     </div>
                   ))}
@@ -240,7 +246,7 @@ export default function AboutOverlay() {
                 variants={fadeIn}
                 className="glass-holographic rounded-2xl p-5"
               >
-                <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">Interessi</p>
+                <p className="text-[0.6rem] uppercase tracking-[0.4em] text-white/50">{isEn ? 'Interests' : 'Interessi'}</p>
                 <div className="mt-3 space-y-2">
                   {interestItems.map((item) => (
                     <div
@@ -265,8 +271,8 @@ export default function AboutOverlay() {
           custom={5}
           variants={fadeIn}
         >
-          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">Percorso</p>
-          <h3 className="mt-2 text-2xl font-semibold text-white">Ricerca, challenge e delivery</h3>
+          <p className="text-[0.65rem] uppercase tracking-[0.5em] text-[white]/70">{isEn ? 'Journey' : 'Percorso'}</p>
+          <h3 className="mt-2 text-2xl font-semibold text-white">{isEn ? 'Research, challenges and delivery' : 'Ricerca, challenge e delivery'}</h3>
         </motion.div>
 
         <div className="relative">
@@ -288,16 +294,20 @@ export default function AboutOverlay() {
                 <div className="glass-holographic rounded-2xl p-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline" className="text-[0.6rem]">
-                      {item.date}
+                      {isEn && typeof item.date !== 'string' ? item.date.en : (typeof item.date !== 'string' ? item.date.it : item.date)}
                     </Badge>
                     <span className="text-[0.6rem] uppercase tracking-[0.3em] text-white/40">
-                      {item.location}
+                      {isEn && typeof item.location !== 'string' ? (item.location as any).en : (typeof item.location !== 'string' ? (item.location as any).it : item.location)}
                     </span>
                   </div>
-                  <h4 className="mt-3 text-lg font-semibold text-white">{item.title}</h4>
-                  <p className="mt-1 text-xs text-white/70">{item.description}</p>
+                  <h4 className="mt-3 text-lg font-semibold text-white">
+                    {isEn && typeof item.title !== 'string' ? (item.title as any).en : (typeof item.title !== 'string' ? (item.title as any).it : item.title)}
+                  </h4>
+                  <p className="mt-1 text-xs text-white/70">
+                    {isEn ? item.description.en : item.description.it}
+                  </p>
                   <ul className="mt-3 space-y-1.5">
-                    {item.highlights.map((h) => (
+                    {(isEn ? item.highlights.en : item.highlights.it).map((h) => (
                       <li key={h} className="flex items-start gap-2 text-xs text-white/60">
                         <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-[white]" />
                         {h}
