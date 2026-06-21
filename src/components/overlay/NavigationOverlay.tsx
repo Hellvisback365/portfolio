@@ -27,6 +27,7 @@ export default function NavigationOverlay() {
   const lenis = useLenis();
   const language = useAppStore((s) => s.language);
   const setLanguage = useAppStore((s) => s.setLanguage);
+  const copilotOpen = useAppStore((s) => s.copilotOpen);
   const isEn = language === 'en';
 
   const measure = useCallback(() => {
@@ -101,7 +102,11 @@ export default function NavigationOverlay() {
       </div>
 
       {/* Language Toggle */}
-      <div className="fixed top-5 right-5 z-[100] pointer-events-auto">
+      <div 
+        className={`fixed top-5 right-5 z-[100] transition-all duration-300 ${
+          copilotOpen ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0 pointer-events-auto'
+        }`}
+      >
         <button
           onClick={() => setLanguage(isEn ? 'it' : 'en')}
           className="glass-panel flex h-9 w-[4.5rem] items-center justify-between rounded-full p-1 text-[10px] font-bold uppercase tracking-widest text-white/50 transition-colors cursor-pointer"

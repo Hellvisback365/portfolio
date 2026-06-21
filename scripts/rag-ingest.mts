@@ -83,63 +83,79 @@ async function tryLoadEmbedder() {
   }
 }
 
+function getStr(field: any): string {
+  if (!field) return '';
+  if (typeof field === 'string') return field;
+  if (field.it) return field.it;
+  if (field.en) return field.en;
+  return String(field);
+}
+
 /** Trasforma un progetto del sito in un documento RAG */
 function projectToDocument(p: any): ProfileDocument {
   const metrics = p.metrics
-    .map((m: { label: string; value: string; caption: string }) => `${m.label}: ${m.value} (${m.caption})`)
+    .map((m: any) => `${getStr(m.label)}: ${getStr(m.value)} (${getStr(m.caption)})`)
     .join('; ');
   const links = p.links?.length
-    ? ` Link: ${p.links.map((l: { label: string; href: string }) => `${l.label} ${l.href}`).join(', ')}.`
+    ? ` Link: ${p.links.map((l: any) => `${l.label} ${l.href}`).join(', ')}.`
     : '';
+  
+  const stack = p.stack?.map(getStr).join(', ') || '';
+  const tags = p.tags?.map(getStr) || [];
+
   const body =
-    `${p.subtitle}. ${p.longDescription} ` +
-    `Ruolo di Vito: ${p.role}. Periodo: ${p.timeline}. ` +
-    `Stack: ${p.stack.join(', ')}. ` +
+    `${getStr(p.subtitle)}. ${getStr(p.longDescription)} ` +
+    `Ruolo di Vito: ${getStr(p.role)}. Periodo: ${getStr(p.timeline)}. ` +
+    `Stack: ${stack}. ` +
     `Risultati: ${metrics}.${links}`;
   return {
     id: `project-${p.id}`,
     category: 'project',
-    title: p.title,
-    summary: p.description,
+    title: getStr(p.title),
+    summary: getStr(p.description),
     body,
-    tags: p.tags,
+    tags,
     updatedAt: new Date().toISOString(),
   };
 }
 
 /** Trasforma le skills in documenti RAG */
 function trackToDocument(t: any): ProfileDocument {
+  const stack = t.stack?.map(getStr) || [];
+  const focusAreas = t.focusAreas?.map(getStr) || [];
   return {
-    id: `skill-track-${t.title.replace(/\W+/g, '-').toLowerCase()}`,
+    id: `skill-track-${getStr(t.title).replace(/\W+/g, '-').toLowerCase()}`,
     category: 'skills',
-    title: `Competenze: ${t.title}`,
-    summary: t.description,
-    body: `Aree di focus: ${t.focusAreas.join(', ')}. Stack tecnologico: ${t.stack.join(', ')}.`,
-    tags: t.stack,
+    title: `Competenze: ${getStr(t.title)}`,
+    summary: getStr(t.description),
+    body: `Aree di focus: ${focusAreas.join(', ')}. Stack tecnologico: ${stack.join(', ')}.`,
+    tags: stack,
     updatedAt: new Date().toISOString(),
   };
 }
 
 function toolHighlightToDocument(t: any): ProfileDocument {
+  const tools = t.tools?.map(getStr) || [];
   return {
-    id: `tool-${t.area.replace(/\W+/g, '-').toLowerCase()}`,
+    id: `tool-${getStr(t.area).replace(/\W+/g, '-').toLowerCase()}`,
     category: 'tools',
-    title: `Strumenti e Tecnologie: ${t.area} (${t.category})`,
-    summary: t.description,
-    body: `Strumenti utilizzati: ${t.tools.join(', ')}.`,
-    tags: t.tools,
+    title: `Strumenti e Tecnologie: ${getStr(t.area)} (${getStr(t.category)})`,
+    summary: getStr(t.description),
+    body: `Strumenti utilizzati: ${tools.join(', ')}.`,
+    tags: tools,
     updatedAt: new Date().toISOString(),
   };
 }
 
 function languageToDocument(l: any): ProfileDocument {
+  const langName = getStr(l.name);
   return {
-    id: `lang-${l.name.toLowerCase()}`,
+    id: `lang-${langName.toLowerCase()}`,
     category: 'languages',
-    title: `Lingua: ${l.name}`,
-    summary: `Livello: ${l.level}`,
-    body: l.description,
-    tags: ['language', l.name.toLowerCase()],
+    title: `Lingua: ${langName}`,
+    summary: `Livello: ${getStr(l.level)}`,
+    body: getStr(l.description),
+    tags: ['language', langName.toLowerCase()],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -153,9 +169,9 @@ function aboutToDocuments(personalInfo: any, formationItems: any[], timelineMile
     id: 'bio-vision',
     category: 'bio',
     title: 'Profilo professionale e Informazioni Personali',
-    summary: personalInfo.shortBio,
-    body: `Nome: ${personalInfo.name}. Ruolo: ${personalInfo.role}. Vive a: ${personalInfo.location}. ${personalInfo.longBio}`,
-    tags: ['bio', 'vision', 'location'],
+    summary: typeof personalInfo.shortBio === 'string' ? personalInfo.shortBio : personalInfo.shortBio.it,
+    body: `Nome: ${personalInfo.name}. Data di nascita: ${personalInfo.birthDate}. Luogo di nascita: ${personalInfo.birthPlace}. Ruolo: ${personalInfo.role}. Disponibilità lavorativa: ${typeof personalInfo.jobStatus === 'string' ? personalInfo.jobStatus : personalInfo.jobStatus.it}. Vive a: ${personalInfo.location}. ${typeof personalInfo.longBio === 'string' ? personalInfo.longBio : personalInfo.longBio.it}`,
+    tags: ['bio', 'vision', 'location', 'birth', 'job'],
     updatedAt: new Date().toISOString(),
   });
 
@@ -165,19 +181,20 @@ function aboutToDocuments(personalInfo: any, formationItems: any[], timelineMile
     category: 'education',
     title: 'Percorso formativo e Istruzione',
     summary: 'Laurea in Informatica, Laurea Magistrale in AI, Diploma (Maturità).',
-    body: formationItems.map((f: any) => `${f.label} (${f.detail})`).join('. '),
+    body: formationItems.map((f: any) => `${getStr(f.label)} (${getStr(f.detail)})`).join('. '),
     tags: ['education', 'degree', 'diploma', 'maturità', 'scuola', 'voto'],
     updatedAt: new Date().toISOString(),
   });
 
   // Timeline
   timelineMilestones.forEach((m: any) => {
+    const highlights = m.highlights?.it?.join(' ') || m.highlights?.join(' ') || '';
     docs.push({
       id: `timeline-${m.id}`,
       category: 'experience',
-      title: `Esperienza: ${m.title}`,
-      summary: m.description,
-      body: `Data: ${m.date}. Luogo: ${m.location}. Dettagli: ${m.highlights.join(' ')}`,
+      title: `Esperienza: ${getStr(m.title)}`,
+      summary: getStr(m.description),
+      body: `Data: ${getStr(m.date)}. Luogo: ${getStr(m.location)}. Dettagli: ${highlights}`,
       tags: ['experience', 'work', 'hackathon'],
       updatedAt: new Date().toISOString(),
     });

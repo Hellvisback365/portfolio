@@ -2,6 +2,12 @@ export const personalInfo = {
   name: 'Vito Piccolini',
   role: 'AI Developer / Studente in Computer Science – AI',
   location: 'Noicattaro, Provincia di Bari (Italia)',
+  birthDate: '12/06/1997',
+  birthPlace: 'Mola di Bari',
+  jobStatus: {
+    it: 'Disponibilità immediata (nessun tempo di preavviso richiesto) e per stage curriculare LM-18 (da Giugno 2026) o per collaborazione AI-first come AI Developer / Software Engineer.',
+    en: 'Immediate availability (no notice period required) and for LM-18 curricular internship (from June 2026) or AI-first collaboration as an AI Developer / Software Engineer.'
+  },
   shortBio: {
     it: 'Sviluppo sistemi di raccomandazione LLM-driven, architetture multi-agente e automazioni workflow con Python e LangGraph.',
     en: 'I develop LLM-driven recommendation systems, multi-agent architectures, and workflow automations with Python and LangGraph.'
