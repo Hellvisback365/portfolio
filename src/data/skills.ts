@@ -53,7 +53,7 @@ export const capabilityTracks: CapabilityTrack[] = [
       it: 'Sviluppo di sistemi di raccomandazione LLM-driven, architetture multi-agente e soluzioni NLP con focus su explainability e RAG.',
       en: 'Development of LLM-driven recommendation systems, multi-agent architectures, and NLP solutions with a focus on explainability and RAG.',
     },
-    focusAreas: ['Recommender Systems', 'Multi-agent orchestration', 'Hybrid RAG', 'Explainability'],
+    focusAreas: ['Recommender Systems', 'Multi-agent orchestration', 'Hybrid RAG', 'Explainability', 'Information Retrieval', 'Multi-Objective Optimization'],
     stack: ['LangGraph', 'LangChain', 'LLMs', 'Python', 'FAISS', 'BM25'],
   },
   {
@@ -130,7 +130,7 @@ export const toolHighlights: ToolHighlight[] = [
       it: 'Framework e librerie per machine learning, LLM e sistemi di raccomandazione.',
       en: 'Frameworks and libraries for machine learning, LLMs, and recommendation systems.',
     },
-    tools: ['LangGraph', 'LangChain', 'FAISS', 'BM25', 'Pandas', 'NumPy', 'Jupyter'],
+    tools: ['LangGraph', 'LangChain', 'FAISS', 'BM25', 'Pydantic', 'Pandas', 'NumPy', 'Jupyter'],
   },
   {
     area: 'Web & Database',
@@ -148,7 +148,7 @@ export const toolHighlights: ToolHighlight[] = [
       it: 'Strumenti per automazione, version control e metodologie di sviluppo.',
       en: 'Tools for automation, version control, and development methodologies.',
     },
-    tools: ['n8n', 'GitHub', 'npm/yarn', 'VS Code', 'Eclipse', 'Agile/Scrum'],
+    tools: ['n8n', 'GitHub', 'npm/yarn', 'LaTeX', 'Overleaf', 'VS Code', 'Eclipse', 'Agile/Scrum'],
   },
 ];
 

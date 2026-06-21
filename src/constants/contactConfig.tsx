@@ -58,7 +58,7 @@ export const getContactDetails = (isEn: boolean) => [
   {
     label: isEn ? 'Location' : 'Base operativa',
     value: 'Bari · Remote EU',
-    helper: isEn ? 'Driving license B, day trips on request.' : 'Patente B, trasferte in giornata su richiesta.',
+    helper: isEn ? 'Driving license A1, B. Day trips on request.' : 'Patente A1, B. Trasferte in giornata su richiesta.',
     icon: <FaMapMarkerAlt className="text-white" />,
   },
   {

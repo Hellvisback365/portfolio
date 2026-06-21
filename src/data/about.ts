@@ -1,6 +1,7 @@
 export const personalInfo = {
   name: 'Vito Piccolini',
   role: 'AI Developer / Studente in Computer Science – AI',
+  nationality: 'Italiana',
   location: 'Noicattaro, Provincia di Bari (Italia)',
   birthDate: '12/06/1997',
   birthPlace: 'Mola di Bari',
@@ -124,8 +125,8 @@ export const timelineMilestones = [
     title: { it: 'Tirocinio Curriculare · LACAM-SWAP', en: 'Curricular Internship · LACAM-SWAP' },
     location: { it: 'Università di Bari', en: 'University of Bari' },
     description: {
-      it: 'Progetto di tesi: Orchestrazione di Agenti LLM per l\'Ottimizzazione Multi-Metrica nei Sistemi di Raccomandazione.',
-      en: 'Thesis project: Orchestration of LLM Agents for Multi-Metric Optimization in Recommendation Systems.',
+      it: 'Progetto di tesi: Orchestrazione di Agenti LLM per l\'Ottimizzazione Multi-Metrica nei Sistemi di Raccomandazione (Relatore: Prof. Cataldo Musto, Correlatore: Dott. Alessandro Petruzzelli).',
+      en: 'Thesis project: Orchestration of LLM Agents for Multi-Metric Optimization in Recommendation Systems (Advisor: Prof. Cataldo Musto, Co-advisor: Dott. Alessandro Petruzzelli).',
     },
     highlights: {
       it: [
@@ -164,17 +165,17 @@ export const timelineMilestones = [
     title: { it: 'Operaio Generico e Retail', en: 'General Worker and Retail' },
     location: 'Bari',
     description: {
-      it: 'Esperienza lavorativa in settori trasversali (edilizia, agricoltura, reception, gestione negozio).',
-      en: 'Work experience in transversal sectors (construction, agriculture, reception, shop management).',
+      it: 'Esperienza lavorativa trasversale in settori sfidanti (edilizia/cantieri, agricoltura, fabbrica, reception alberghiera, steward eventi, gestione di negozio cosmetico) prima della scelta consapevole di intraprendere il percorso in Informatica.',
+      en: 'Transversal work experience in challenging sectors (construction, agriculture, factory, hotel reception, event steward, cosmetic store management) before making the conscious choice to embark on the Computer Science path.',
     },
     highlights: {
       it: [
-        '6 anni di esperienza prima di intraprendere il percorso in Informatica.',
-        'Forte focus su resilienza, problem-solving, e capacità di adattamento in team.',
+        '6 anni di esperienza pratica maturata prima di iscriversi in Informatica.',
+        'Forte focus su resilienza, etica del lavoro, problem-solving e capacità di adattamento rapido in team.',
       ],
       en: [
-        '6 years of experience before embarking on the Computer Science path.',
-        'Strong focus on resilience, problem-solving, and adaptability in teams.',
+        '6 years of practical experience gained before enrolling in Computer Science.',
+        'Strong focus on resilience, work ethic, problem-solving, and quick adaptability in teams.',
       ],
     },
   },

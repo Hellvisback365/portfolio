@@ -170,8 +170,8 @@ function aboutToDocuments(personalInfo: any, formationItems: any[], timelineMile
     category: 'bio',
     title: 'Profilo professionale e Informazioni Personali',
     summary: typeof personalInfo.shortBio === 'string' ? personalInfo.shortBio : personalInfo.shortBio.it,
-    body: `Nome: ${personalInfo.name}. Data di nascita: ${personalInfo.birthDate}. Luogo di nascita: ${personalInfo.birthPlace}. Ruolo: ${personalInfo.role}. Disponibilità lavorativa: ${typeof personalInfo.jobStatus === 'string' ? personalInfo.jobStatus : personalInfo.jobStatus.it}. Vive a: ${personalInfo.location}. ${typeof personalInfo.longBio === 'string' ? personalInfo.longBio : personalInfo.longBio.it}`,
-    tags: ['bio', 'vision', 'location', 'birth', 'job'],
+    body: `Nome: ${personalInfo.name}. Nazionalità: ${getStr(personalInfo.nationality)}. Data di nascita: ${personalInfo.birthDate}. Luogo di nascita: ${personalInfo.birthPlace}. Ruolo: ${personalInfo.role}. Disponibilità lavorativa: ${typeof personalInfo.jobStatus === 'string' ? personalInfo.jobStatus : personalInfo.jobStatus.it}. Vive a: ${personalInfo.location}. ${typeof personalInfo.longBio === 'string' ? personalInfo.longBio : personalInfo.longBio.it}`,
+    tags: ['bio', 'vision', 'location', 'birth', 'job', 'nationality'],
     updatedAt: new Date().toISOString(),
   });
 

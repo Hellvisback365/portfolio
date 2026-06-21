@@ -130,12 +130,14 @@ export const projects: ProjectData[] = [
     },
     image: '/SWAP.jpg',
     longDescription: {
-      it: 'Progetto di tesi sviluppato durante il tirocinio curriculare (marzo–giugno 2025) presso il laboratorio LACAM-SWAP dell\'Università di Bari. '
-        + 'Ho implementato un\'architettura multi-agente basata su LLM (Llama 3.2 3B Instruct), orchestrata con LangGraph, che coordina agenti specializzati '
-        + 'su precisione e copertura del catalogo tramite un agente aggregatore. L\'architettura include anche un sistema RAG ibrido (BM25 + FAISS).',
-      en: 'Thesis project developed during the curricular internship (March–June 2025) at the LACAM-SWAP lab, University of Bari. '
-        + 'I implemented an LLM-based multi-agent architecture (Llama 3.2 3B Instruct), orchestrated with LangGraph, which coordinates specialized agents '
-        + 'for precision and catalog coverage via an aggregator agent. The architecture also includes a hybrid RAG system (BM25 + FAISS).',
+      it: 'Progetto di tesi in Linguaggi di Programmazione sviluppato durante il tirocinio curriculare (marzo–giugno 2025) presso il laboratorio LACAM-SWAP dell\'Università di Bari (Relatore: Prof. Cataldo Musto | Correlatore: Dott. Alessandro Petruzzelli). '
+        + 'Ho implementato un\'architettura multi-agente basata su LLM (Llama 3.2 3B Instruct via OpenRouter, temperatura 0.2), orchestrata con LangGraph. L\'architettura '
+        + 'coordina agenti specializzati (Precision-Agent, Coverage-Agent) tramite un Aggregated-Agent. È incluso un sistema RAG ibrido (BM25 + FAISS) valutato su '
+        + 'metriche multiple: Precision@K, Recall@K, Coverage e AvgPopularity@K.',
+      en: 'Thesis project in Programming Languages developed during the curricular internship (March–June 2025) at the LACAM-SWAP lab, University of Bari (Advisor: Prof. Cataldo Musto | Co-advisor: Dott. Alessandro Petruzzelli). '
+        + 'I implemented an LLM-based multi-agent architecture (Llama 3.2 3B Instruct via OpenRouter, temperature 0.2), orchestrated with LangGraph. The architecture '
+        + 'coordinates specialized agents (Precision-Agent, Coverage-Agent) via an Aggregated-Agent. It includes a hybrid RAG system (BM25 + FAISS) evaluated on '
+        + 'multiple metrics: Precision@K, Recall@K, Coverage and AvgPopularity@K.',
     },
     tags: ['LangGraph', 'Multi-Agent', 'Recommender Systems', 'RAG', 'Thesis'],
     timeline: { it: 'Marzo–Giugno 2025 · 3 mesi', en: 'March–June 2025 · 3 months' },
@@ -143,9 +145,9 @@ export const projects: ProjectData[] = [
     stack: ['LangGraph', 'Python', 'Llama 3.2', 'FAISS', 'BM25'],
     pillars: ['Precision & Coverage Agents', 'Hybrid RAG', 'Aggregated-Agent', 'Llama 3.2'],
     metrics: [
-      { label: { it: 'Novità', en: 'Novelty' }, value: '+12%', caption: { it: 'Miglioramento novità del catalogo raccomandato.', en: 'Improvement in recommended catalog novelty.' } },
+      { label: { it: 'Novità (AvgPop)', en: 'Novelty (AvgPop)' }, value: '+12%', caption: { it: 'Miglioramento novità del catalogo raccomandato.', en: 'Improvement in recommended catalog novelty.' } },
       { label: { it: 'Precisione', en: 'Precision' }, value: '-0.5%', caption: { it: 'Delta minimo rispetto al baseline massimizzato.', en: 'Minimal delta compared to maximized baseline.' } },
-      { label: 'Dataset', value: 'MovieLens 1M', caption: { it: 'Testato su benchmark standard.', en: 'Tested on standard benchmarks.' } },
+      { label: 'Dataset', value: 'MovieLens 1M', caption: { it: '1.000.209 valutazioni, 6040 utenti, 3883 film, 18 generi.', en: '1,000,209 ratings, 6040 users, 3883 movies, 18 genres.' } },
     ],
     links: [
       { label: 'GitHub', href: 'https://github.com/Hellvisback365/LLM.git', type: 'github' },
