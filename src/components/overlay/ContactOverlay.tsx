@@ -1,131 +1,12 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaCalendarAlt,
-  FaGithub, FaLinkedin, FaTimes, FaCheck,
-  FaFilePdf, FaFileWord, FaFileImage, FaFileAlt, FaCloudUploadAlt,
-} from 'react-icons/fa';
+import { FaCheck, FaTimes, FaEnvelope } from 'react-icons/fa';
 import useResponsive from '@/hooks/useResponsive';
 import { useAppStore } from '@/store/useAppStore';
-
-/* ───────────────────── Types ───────────────────── */
-interface ContactFormData {
-  name: string;
-  email: string;
-  subject: string;
-  category: string;
-  message: string;
-}
-
-interface FormErrors {
-  name?: string;
-  email?: string;
-  subject?: string;
-  message?: string;
-}
-
-interface AttachedFile {
-  file: File;
-  id: string;
-}
-
-/* ───────────────────── Constants ───────────────────── */
-const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/vitopiccolini@live.it';
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB (FormSubmit limit)
-const MAX_FILES = 3;
-const ALLOWED_EXTENSIONS = [
-  // Documenti e Testo
-  '.pdf', '.doc', '.docx', '.txt', '.csv', '.md',
-  // Fogli di calcolo e Presentazioni
-  '.xls', '.xlsx', '.ppt', '.pptx', '.key',
-  // Dati e Configurazioni
-  '.json', '.xml', '.yaml', '.yml',
-  // Media (Immagini e Video leggeri)
-  '.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4',
-  // Archivi
-  '.zip', '.rar',
-];
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain', 'text/csv', 'text/markdown',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'application/x-iwork-keynote-sffkey',
-  'application/json', 'application/xml', 'text/xml', 'application/x-yaml', 'text/yaml',
-  'image/png', 'image/jpeg', 'image/webp', 'image/gif',
-  'video/mp4',
-  'application/zip', 'application/x-rar-compressed',
-];
-const MAX_MESSAGE_LENGTH = 2000;
-
-const categories = [
-  { id: 'job', label: 'Proposta lavorativa', emoji: '💼' },
-  { id: 'collab', label: 'Collaborazione', emoji: '🤝' },
-  { id: 'freelance', label: 'Freelance', emoji: '🚀' },
-  { id: 'info', label: 'Informazioni', emoji: '💡' },
-  { id: 'other', label: 'Altro', emoji: '💬' },
-];
-
-const getContactDetails = (isEn: boolean) => [
-  {
-    label: 'Email',
-    value: 'vitopiccolini@live.it',
-    helper: isEn ? 'Preferred for structured briefs (response within 24h).' : 'Preferita per brief strutturati (risposta entro 24h).',
-    icon: <FaEnvelope className="text-white" />,
-    href: 'mailto:vitopiccolini@live.it',
-  },
-  {
-    label: isEn ? 'Phone' : 'Telefono',
-    value: '+39 3937382774',
-    helper: isEn ? 'Available 9:00–18:00, WhatsApp too.' : 'Disponibile 9:00–18:00, anche WhatsApp.',
-    icon: <FaPhoneAlt className="text-white" />,
-    href: 'tel:+393937382774',
-  },
-  {
-    label: isEn ? 'Location' : 'Base operativa',
-    value: 'Bari · Remote EU',
-    helper: isEn ? 'Driving license B, day trips on request.' : 'Patente B, trasferte in giornata su richiesta.',
-    icon: <FaMapMarkerAlt className="text-white" />,
-  },
-  {
-    label: isEn ? 'Availability' : 'Disponibilità',
-    value: isEn ? 'Immediate - June 2026' : 'Immediata - Giugno 2026',
-    helper: isEn ? 'LM-18 curricular internship or AI-first collaboration.' : 'Stage curriculare LM-18 o collaborazione AI-first.',
-    icon: <FaCalendarAlt className="text-white" />,
-  },
-];
-
-const socialLinks = [
-  { icon: <FaGithub className="h-4 w-4" />, href: 'https://github.com/Hellvisback365', label: 'GitHub' },
-  { icon: <FaLinkedin className="h-4 w-4" />, href: 'https://www.linkedin.com/in/vitopiccolini/', label: 'LinkedIn' },
-  { icon: <FaEnvelope className="h-4 w-4" />, href: 'mailto:vitopiccolini@live.it', label: 'Email' },
-];
-
-/* ───────────────────── Helpers ───────────────────── */
-function getFileIcon(type: string) {
-  if (type.includes('pdf')) return <FaFilePdf className="text-red-400" />;
-  if (type.includes('word') || type.includes('document')) return <FaFileWord className="text-blue-400" />;
-  if (type.startsWith('image/')) return <FaFileImage className="text-emerald-400" />;
-  return <FaFileAlt className="text-white/50" />;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function isAllowedFile(file: File): boolean {
-  if (ALLOWED_MIME_TYPES.includes(file.type)) return true;
-  const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-  return ALLOWED_EXTENSIONS.includes(ext);
-}
+import { categories, getContactDetails, socialLinks, MAX_MESSAGE_LENGTH } from '@/constants/contactConfig';
+import { useContactForm } from '@/hooks/useContactForm';
+import FileDropzone from '@/components/ui/contact/FileDropzone';
 
 /* ───────────────────── Shared styles ───────────────────── */
 const inputClasses =
@@ -145,199 +26,24 @@ export default function ContactOverlay() {
   
   const contactDetails = getContactDetails(isEn);
 
-  const [formData, setFormData] = useState<ContactFormData>({
-    name: '', email: '', subject: '', category: '', message: '',
-  });
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [files, setFiles] = useState<AttachedFile[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [fileError, setFileError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  /* ── Validation ── */
-  const validateForm = (): boolean => {
-    const e: FormErrors = {};
-    if (!formData.name.trim()) e.name = isEn ? 'Name is required' : 'Il nome è richiesto';
-    if (!formData.email.trim()) {
-      e.email = isEn ? 'Email is required' : "L'email è richiesta";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      e.email = isEn ? 'Invalid email format' : 'Formato email non valido';
-    }
-    if (!formData.subject.trim()) e.subject = isEn ? 'Subject is required' : "L'oggetto è richiesto";
-    if (!formData.message.trim()) {
-      e.message = isEn ? 'Message is required' : 'Il messaggio è richiesto';
-    } else if (formData.message.trim().length < 10) {
-      e.message = isEn ? 'At least 10 characters' : 'Almeno 10 caratteri';
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  /* ── Input handlers ── */
-  const handleChange = (
-    ev: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = ev.target;
-    if (name === 'message' && value.length > MAX_MESSAGE_LENGTH) return;
-    setFormData((p) => ({ ...p, [name]: value }));
-    if (errors[name as keyof FormErrors]) {
-      setErrors((p) => ({ ...p, [name]: undefined }));
-    }
-  };
-
-  const selectCategory = (id: string) => {
-    setFormData((p) => ({ ...p, category: p.category === id ? '' : id }));
-  };
-
-  /* ── File handlers ── */
-  const addFiles = useCallback((incoming: FileList | File[]) => {
-    setFileError('');
-    const newFiles: AttachedFile[] = [];
-    const list = Array.from(incoming);
-
-    for (const file of list) {
-      if (files.length + newFiles.length >= MAX_FILES) {
-        setFileError(isEn ? `Max ${MAX_FILES} attachments.` : `Massimo ${MAX_FILES} allegati.`);
-        break;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        setFileError(isEn ? `"${file.name}" exceeds the 10 MB limit.` : `"${file.name}" supera il limite di 10 MB.`);
-        continue;
-      }
-      if (!isAllowedFile(file)) {
-        setFileError(isEn ? `"${file.name}": unsupported type.` : `"${file.name}": tipo non supportato.`);
-        continue;
-      }
-      newFiles.push({ file, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
-    }
-    if (newFiles.length) setFiles((p) => [...p, ...newFiles]);
-  }, [files.length]);
-
-  const removeFile = (id: string) => {
-    setFiles((p) => p.filter((f) => f.id !== id));
-    setFileError('');
-  };
-
-  /* ── Drag & Drop ── */
-  const onDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); }, []);
-  const onDragLeave = useCallback(() => setIsDragging(false), []);
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
-  }, [addFiles]);
-
-  /* ── Submit via FormSubmit.co (native form + hidden iframe) ── */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    setIsSubmitting(true);
-    setSubmitError('');
-
-    try {
-      const categoryLabel = categories.find((c) => c.id === formData.category)?.label || '—';
-      const categoryEmoji = categories.find((c) => c.id === formData.category)?.emoji || '';
-
-      // Create a unique iframe name to avoid caching issues
-      const iframeName = `formsubmit-frame-${Date.now()}`;
-
-      // Create hidden iframe
-      const iframe = document.createElement('iframe');
-      iframe.name = iframeName;
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-
-      // Create a real HTML form — FormSubmit handles files reliably
-      // only via native form submission with enctype="multipart/form-data"
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = 'https://formsubmit.co/vitopiccolini@live.it';
-      form.enctype = 'multipart/form-data';
-      form.target = iframeName; // Submit into the hidden iframe (no page redirect)
-      form.style.display = 'none';
-
-      // Helper to add hidden fields
-      const addField = (name: string, value: string) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = value;
-        form.appendChild(input);
-      };
-
-      // FormSubmit configuration fields
-      addField('_subject', `📩 ${formData.subject}`);
-      addField('_replyto', formData.email);
-      addField('_template', 'table');
-      addField('_captcha', 'false');
-      addField('_honey', ''); // Honeypot anti-spam
-
-      // Form data fields
-      addField('Nome', formData.name);
-      addField('Email', formData.email);
-      addField('Categoria', `${categoryEmoji} ${categoryLabel}`);
-      addField('Oggetto', formData.subject);
-      addField('Messaggio', formData.message);
-
-      // Attach files using DataTransfer API
-      // Create a separate input for each file so FormSubmit doesn't overwrite them
-      if (files.length > 0) {
-        files.forEach((af, index) => {
-          const dt = new DataTransfer();
-          dt.items.add(af.file);
-          const fileInput = document.createElement('input');
-          fileInput.type = 'file';
-          fileInput.name = `attachment_${index + 1}`;
-          fileInput.files = dt.files;
-          form.appendChild(fileInput);
-        });
-      }
-
-      document.body.appendChild(form);
-
-      // Wait for iframe to finish loading (= FormSubmit processed the submission)
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          cleanup();
-          reject(new Error('Timeout: il servizio non ha risposto in tempo.'));
-        }, 15000);
-
-        const cleanup = () => {
-          clearTimeout(timeout);
-          iframe.removeEventListener('load', onLoad);
-          // Delay cleanup to ensure FormSubmit finished processing
-          setTimeout(() => {
-            document.body.removeChild(form);
-            document.body.removeChild(iframe);
-          }, 500);
-        };
-
-        const onLoad = () => {
-          cleanup();
-          resolve();
-        };
-
-        iframe.addEventListener('load', onLoad);
-        form.submit();
-      });
-
-      setSubmitSuccess(true);
-      setFormData({ name: '', email: '', subject: '', category: '', message: '' });
-      setFiles([]);
-      setTimeout(() => setSubmitSuccess(false), 6000);
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : (isEn ? 'An error occurred' : 'Si è verificato un errore'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const {
+    formData,
+    errors,
+    files,
+    isSubmitting,
+    submitSuccess,
+    submitError,
+    setSubmitError,
+    fileError,
+    handleChange,
+    selectCategory,
+    addFiles,
+    removeFile,
+    handleSubmit
+  } = useContactForm();
 
   const currentYear = new Date().getFullYear();
   const charsLeft = MAX_MESSAGE_LENGTH - formData.message.length;
-  const totalFileSize = files.reduce((sum, f) => sum + f.file.size, 0);
 
   /* ═══════════════════════════ Render ═══════════════════════════ */
   return (
@@ -452,7 +158,7 @@ export default function ContactOverlay() {
                         : 'border-white/10 bg-white/5 text-white/50 hover:border-white/20 hover:text-white/70'
                       }`}
                   >
-                    <span className="mr-1.5">{cat.emoji}</span>{cat.label}
+                    <span className="mr-1.5">{cat.emoji}</span>{isEn ? cat.label.en : cat.label.it}
                   </button>
                 ))}
               </div>
@@ -540,105 +246,12 @@ export default function ContactOverlay() {
             </div>
 
             {/* ── File attachments ── */}
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-medium text-white/60">
-                  📎 {isEn ? 'Attachments' : 'Allegati'}
-                  <span className="ml-1.5 text-[0.6rem] text-white/30">
-                    ({files.length}/{MAX_FILES} · max 10 MB)
-                  </span>
-                </p>
-                {files.length < MAX_FILES && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-[0.65rem] font-medium text-[var(--color-accent-soft)] transition-colors hover:text-[var(--color-accent)]"
-                  >
-                    + {isEn ? 'Browse' : 'Sfoglia'}
-                  </button>
-                )}
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept={ALLOWED_EXTENSIONS.join(',')}
-                className="hidden"
-                onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.target.value = ''; }}
-              />
-
-              {/* Drop zone */}
-              {files.length < MAX_FILES && (
-                <div
-                  onDragOver={onDragOver}
-                  onDragLeave={onDragLeave}
-                  onDrop={onDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-5 transition-all duration-200 ${isDragging
-                      ? 'border-[var(--color-accent)]/50 bg-[var(--color-accent)]/5'
-                      : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
-                    }`}
-                >
-                  <FaCloudUploadAlt className={`mb-2 text-xl ${isDragging ? 'text-[var(--color-accent-soft)]' : 'text-white/20'}`} />
-                  <p className="text-xs text-white/40">
-                    {isDragging ? (isEn ? 'Drop here' : 'Rilascia qui') : (isEn ? 'Drag files or click to browse' : 'Trascina file o clicca per sfogliare')}
-                  </p>
-                  <p className="mt-1 text-[0.6rem] text-white/20">
-                    {isEn ? 'PDF, Office, Markdown, Media, JSON, Archives — max 10 MB' : 'PDF, Office, Markdown, Media, JSON, Archivi — max 10 MB'}
-                  </p>
-                </div>
-              )}
-
-              {/* File error */}
-              <AnimatePresence>
-                {fileError && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="mt-2 text-[0.65rem] text-amber-400"
-                  >
-                    {fileError}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-
-              {/* Attached files list */}
-              <AnimatePresence>
-                {files.map((af) => (
-                  <motion.div
-                    key={af.id}
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-2 flex items-center gap-3 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2.5">
-                      <span className="text-sm">{getFileIcon(af.file.type)}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-white/80">{af.file.name}</p>
-                        <p className="text-[0.6rem] text-white/30">{formatFileSize(af.file.size)}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(af.id)}
-                        className="rounded p-1 text-white/30 transition-colors hover:bg-white/10 hover:text-red-400"
-                      >
-                        <FaTimes className="text-[0.6rem]" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-
-              {/* Total file size indicator */}
-              {files.length > 0 && (
-                <p className="mt-1.5 text-[0.6rem] text-white/25">
-                  {isEn ? 'Total:' : 'Totale:'} {formatFileSize(totalFileSize)}
-                </p>
-              )}
-            </div>
+            <FileDropzone
+              files={files}
+              fileError={fileError}
+              addFiles={addFiles}
+              removeFile={removeFile}
+            />
 
             {/* Divider */}
             <div className="border-t border-white/[0.06]" />

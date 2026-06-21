@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
+import { useAppStore } from '@/store/useAppStore';
 
 export default function SkillsRadar() {
+  const isEn = useAppStore(s => s.language === 'en');
+
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.95 }}
@@ -8,7 +11,7 @@ export default function SkillsRadar() {
       className="mt-2 rounded-xl border border-neural-cyan/30 bg-black/40 p-4 shadow-[0_0_20px_rgba(0,255,255,0.1)] backdrop-blur-md"
     >
       <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-neural-cyan">
-        AI & Web Engineering Stack
+        {isEn ? 'AI & Web Engineering Stack' : 'Stack AI & Web Engineering'}
       </h4>
       <div className="grid grid-cols-2 gap-2 text-xs text-white/80">
         <div className="rounded-lg border border-white/5 bg-white/5 p-2">

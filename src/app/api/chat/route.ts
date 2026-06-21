@@ -3,7 +3,6 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  generateObject,
   generateText,
   stepCountIs,
   streamText,
@@ -13,7 +12,7 @@ import { z } from 'zod';
 import { getRetriever, type RetrievedChunk } from '@/lib/rag/retriever';
 import { globalRatelimit } from '@/lib/ratelimit';
 import { getProviders } from '@/lib/rag/providers';
-import { SECTIONS } from '@/store/useAppStore';
+import { parseLLMJSON } from '@/lib/rag/parse-llm-json';
 
 /**
  * Pipeline per richiesta (budget ~quello di una sola chiamata LLM,
@@ -54,7 +53,7 @@ const bodySchema = z.object({
 });
 
 const routerSchema = z.object({
-  intent: z.enum(['smalltalk', 'portfolio', 'navigate']),
+  intent: z.enum(['smalltalk', 'portfolio']),
   standalone: z.string().describe('La domanda riscritta in forma autonoma, in italiano.'),
   uiAction: z.enum(['none', 'navigateToSection', 'showProject', 'showSkillsRadar']).default('none').describe('Azione UI da eseguire.'),
   uiActionTarget: z.string().optional().describe('Se uiAction è navigateToSection usa una tra about, skills, projects, contact. Se showProject usa il nome del progetto.'),
@@ -63,21 +62,6 @@ const routerSchema = z.object({
 export type RouterDecision = z.infer<typeof routerSchema>;
 
 // ── Helpers ───────────────────────────────────────────────────────────
-function parseLLMJSON<T>(text: string, fallback: T): T {
-  try { return JSON.parse(text) as T; } catch (e) {}
-  try {
-    const blockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (blockMatch && blockMatch[1]) return JSON.parse(blockMatch[1].trim()) as T;
-  } catch (e) {}
-  try {
-    const first = text.indexOf('{');
-    const last = text.lastIndexOf('}');
-    if (first !== -1 && last !== -1 && last > first) {
-      return JSON.parse(text.substring(first, last + 1)) as T;
-    }
-  } catch (e) {}
-  return fallback;
-}
 
 function textOf(message: UIMessage): string {
   return (message.parts ?? [])
@@ -218,8 +202,10 @@ ${recentDialogue(history)}`;
   const routerRes = await routerPromise;
   
   let routerState: RouterDecision = { intent: 'portfolio', standalone: question, uiAction: 'none' };
-  if (routerRes && routerRes.text) {
-    routerState = parseLLMJSON<RouterDecision>(routerRes.text, routerState);
+  if (routerRes?.text) {
+    const parsedJson = parseLLMJSON<unknown>(routerRes.text, null);
+    const validated = routerSchema.safeParse(parsedJson);
+    if (validated.success) routerState = validated.data;
   }
 
   if (routerState.intent !== 'smalltalk') {
@@ -252,19 +238,10 @@ ${recentDialogue(history)}`;
       }
       
       if (routerState.uiAction && routerState.uiAction !== 'none') {
-        const actionPayload = JSON.stringify({
-          action: routerState.uiAction,
-          target: routerState.uiActionTarget,
-        });
-        const actionId = `ui-action-${Date.now()}`;
-        
-        writer.write({ type: 'text-start', id: actionId } as any);
         writer.write({
-          type: 'text-delta',
-          delta: `\n\n__UI_ACTION__${actionPayload}__UI_ACTION__\n\n`,
-          id: actionId,
-        } as any);
-        writer.write({ type: 'text-end', id: actionId } as any);
+          type: 'data-uiAction' as any,
+          data: { action: routerState.uiAction, target: routerState.uiActionTarget },
+        });
       }
 
       writer.merge(result.toUIMessageStream({ sendStart: false }));

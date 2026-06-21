@@ -3,6 +3,7 @@ import {
   MAX_FILE_SIZE, MAX_FILES, MAX_MESSAGE_LENGTH,
   ALLOWED_EXTENSIONS, ALLOWED_MIME_TYPES, categories, FORMSUBMIT_ENDPOINT
 } from '@/constants/contactConfig';
+import { useAppStore } from '@/store/useAppStore';
 
 export interface ContactFormData {
   name: string;
@@ -31,6 +32,8 @@ function isAllowedFile(file: File): boolean {
 }
 
 export function useContactForm() {
+  const isEn = useAppStore(s => s.language === 'en');
+
   const [formData, setFormData] = useState<ContactFormData>({
     name: '', email: '', subject: '', category: '', message: '',
   });
@@ -43,17 +46,17 @@ export function useContactForm() {
 
   const validateForm = (): boolean => {
     const e: FormErrors = {};
-    if (!formData.name.trim()) e.name = 'Il nome è richiesto';
+    if (!formData.name.trim()) e.name = isEn ? 'Name is required' : 'Il nome è richiesto';
     if (!formData.email.trim()) {
-      e.email = "L'email è richiesta";
+      e.email = isEn ? 'Email is required' : "L'email è richiesta";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      e.email = 'Formato email non valido';
+      e.email = isEn ? 'Invalid email format' : 'Formato email non valido';
     }
-    if (!formData.subject.trim()) e.subject = "L'oggetto è richiesto";
+    if (!formData.subject.trim()) e.subject = isEn ? 'Subject is required' : "L'oggetto è richiesto";
     if (!formData.message.trim()) {
-      e.message = 'Il messaggio è richiesto';
+      e.message = isEn ? 'Message is required' : 'Il messaggio è richiesto';
     } else if (formData.message.trim().length < 10) {
-      e.message = 'Almeno 10 caratteri';
+      e.message = isEn ? 'At least 10 characters' : 'Almeno 10 caratteri';
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -81,21 +84,21 @@ export function useContactForm() {
 
     for (const file of list) {
       if (files.length + newFiles.length >= MAX_FILES) {
-        setFileError(`Massimo ${MAX_FILES} allegati.`);
+        setFileError(isEn ? `Max ${MAX_FILES} attachments.` : `Massimo ${MAX_FILES} allegati.`);
         break;
       }
       if (file.size > MAX_FILE_SIZE) {
-        setFileError(`"${file.name}" supera il limite di 10 MB.`);
+        setFileError(isEn ? `"${file.name}" exceeds the 10 MB limit.` : `"${file.name}" supera il limite di 10 MB.`);
         continue;
       }
       if (!isAllowedFile(file)) {
-        setFileError(`"${file.name}": tipo non supportato.`);
+        setFileError(isEn ? `"${file.name}": unsupported type.` : `"${file.name}": tipo non supportato.`);
         continue;
       }
       newFiles.push({ file, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
     }
     if (newFiles.length) setFiles((p) => [...p, ...newFiles]);
-  }, [files.length]);
+  }, [files.length, isEn]);
 
   const removeFile = (id: string) => {
     setFiles((p) => p.filter((f) => f.id !== id));
@@ -109,13 +112,13 @@ export function useContactForm() {
     setSubmitError('');
 
     try {
-      const categoryLabel = categories.find((c) => c.id === formData.category)?.label || '—';
-      const categoryEmoji = categories.find((c) => c.id === formData.category)?.emoji || '';
+      const categoryObj = categories.find((c) => c.id === formData.category);
+      const categoryLabel = categoryObj ? categoryObj.label.it : '—'; // Always send italian in email for internal consistency
+      const categoryEmoji = categoryObj ? categoryObj.emoji : '';
 
       const formElement = e.currentTarget as HTMLFormElement;
       const honeyValue = new FormData(formElement).get('_honey') as string || '';
 
-      // Fallback a endpoint standard se l'utente ha inserito /ajax/
       const endpoint = FORMSUBMIT_ENDPOINT.replace('/ajax/', '/');
 
       const iframeName = `formsubmit-frame-${Date.now()}`;
@@ -168,7 +171,7 @@ export function useContactForm() {
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           cleanup();
-          reject(new Error('Timeout: il servizio non ha risposto in tempo.'));
+          reject(new Error(isEn ? 'Timeout: service did not respond in time.' : 'Timeout: il servizio non ha risposto in tempo.'));
         }, 15000);
 
         const cleanup = () => {
@@ -194,7 +197,7 @@ export function useContactForm() {
       setFiles([]);
       setTimeout(() => setSubmitSuccess(false), 6000);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Si è verificato un errore');
+      setSubmitError(err instanceof Error ? err.message : (isEn ? 'An error occurred' : 'Si è verificato un errore'));
     } finally {
       setIsSubmitting(false);
     }

@@ -1,89 +1,13 @@
 'use client';
 
-import {
-  type ReactNode,
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
+import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { FiMessageCircle, FiX, FiCpu, FiArrowUp, FiMic, FiThumbsUp, FiThumbsDown } from 'react-icons/fi';
+import { FiMessageCircle, FiX, FiCpu } from 'react-icons/fi';
 import { useAppStore } from '@/store/useAppStore';
-import {
-  embedQuery,
-  getEmbedderState,
-  subscribeEmbedder,
-  warmupEmbedder,
-} from '@/lib/rag/embedder';
 import type { EmbedderState } from '@/lib/rag/embedder';
-import ProjectCard from '@/components/ui/rag/ProjectCard';
-import SkillsRadar from '@/components/ui/rag/SkillsRadar';
-
-/**
- * Copilot del portfolio — client del nuovo stack RAG.
- *
- * - useChat (AI SDK v6): messaggi a `parts`, streaming nativo, storico
- *   completo inviato al server (il vecchio client perdeva tutto con
- *   `messages.slice(-1)` lato API).
- * - All'apertura parte il warmup di multilingual-e5-small nel browser;
- *   ogni invio prova a calcolare il query vector con un budget di 2 s:
- *   se il modello non è pronto si manda null e il server lavora in
- *   BM25-only. La chat non aspetta mai l'embedding.
- * - Le parts vengono renderizzate per tipo: testo, chips fonti
- *   (`data-sources`), card progetto, radar skills, navigazione.
- */
-
-interface SourceChip {
-  tag: string;
-  id: string;
-  title: string;
-  category: string;
-  score: number;
-}
-
-const ALL_SUGGESTIONS_IT = [
-  'Di cosa parla la tesi di Vito?',
-  'Raccontami del progetto Zenith',
-  'Che esperienza ha con i sistemi RAG?',
-  'Mostrami i contatti di Vito',
-  'Quali linguaggi usa nel backend?',
-  'Parlami dell\'hackathon Space Edition',
-  'Come è fatto TerraNode?',
-  'Che università frequenta?',
-  'Vito ha esperienza lavorativa?',
-  'Portami alla sezione progetti',
-];
-
-const ALL_SUGGESTIONS_EN = [
-  'What is Vito\'s thesis about?',
-  'Tell me about the Zenith project',
-  'What is his experience with RAG systems?',
-  'Show me Vito\'s contacts',
-  'What languages does he use in the backend?',
-  'Tell me about the Space Edition hackathon',
-  'How is TerraNode built?',
-  'What university does he attend?',
-  'Does Vito have work experience?',
-  'Take me to the projects section',
-];
-
-// Narrowing helper: con UIMessage non parametrizzato le parts custom
-// arrivano come union larga; concentriamo qui i cast controllati.
-type AnyPart = { type: string } & Record<string, unknown>;
-
-function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
-  ]);
-}
-
-
+import { useCopilotChat } from '@/hooks/useCopilotChat';
+import CopilotMessage from '@/components/ui/copilot/CopilotMessage';
+import CopilotInput from '@/components/ui/copilot/CopilotInput';
 
 function prettyError(err: Error | undefined, isEn: boolean): string {
   if (!err) return isEn ? 'An error occurred.' : 'Si è verificato un errore.';
@@ -94,19 +18,6 @@ function prettyError(err: Error | undefined, isEn: boolean): string {
     /* il body non era JSON */
   }
   return err.message || (isEn ? 'An error occurred.' : 'Si è verificato un errore.');
-}
-
-function renderMarkdownBold(text: string) {
-  const parts = text.split(/\*\*(.*?)\*\*/g);
-  return parts.map((part, i) =>
-    i % 2 === 1 ? (
-      <strong key={i} className="font-semibold text-white">
-        {part}
-      </strong>
-    ) : (
-      part
-    )
-  );
 }
 
 function EmbedderDot({ state, isEn }: { state: EmbedderState, isEn: boolean }) {
@@ -127,22 +38,6 @@ function EmbedderDot({ state, isEn }: { state: EmbedderState, isEn: boolean }) {
   );
 }
 
-function SourceChips({ sources }: { sources: SourceChip[] }) {
-  return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {sources.map((s) => (
-        <span
-          key={s.id}
-          title={`${s.category} · score ${s.score}`}
-          className="hairline rounded-full border bg-accent/10 px-2 py-0.5 font-mono text-[10px] text-accent-soft"
-        >
-          {s.tag} · {s.title}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 export default function CopilotOverlay() {
   const copilotOpen = useAppStore((s) => s.copilotOpen);
   const setCopilotOpen = useAppStore((s) => s.setCopilotOpen);
@@ -151,57 +46,29 @@ export default function CopilotOverlay() {
   const language = useAppStore((s) => s.language);
   const isEn = language === 'en';
 
-  const ALL_SUGGESTIONS = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
-
   const [input, setInput] = useState('');
-  const [embedderState, setEmbedderState] = useState<EmbedderState>(() =>
-    getEmbedderState(),
-  );
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
-  const poolsRef = useRef<Record<string, string[]>>({});
-  const clickedSuggestionsRef = useRef<Set<string>>(new Set());
-  const processedTools = useRef<Set<string>>(new Set());
-  const endRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const inFlightRef = useRef(false);
-
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, boolean>>({});
+  const endRef = useRef<HTMLDivElement>(null);
 
+  const {
+    messages,
+    status,
+    error,
+    busy,
+    submit,
+    embedderState,
+    suggestions,
+    isLoadingSuggestions,
+    handleSuggestionClick
+  } = useCopilotChat();
+
+  // Auto-scroll in fondo a ogni aggiornamento.
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = false;
-        
-        recognitionRef.current.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          setInput((prev) => prev + (prev ? ' ' : '') + transcript);
-        };
-        
-        recognitionRef.current.onend = () => {
-          setIsListening(false);
-        };
-      }
-    }
-  }, []);
-
-  const toggleListening = () => {
-    if (!recognitionRef.current) return;
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      const language = useAppStore.getState().language;
-      recognitionRef.current.lang = language === 'en' ? 'en-US' : 'it-IT';
-      recognitionRef.current.start();
-      setIsListening(true);
-    }
-  };
+    endRef.current?.scrollIntoView({
+      behavior: reduceMotion ? 'auto' : 'smooth',
+      block: 'end',
+    });
+  }, [messages, status, reduceMotion]);
 
   const handleFeedback = async (messageId: string, score: number, aiResponseText: string, userQuestionText: string) => {
     if (feedbackGiven[messageId]) return;
@@ -217,230 +84,9 @@ export default function CopilotOverlay() {
     }
   };
 
-  // Fetch dynamic suggestions on open
-  useEffect(() => {
-    if (!copilotOpen) return;
-    
-    if (poolsRef.current[language]) {
-      const pool = poolsRef.current[language];
-      setSuggestions(pool.slice(0, 3));
-      return;
-    }
-
-    setIsLoadingSuggestions(true);
-    fetch(`/api/suggestions?lang=${language}`)
-      .then((res) => {
-        if (!res.ok) throw new Error('API error');
-        return res.json();
-      })
-      .then((data) => {
-        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
-          poolsRef.current[language] = data.questions;
-          setSuggestions(data.questions.slice(0, 3));
-        } else {
-          throw new Error('Invalid schema');
-        }
-      })
-      .catch((err) => {
-        console.error('[Copilot] Fallback to static suggestions:', err);
-        const fallbacks = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
-        const shuffled = [...fallbacks].sort(() => 0.5 - Math.random());
-        poolsRef.current[language] = shuffled;
-        setSuggestions(shuffled.slice(0, 3));
-      })
-      .finally(() => {
-        setIsLoadingSuggestions(false);
-      });
-  }, [copilotOpen, language, isEn]);
-
-
-  const transport = useMemo(
-    () => new DefaultChatTransport({ api: '/api/chat' }),
-    [],
-  );
-  const { messages, sendMessage, status, error } = useChat({ transport });
-  const busy = status === 'submitted' || status === 'streaming';
-
-  // Sottoscrizione permanente allo stato dell'embedder.
-  useEffect(() => subscribeEmbedder(setEmbedderState), []);
-
-  // Warmup in background appena la pagina è idle (non all'apertura del
-  // pannello): così il modello è quasi sempre già caldo quando l'utente
-  // scrive, e la prima risposta è già ibrida invece che solo-BM25.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const w = window as typeof window & {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-      cancelIdleCallback?: (id: number) => void;
-    };
-    let idleId = 0;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    if (w.requestIdleCallback) {
-      idleId = w.requestIdleCallback(() => warmupEmbedder(), { timeout: 4000 });
-    } else {
-      timeoutId = setTimeout(() => warmupEmbedder(), 2500);
-    }
-    return () => {
-      if (idleId && w.cancelIdleCallback) w.cancelIdleCallback(idleId);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, []);
-
-  // Focus sulla textarea quando il pannello si apre.
-  useEffect(() => {
-    if (copilotOpen) textareaRef.current?.focus();
-  }, [copilotOpen]);
-
-  // Estrazione delle azioni UI dal testo e side-effect (scroll automatico in background).
-  useEffect(() => {
-    for (const message of messages) {
-      if (processedTools.current.has(message.id)) continue;
-      
-      let actionFound = false;
-      for (const part of message.parts as AnyPart[]) {
-        if (part.type === 'text') {
-          const match = (part.text as string).match(/__UI_ACTION__(.*?)__UI_ACTION__/);
-          if (match && match[1]) {
-            try {
-              const actionData = JSON.parse(match[1]);
-              actionFound = true;
-              
-              if (actionData.action === 'navigateToSection' && actionData.target) {
-                flyToSection(actionData.target);
-              } else if (actionData.action === 'showProject') {
-                flyToSection('projects');
-              } else if (actionData.action === 'showSkillsRadar') {
-                flyToSection('skills');
-              }
-            } catch (e) {}
-          }
-        }
-      }
-      if (actionFound) {
-        processedTools.current.add(message.id);
-      }
-    }
-  }, [messages, flyToSection]);
-
-  // Auto-scroll in fondo a ogni aggiornamento.
-  useEffect(() => {
-    endRef.current?.scrollIntoView({
-      behavior: reduceMotion ? 'auto' : 'smooth',
-      block: 'end',
-    });
-  }, [messages, status, reduceMotion]);
-
-  const submit = useCallback(
-    (raw?: string) => {
-      const text = (raw ?? input).trim();
-      // Lock sincrono: il guard `busy` diventa true solo DOPO sendMessage,
-      // quindi durante il calcolo dell'embedding non protegge da un doppio
-      // invio. Questo ref si imposta subito e rende submit idempotente.
-      if (!text || busy || inFlightRef.current) return;
-      inFlightRef.current = true;
+  const handleSubmit = () => {
+    if (submit(input)) {
       setInput('');
-      // Non blocchiamo l'invio sull'embedding: se il modello è già caldo
-      // alleghiamo il vettore (attesa breve e limitata), altrimenti partiamo
-      // subito in BM25-only. Niente freeze in attesa del download del modello.
-      const attachVector = getEmbedderState() === 'ready';
-      void (async () => {
-        try {
-          const queryVector = attachVector
-            ? await withTimeout(embedQuery(text), 1500, null)
-            : null;
-
-          sendMessage({ text }, { body: { queryVector } });
-        } finally {
-          inFlightRef.current = false;
-        }
-      })();
-    },
-    [input, busy, sendMessage],
-  );
-
-  const handleSuggestionClick = useCallback((q: string) => {
-    submit(q);
-    clickedSuggestionsRef.current.add(q);
-    setSuggestions((prev) => {
-      const pool = poolsRef.current[language] || (isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT);
-      const clicked = clickedSuggestionsRef.current;
-      // Trova le domande dinamiche non ancora mostrate su schermo (prev) e non ancora cliccate
-      const remaining = pool.filter((s) => !prev.includes(s) && !clicked.has(s));
-      
-      if (remaining.length === 0) {
-        // Fallback to static if dynamic pool is exhausted
-        const fallbacks = isEn ? ALL_SUGGESTIONS_EN : ALL_SUGGESTIONS_IT;
-        const fallbackRemaining = fallbacks.filter((s) => !prev.includes(s) && !clicked.has(s) && !pool.includes(s));
-        if (fallbackRemaining.length === 0) return prev; // Se abbiamo finito TUTTE le domande, lascia quelle attuali
-        const next = fallbackRemaining[Math.floor(Math.random() * fallbackRemaining.length)];
-        return prev.map((s) => (s === q ? next : s));
-      }
-      
-      const next = remaining[Math.floor(Math.random() * remaining.length)];
-      return prev.map((s) => (s === q ? next : s));
-    });
-  }, [submit, isEn, language]);
-
-  const renderPart = (
-    messageId: string,
-    part: AnyPart,
-    index: number,
-  ): ReactNode => {
-    const key = `${messageId}-${index}`;
-    switch (part.type) {
-      case 'text': {
-        let clean = (part.text as string);
-        
-        const match = clean.match(/__UI_ACTION__(.*?)__UI_ACTION__/);
-        let embeddedAction = null;
-        if (match && match[1]) {
-          try {
-            embeddedAction = JSON.parse(match[1]);
-          } catch(e) {}
-          clean = clean.replace(/__UI_ACTION__(.*?)__UI_ACTION__/g, '');
-        }
-        
-        clean = clean.trim();
-        const textNode = clean ? (
-          <p key={key + '-text'} className="whitespace-pre-wrap break-words leading-relaxed">
-            {renderMarkdownBold(clean)}
-          </p>
-        ) : null;
-
-        let widgetNode = null;
-        if (embeddedAction) {
-          if (embeddedAction.action === 'showProject' && embeddedAction.target) {
-            widgetNode = (
-              <ProjectCard
-                key={key + '-widget'}
-                projectName={embeddedAction.target}
-                onExplore={() => {
-                  flyToSection('projects');
-                  setCopilotOpen(false);
-                }}
-              />
-            );
-          } else if (embeddedAction.action === 'showSkillsRadar') {
-            widgetNode = <SkillsRadar key={key + '-widget'} />;
-          } else if (embeddedAction.action === 'navigateToSection' && embeddedAction.target) {
-            widgetNode = (
-              <p key={key + '-widget'} className="font-mono text-[11px] text-accent-soft mt-2">
-                → {isEn ? `taking you to the ${embeddedAction.target} section` : `ti porto alla sezione ${embeddedAction.target}`}
-              </p>
-            );
-          }
-        }
-        return (
-          <Fragment key={key}>
-            {textNode}
-            {widgetNode}
-          </Fragment>
-        );
-      }
-      case 'data-sources':
-        return null; // Nascosti come richiesto dall'utente
-      default:
-        return null;
     }
   };
 
@@ -505,7 +151,7 @@ export default function CopilotOverlay() {
               {messages.length === 0 && (
                 <div className="flex h-full flex-col justify-end gap-3 pb-2">
                   <p className="text-white/55">
-                    {isEn ? 'Ask me about Vito\'s thesis, projects, or background: I only answer based on portfolio documents, citing sources.' : 'Chiedimi della tesi, dei progetti o del percorso di Vito: rispondo solo sulla base dei documenti del portfolio, citando le fonti.'}
+                    {isEn ? "Ask me about Vito's thesis, projects, or background: I only answer based on portfolio documents, citing sources." : 'Chiedimi della tesi, dei progetti o del percorso di Vito: rispondo solo sulla base dei documenti del portfolio, citando le fonti.'}
                   </p>
                   <div className="flex flex-col items-start gap-2">
                     {isLoadingSuggestions ? (
@@ -532,30 +178,15 @@ export default function CopilotOverlay() {
               )}
 
               {messages.map((message) => (
-                <div
+                <CopilotMessage
                   key={message.id}
-                  className={
-                    message.role === 'user'
-                      ? 'ml-8 rounded-2xl rounded-br-sm bg-accent/15 px-3.5 py-2.5'
-                      : 'mr-4 space-y-2'
-                  }
-                >
-                  {(message.parts as AnyPart[]).map((part, i) =>
-                    renderPart(message.id, part, i),
-                  )}
-                  {message.role === 'assistant' && (() => {
-                    const idx = messages.findIndex(m => m.id === message.id);
-                    const prevMsg = messages[idx - 1];
-                    const userQ = prevMsg?.role === 'user' ? (prevMsg as any).content || ((prevMsg as any).parts || []).map((p: any) => p.text || '').join('') : 'Unknown';
-                    const aiA = (message as any).content || ((message as any).parts || []).map((p: any) => p.text || '').join('');
-                    return (
-                      <div className="flex gap-2 pt-1 opacity-40 hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleFeedback(message.id, 1, aiA, userQ)} disabled={feedbackGiven[message.id]} className="hover:text-emerald-400 disabled:opacity-30"><FiThumbsUp className="w-3 h-3" /></button>
-                        <button onClick={() => handleFeedback(message.id, 0, aiA, userQ)} disabled={feedbackGiven[message.id]} className="hover:text-red-400 disabled:opacity-30"><FiThumbsDown className="w-3 h-3" /></button>
-                      </div>
-                    );
-                  })()}
-                </div>
+                  message={message}
+                  messages={messages}
+                  flyToSection={flyToSection}
+                  setCopilotOpen={setCopilotOpen}
+                  feedbackGiven={feedbackGiven}
+                  onFeedback={handleFeedback}
+                />
               ))}
 
               {status === 'submitted' && (
@@ -588,48 +219,13 @@ export default function CopilotOverlay() {
             </div>
 
             {/* Input */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void submit();
-              }}
-              className="border-t border-white/10 p-3"
-            >
-              <div className="flex items-end gap-2 rounded-xl bg-white/5 px-3 py-2">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onWheel={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      void submit();
-                    }
-                  }}
-                  rows={2}
-                  placeholder={isEn ? 'Ask a question…' : 'Scrivi una domanda…'}
-                  aria-label={isEn ? 'Message for the copilot' : 'Messaggio per il copilot'}
-                  className="max-h-32 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35 overscroll-contain"
-                />
-                <button
-                  type="button"
-                  onClick={toggleListening}
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}
-                  aria-label={isEn ? 'Microphone' : 'Microfono'}
-                >
-                  <FiMic className="h-4 w-4" />
-                </button>
-                <button
-                  type="submit"
-                  disabled={busy || (!input.trim() && !isListening)}
-                  aria-label={isEn ? 'Send' : 'Invia'}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-white transition-opacity disabled:opacity-30"
-                >
-                  <FiArrowUp className="h-4 w-4" />
-                </button>
-              </div>
-            </form>
+            <CopilotInput
+              input={input}
+              setInput={setInput}
+              onSubmit={handleSubmit}
+              busy={busy}
+              copilotOpen={copilotOpen}
+            />
           </motion.aside>
         )}
       </AnimatePresence>

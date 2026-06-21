@@ -33,38 +33,38 @@ export const ALLOWED_MIME_TYPES = [
 ];
 
 export const categories = [
-  { id: 'job', label: 'Proposta lavorativa', emoji: '💼' },
-  { id: 'collab', label: 'Collaborazione', emoji: '🤝' },
-  { id: 'freelance', label: 'Freelance', emoji: '🚀' },
-  { id: 'info', label: 'Informazioni', emoji: '💡' },
-  { id: 'other', label: 'Altro', emoji: '💬' },
+  { id: 'job', label: { it: 'Proposta lavorativa', en: 'Job proposal' }, emoji: '💼' },
+  { id: 'collab', label: { it: 'Collaborazione', en: 'Collaboration' }, emoji: '🤝' },
+  { id: 'freelance', label: { it: 'Freelance', en: 'Freelance' }, emoji: '🚀' },
+  { id: 'info', label: { it: 'Informazioni', en: 'Information' }, emoji: '💡' },
+  { id: 'other', label: { it: 'Altro', en: 'Other' }, emoji: '💬' },
 ];
 
-export const contactDetails = [
+export const getContactDetails = (isEn: boolean) => [
   {
     label: 'Email',
     value: 'vitopiccolini@live.it',
-    helper: 'Preferita per brief strutturati (risposta entro 24h).',
+    helper: isEn ? 'Preferred for structured briefs (response within 24h).' : 'Preferita per brief strutturati (risposta entro 24h).',
     icon: <FaEnvelope className="text-white" />,
     href: 'mailto:vitopiccolini@live.it',
   },
   {
-    label: 'Telefono',
+    label: isEn ? 'Phone' : 'Telefono',
     value: '+39 3937382774',
-    helper: 'Disponibile 9:00–18:00, anche WhatsApp.',
+    helper: isEn ? 'Available 9:00–18:00, WhatsApp too.' : 'Disponibile 9:00–18:00, anche WhatsApp.',
     icon: <FaPhoneAlt className="text-white" />,
     href: 'tel:+393937382774',
   },
   {
-    label: 'Base operativa',
+    label: isEn ? 'Location' : 'Base operativa',
     value: 'Bari · Remote EU',
-    helper: 'Patente B, trasferte in giornata su richiesta.',
+    helper: isEn ? 'Driving license B, day trips on request.' : 'Patente B, trasferte in giornata su richiesta.',
     icon: <FaMapMarkerAlt className="text-white" />,
   },
   {
-    label: 'Disponibilità',
-    value: 'Immediata - Giugno 2026',
-    helper: 'Stage curriculare LM-18 o collaborazione AI-first.',
+    label: isEn ? 'Availability' : 'Disponibilità',
+    value: isEn ? 'Immediate - June 2026' : 'Immediata - Giugno 2026',
+    helper: isEn ? 'LM-18 curricular internship or AI-first collaboration.' : 'Stage curriculare LM-18 o collaborazione AI-first.',
     icon: <FaCalendarAlt className="text-white" />,
   },
 ];

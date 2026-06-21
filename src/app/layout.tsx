@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import "./globals.css";
+import './globals.css';
+import { getBaseUrl } from '@/constants/site';
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -31,7 +32,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://vitopiccolini.com'),
+  metadataBase: new URL(getBaseUrl()),
   title: "Vito Piccolini — AI Engineer",
   description:
     "Sistemi di raccomandazione, architetture multi-agente e RAG ibridi. Portfolio di Vito Piccolini, AI Engineer.",
@@ -53,7 +54,7 @@ const jsonLd = {
   '@type': 'Person',
   name: 'Vito Piccolini',
   jobTitle: 'AI & Software Engineer',
-  url: 'https://vitopiccolini.com',
+  url: getBaseUrl(),
   sameAs: [
     'https://www.linkedin.com/in/vitopiccolini/',
     'https://github.com/Hellvisback365',

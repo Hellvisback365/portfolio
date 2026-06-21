@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaCloudUploadAlt, FaTimes, FaFilePdf, FaFileWord, FaFileImage, FaFileAlt } from 'react-icons/fa';
 import { MAX_FILES, ALLOWED_EXTENSIONS } from '@/constants/contactConfig';
 import type { AttachedFile } from '@/hooks/useContactForm';
+import { useAppStore } from '@/store/useAppStore';
 
 function getFileIcon(type: string) {
   if (type.includes('pdf')) return <FaFilePdf className="text-red-400" />;
@@ -27,6 +28,7 @@ interface FileDropzoneProps {
 export default function FileDropzone({ files, fileError, addFiles, removeFile }: FileDropzoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const isEn = useAppStore((s) => s.language === 'en');
 
   const onDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); }, []);
   const onDragLeave = useCallback(() => setIsDragging(false), []);
@@ -42,7 +44,7 @@ export default function FileDropzone({ files, fileError, addFiles, removeFile }:
     <div>
       <div className="mb-2 flex items-center justify-between">
         <p className="text-xs font-medium text-white/60">
-          📎 Allegati
+          📎 {isEn ? 'Attachments' : 'Allegati'}
           <span className="ml-1.5 text-[0.6rem] text-white/30">
             ({files.length}/{MAX_FILES} · max 10 MB)
           </span>
@@ -53,7 +55,7 @@ export default function FileDropzone({ files, fileError, addFiles, removeFile }:
             onClick={() => fileInputRef.current?.click()}
             className="text-[0.65rem] font-medium text-[var(--color-accent-soft)] transition-colors hover:text-[var(--color-accent)]"
           >
-            + Sfoglia
+            + {isEn ? 'Browse' : 'Sfoglia'}
           </button>
         )}
       </div>
@@ -80,10 +82,10 @@ export default function FileDropzone({ files, fileError, addFiles, removeFile }:
         >
           <FaCloudUploadAlt className={`mb-2 text-xl ${isDragging ? 'text-[var(--color-accent-soft)]' : 'text-white/20'}`} />
           <p className="text-xs text-white/40">
-            {isDragging ? 'Rilascia qui' : 'Trascina file o clicca per sfogliare'}
+            {isDragging ? (isEn ? 'Drop here' : 'Rilascia qui') : (isEn ? 'Drag files or click to browse' : 'Trascina file o clicca per sfogliare')}
           </p>
           <p className="mt-1 text-[0.6rem] text-white/20">
-            PDF, Office, Markdown, Media, JSON, Archivi — max 10 MB
+            {isEn ? 'PDF, Office, Markdown, Media, JSON, Archives — max 10 MB' : 'PDF, Office, Markdown, Media, JSON, Archivi — max 10 MB'}
           </p>
         </div>
       )}
@@ -130,7 +132,7 @@ export default function FileDropzone({ files, fileError, addFiles, removeFile }:
 
       {files.length > 0 && (
         <p className="mt-1.5 text-[0.6rem] text-white/25">
-          Totale: {formatFileSize(totalFileSize)}
+          {isEn ? 'Total:' : 'Totale:'} {formatFileSize(totalFileSize)}
         </p>
       )}
     </div>

@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next';
+import { getBaseUrl } from '@/constants/site';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://vitopiccolini.com'; // TODO: Update with real domain
+  const baseUrl = getBaseUrl();
 
   return [
     {
