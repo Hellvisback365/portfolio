@@ -165,8 +165,8 @@ export const timelineMilestones = [
     title: { it: 'Operaio Generico e Retail', en: 'General Worker and Retail' },
     location: 'Bari',
     description: {
-      it: 'Esperienza lavorativa trasversale in settori sfidanti (edilizia/cantieri, agricoltura, fabbrica, reception alberghiera, steward eventi, gestione di negozio cosmetico) prima della scelta consapevole di intraprendere il percorso in Informatica.',
-      en: 'Transversal work experience in challenging sectors (construction, agriculture, factory, hotel reception, event steward, cosmetic store management) before making the conscious choice to embark on the Computer Science path.',
+      it: 'Subito dopo il diploma di maturità (2016), ho maturato 6 anni di esperienza lavorativa in settori sfidanti (edilizia/cantieri, agricoltura, fabbrica, reception alberghiera, steward eventi, gestione di negozio cosmetico). Questa lunga parentesi ha preceduto la mia scelta consapevole di riprendere gli studi e iscrivermi in Informatica nel 2022.',
+      en: 'Immediately after my high school diploma (2016), I gained 6 years of work experience in challenging sectors (construction, agriculture, factory, hotel reception, event steward, cosmetic store management). This long period preceded my conscious choice to resume studying and enroll in Computer Science in 2022.',
     },
     highlights: {
       it: [
