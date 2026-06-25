@@ -5,7 +5,8 @@ import { ReactLenis, useLenis } from 'lenis/react';
 import HtmlOverlay from '@/components/overlay/HtmlOverlay';
 import NavigationOverlay from '@/components/overlay/NavigationOverlay';
 import CopilotOverlay from '@/components/overlay/CopilotOverlay';
-import { scrollProgress, SECTIONS } from '@/store/useAppStore';
+import CommandPalette from '@/components/overlay/CommandPalette';
+import { scrollProgress, SECTIONS, pointerState } from '@/store/useAppStore';
 
 // Il canvas è client-only e fuori dal critical path: la pagina (testo,
 // SEO, a11y) è servita subito, il WebGL arriva un istante dopo.
@@ -67,10 +68,29 @@ function ScrollBridge() {
   return null;
 }
 
+/**
+ * Puntatore globale: un solo listener su window scrive le coordinate NDC
+ * (y verso l'alto) nel canale transiente. Serve perché l'overlay HTML
+ * (z-10) copre il canvas (z-0) e intercetta i pointer event: senza questo
+ * R3F non vedrebbe mai il mouse e `state.pointer` resterebbe a 0,0.
+ */
+function PointerBridge() {
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      pointerState.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointerState.y = -((e.clientY / window.innerHeight) * 2 - 1);
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onMove);
+  }, []);
+  return null;
+}
+
 export default function Home() {
   return (
     <ReactLenis root options={{ lerp: 0.08, wheelMultiplier: 1 }}>
       <ScrollBridge />
+      <PointerBridge />
       <div className="relative w-full">
         {/* Sfondo 3D fisso */}
         <div className="fixed inset-0 z-0 h-dvh w-screen" aria-hidden="true">
@@ -92,6 +112,7 @@ export default function Home() {
 
         {/* Layer fissi */}
         <NavigationOverlay />
+        <CommandPalette />
         <CopilotOverlay />
       </div>
     </ReactLenis>

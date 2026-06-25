@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { buildAllTargets } from './targets';
-import { scrollProgress } from '@/store/useAppStore';
+import { scrollProgress, pointerState } from '@/store/useAppStore';
 
 /**
  * PhylloField — la firma del sito.
@@ -30,9 +30,13 @@ const VERTEX = /* glsl */ `
   uniform float uProgress;   // 0 → 4, continuo
   uniform float uSize;       // px, già moltiplicato per il dpr
   uniform float uDrift;      // 0 con prefers-reduced-motion
+  uniform vec2  uPointer;        // puntatore in NDC (-1..1), già smussato
+  uniform float uPointerStrength;// 0 = nessuna interazione (touch / reduced)
+  uniform float uAspect;         // width/height: falloff circolare, non ellittico
 
   varying float vTint;
   varying float vAlpha;
+  varying float vGlow; // 0..1, vicinanza al puntatore → bagliore
 
   void main() {
     float p = clamp(uProgress, 0.0, 3.999);
@@ -56,19 +60,43 @@ const VERTEX = /* glsl */ `
 
     vec3 pos = mix(a, b, local);
 
-    // Respiro: deriva trigonometrica minima, fase per-particella.
-    float t = uTime * 0.6;
-    pos += uDrift * 0.07 * vec3(
-      sin(t + aSeed.x * 6.2831),
-      cos(t * 0.8 + aSeed.x * 12.566),
-      sin(t * 0.9 + aSeed.x * 9.42)
+    // Flusso organico domain-warped: ogni asse dipende dagli altri, così il
+    // campo "scorre" e vortica invece di respirare in modo uniforme.
+    float t = uTime * 0.5;
+    vec3 sp = pos * 0.35;
+    vec3 flow = vec3(
+      sin(sp.y + t + aSeed.x * 6.2831) + 0.5 * sin(sp.z * 1.7 - t * 1.3),
+      sin(sp.z + t * 0.9 + aSeed.x * 6.0) + 0.5 * sin(sp.x * 1.5 + t * 1.1),
+      sin(sp.x + t * 1.1 + aSeed.x * 5.0) + 0.5 * sin(sp.y * 1.9 - t)
     );
+    pos += uDrift * 0.06 * flow;
 
     vec4 mv = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mv;
 
+    // ── Interazione col puntatore (repulsione screen-space) ──
+    // Lavoriamo in NDC così la spinta è coerente a ogni profondità.
+    // L'aspect-correction mantiene il raggio d'influenza circolare.
+    float vGlowLocal = 0.0;
+    if (uPointerStrength > 0.001) {
+      vec2 ndc = gl_Position.xy / gl_Position.w;
+      vec2 diff = ndc - uPointer;
+      diff.x *= uAspect;
+      float d = length(diff);
+      float fall = smoothstep(0.40, 0.0, d);          // 0 lontano → 1 sul cursore
+      float force = uPointerStrength * fall * 0.15;
+      vec2 radial = normalize(diff + 1e-4);
+      vec2 tangent = vec2(-radial.y, radial.x);        // vortice attorno al cursore
+      vec2 push = radial * 0.85 + tangent * 0.55;
+      push.x /= uAspect;                               // ripristina la metrica NDC
+      gl_Position.xy += push * force * gl_Position.w;
+      vGlowLocal = uPointerStrength * fall;
+    }
+    vGlow = vGlowLocal;
+
     float dist = -mv.z;
-    gl_PointSize = clamp(uSize * mix(0.55, 1.5, aSeed.z) * (13.0 / dist), 1.0, 22.0);
+    gl_PointSize = clamp(uSize * mix(0.55, 1.5, aSeed.z) * (13.0 / dist), 1.0, 22.0)
+      * (1.0 + vGlowLocal * 0.6);                      // le particelle vicine si ingrandiscono
 
     vTint = aSeed.y;
     // Fade atmosferico in profondità + variazione per-particella.
@@ -82,14 +110,17 @@ const FRAGMENT = /* glsl */ `
 
   varying float vTint;
   varying float vAlpha;
+  varying float vGlow;
 
   void main() {
     float d = length(gl_PointCoord - 0.5);
     float disc = smoothstep(0.5, 0.06, d);
     float alpha = disc * vAlpha;
     if (alpha < 0.004) discard;
-    vec3 color = mix(uColorA, uColorB, vTint);
-    gl_FragColor = vec4(color * alpha, alpha); // premoltiplicato per l'additive
+    // Le particelle vicine al puntatore virano verso il blu chiaro e brillano.
+    vec3 color = mix(uColorA, uColorB, clamp(vTint + vGlow * 0.6, 0.0, 1.0));
+    float a = alpha * (1.0 + vGlow * 0.9);
+    gl_FragColor = vec4(color * a, a); // premoltiplicato per l'additive
   }
 `;
 
@@ -139,16 +170,15 @@ export default function PhylloField({
       uProgress: { value: 0 },
       uSize: { value: 3.0 },
       uDrift: { value: reducedMotion ? 0 : 1 },
+      uPointer: { value: new THREE.Vector2(0, 0) },
+      uPointerStrength: { value: 0 },
+      uAspect: { value: 1 },
       uColorA: { value: new THREE.Color('#0a84ff') },
       uColorB: { value: new THREE.Color('#9ecbff') },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
-
-  useEffect(() => {
-    uniforms.uDrift.value = reducedMotion ? 0 : 1;
-  }, [reducedMotion, uniforms]);
 
   // Cleanup esplicito: niente leak GPU all'unmount.
   useEffect(() => {
@@ -167,6 +197,24 @@ export default function PhylloField({
     mat.uniforms.uTime.value = state.clock.elapsedTime;
     // dpr incluso nella size: i point sprite sono in pixel device.
     mat.uniforms.uSize.value = 3.0 * state.gl.getPixelRatio();
+    // uDrift via ref (non mutiamo l'oggetto useMemo direttamente).
+    mat.uniforms.uDrift.value = reducedMotion ? 0 : 1;
+
+    // ── Puntatore: aspect + posizione smussata + forza con easing ──
+    mat.uniforms.uAspect.value =
+      state.size.height > 0 ? state.size.width / state.size.height : 1;
+    const interactive = !reducedMotion && !isCoarsePointer;
+    mat.uniforms.uPointerStrength.value = THREE.MathUtils.damp(
+      mat.uniforms.uPointerStrength.value,
+      interactive ? 1 : 0,
+      4,
+      delta,
+    );
+    if (interactive) {
+      const ptr = mat.uniforms.uPointer.value as THREE.Vector2;
+      ptr.x = THREE.MathUtils.damp(ptr.x, pointerState.x, 8, delta);
+      ptr.y = THREE.MathUtils.damp(ptr.y, pointerState.y, 8, delta);
+    }
 
     const target = scrollProgress.stage;
     if (reducedMotion) {

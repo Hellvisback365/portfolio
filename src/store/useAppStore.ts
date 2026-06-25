@@ -4,9 +4,9 @@ import { create } from 'zustand';
  * Due canali, una sola dipendenza:
  *
  * 1) Stato UI reattivo (Zustand classico): copilot aperto, navigazione.
- * 2) Canale "transiente" per lo scroll: `scrollProgress` è un oggetto
- *    mutabile letto via ref dentro useFrame. Lo scroll a 60–120 Hz NON
- *    deve mai attraversare React: niente setState per frame, niente
+ * 2) Canali "transienti" ad alta frequenza (scroll, puntatore): oggetti
+ *    mutabili letti via ref dentro useFrame. Scroll e mouse a 60–120 Hz
+ *    NON devono mai attraversare React: niente setState per frame, niente
  *    re-render, niente letture di layout nel loop WebGL.
  */
 
@@ -19,6 +19,16 @@ export const scrollProgress = {
   value: 0,
   /** 0 → SECTIONS.length - 1, continuo (input del morphing) */
   stage: 0,
+};
+
+/**
+ * Canale puntatore (coordinate NDC, y verso l'alto, 0,0 = centro).
+ * Scritto da un listener globale su window e letto in useFrame: funziona
+ * anche se l'overlay HTML copre il canvas (il canvas non riceve gli eventi).
+ */
+export const pointerState = {
+  x: 0,
+  y: 0,
 };
 
 interface AppState {

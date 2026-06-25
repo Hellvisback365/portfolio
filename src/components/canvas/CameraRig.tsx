@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { scrollProgress } from '@/store/useAppStore';
+import { pointerState } from '@/store/useAppStore';
 
 /**
  * Stile Apple: la camera è quasi ferma, è l'oggetto a trasformarsi.
@@ -20,8 +20,8 @@ export default function CameraRig({ reducedMotion = false }: { reducedMotion?: b
       state.camera.lookAt(target);
       return;
     }
-    const px = state.pointer.x * 0.85;
-    const py = state.pointer.y * 0.5;
+    const px = pointerState.x * 0.85;
+    const py = pointerState.y * 0.5;
     state.camera.position.x = THREE.MathUtils.damp(state.camera.position.x, basePos.x + px, 2.4, delta);
     state.camera.position.y = THREE.MathUtils.damp(state.camera.position.y, basePos.y + py, 2.4, delta);
     state.camera.position.z = basePos.z;
