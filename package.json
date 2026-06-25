@@ -7,7 +7,7 @@
     "dev:turbo": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "vitest run",
     "rag:ingest": "tsx scripts/rag-ingest.mts",
     "rag:eval": "tsx scripts/rag-eval.mts",

@@ -5,19 +5,24 @@ env.allowLocalModels = false;
 
 const EMBED_MODEL = 'Xenova/multilingual-e5-small';
 
+// Tipo strutturale minimo dell'extractor: i tipi di transformers.js sono
+// molto larghi, qui descriviamo solo ciò che usiamo davvero.
+type Extractor = (
+  text: string,
+  opts: { pooling: 'mean'; normalize: boolean },
+) => Promise<{ data: ArrayLike<number> }>;
+
 class PipelineSingleton {
   static task = 'feature-extraction' as const;
   static model = EMBED_MODEL;
-  static instance: any = null;
+  static instance: Promise<Extractor> | null = null;
 
-  static async getInstance(progress_callback?: any) {
-    if (this.instance === null) {
-      // Usiamo WebGPU se disponibile, altrimenti fallback a WASM.
-      this.instance = pipeline(this.task, this.model, {
-        dtype: 'q8',
-        progress_callback,
-      });
-    }
+  static getInstance(progress_callback?: (progress: unknown) => void): Promise<Extractor> {
+    // Usiamo WebGPU se disponibile, altrimenti fallback a WASM.
+    this.instance ??= pipeline(this.task, this.model, {
+      dtype: 'q8',
+      progress_callback,
+    }) as unknown as Promise<Extractor>;
     return this.instance;
   }
 }
@@ -28,7 +33,7 @@ self.addEventListener('message', async (event) => {
 
   try {
     if (type === 'load') {
-      const p1 = PipelineSingleton.getInstance((x: any) => {
+      const p1 = PipelineSingleton.getInstance((x: unknown) => {
         self.postMessage({ type: 'progress', model: 'embedder', progress: x });
       });
       await p1;
@@ -44,7 +49,7 @@ self.addEventListener('message', async (event) => {
       });
 
       // Arrotondiamo a 5 decimali
-      const vector = Array.from(out.data, (v: any) => Math.round(v * 1e5) / 1e5);
+      const vector = Array.from(out.data, (v: number) => Math.round(v * 1e5) / 1e5);
 
       self.postMessage({
         type: 'result',

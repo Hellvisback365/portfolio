@@ -16,11 +16,11 @@ export default function SkillsRadar() {
       <div className="grid grid-cols-2 gap-2 text-xs text-white/80">
         <div className="rounded-lg border border-white/5 bg-white/5 p-2">
           <span className="block font-medium text-white">AI / LLM</span>
-          <span className="text-[0.65rem] opacity-70">LangChain, LangGraph, Vercel AI, Gemini, OpenAI</span>
+          <span className="text-[0.65rem] opacity-70">LangChain, LangGraph, Vercel AI SDK, Groq</span>
         </div>
         <div className="rounded-lg border border-white/5 bg-white/5 p-2">
           <span className="block font-medium text-white">Frontend</span>
-          <span className="text-[0.65rem] opacity-70">Next.js 15+, React 19, Three.js, GSAP</span>
+          <span className="text-[0.65rem] opacity-70">Next.js 16, React 19, Three.js, GSAP</span>
         </div>
         <div className="rounded-lg border border-white/5 bg-white/5 p-2">
           <span className="block font-medium text-white">Backend</span>

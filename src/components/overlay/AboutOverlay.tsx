@@ -16,8 +16,7 @@ import Badge from '@/components/ui/Badge';
 import { useAppStore } from '@/store/useAppStore';
 
 import { personalInfo, formationItems, timelineMilestones } from '@/data/about';
-
-const focusPills = personalInfo.focusPills;
+import { loc } from '@/lib/i18n';
 
 const getInterestItems = (isEn: boolean) => [
   { label: isEn ? 'Recommender Systems & Multi-Agent LLM' : 'Recommender Systems & Multi-Agent LLM', icon: <FaBrain className="text-[white]" /> },
@@ -297,11 +296,11 @@ export default function AboutOverlay() {
                       {isEn && typeof item.date !== 'string' ? item.date.en : (typeof item.date !== 'string' ? item.date.it : item.date)}
                     </Badge>
                     <span className="text-[0.6rem] uppercase tracking-[0.3em] text-white/40">
-                      {isEn && typeof item.location !== 'string' ? (item.location as any).en : (typeof item.location !== 'string' ? (item.location as any).it : item.location)}
+                      {loc(item.location, isEn)}
                     </span>
                   </div>
                   <h4 className="mt-3 text-lg font-semibold text-white">
-                    {isEn && typeof item.title !== 'string' ? (item.title as any).en : (typeof item.title !== 'string' ? (item.title as any).it : item.title)}
+                    {loc(item.title, isEn)}
                   </h4>
                   <p className="mt-1 text-xs text-white/70">
                     {isEn ? item.description.en : item.description.it}

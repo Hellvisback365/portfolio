@@ -18,7 +18,7 @@ const listeners = new Set<(s: EmbedderState) => void>();
 
 let worker: Worker | null = null;
 let resolveInit: ((value: boolean) => void) | null = null;
-const pendingPromises = new Map<number, { resolve: (v: number[] | null) => void, reject: (r: any) => void }>();
+const pendingPromises = new Map<number, { resolve: (v: number[] | null) => void, reject: (r: unknown) => void }>();
 let messageIdCounter = 0;
 
 function setState(next: EmbedderState) {

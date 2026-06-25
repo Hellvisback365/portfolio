@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
-import { z } from 'zod';
 import { getProviders } from '@/lib/rag/providers';
 import { parseLLMJSON } from '@/lib/rag/parse-llm-json';
 import ragIndex from '@/data/rag-index.json';
@@ -60,8 +59,8 @@ Devi rispondere SOLO ED ESCLUSIVAMENTE con un JSON valido che rispetta questo sc
     }
     
     return NextResponse.json(typedObject);
-  } catch (error: any) {
-    console.error('[Suggestions API Error]', error?.message || error);
+  } catch (error) {
+    console.error('[Suggestions API Error]', error instanceof Error ? error.message : error);
     // Invece di restituire 500 e causare un errore sulla UI, facciamo fallback nativo
     return NextResponse.json({
       questions: isEn ? [

@@ -48,8 +48,9 @@ export async function POST(req: Request) {
     await langfuse.flushAsync();
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error('[Feedback API Error]', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Errore interno';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

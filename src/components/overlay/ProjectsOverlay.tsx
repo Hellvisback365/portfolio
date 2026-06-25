@@ -8,6 +8,7 @@ import { projects as projectsData, type ProjectData } from '@/data/projects';
 import Badge from '@/components/ui/Badge';
 import CTAButton from '@/components/ui/CTAButton';
 import { useAppStore } from '@/store/useAppStore';
+import { loc } from '@/lib/i18n';
 
 const ProjectModal = dynamic(() => import('@/components/ProjectModal'), {
   ssr: false,
@@ -107,7 +108,7 @@ export default function ProjectsOverlay() {
                         <p className="text-[0.6rem] uppercase tracking-[0.35em] text-white/50">
                           {typeof project.timeline !== 'string' ? (isEn ? project.timeline.en : project.timeline.it) : project.timeline}
                         </p>
-                        <h3 className="text-xl font-semibold text-white">{typeof project.title !== 'string' ? (isEn ? (project.title as any).en : (project.title as any).it) : project.title}</h3>
+                        <h3 className="text-xl font-semibold text-white">{loc(project.title, isEn)}</h3>
                         <p className="text-xs text-white/60">{isEn ? project.subtitle.en : project.subtitle.it}</p>
                       </div>
                       <Badge variant="glow" className="text-[0.6rem]">

@@ -8,6 +8,7 @@ import type { ProjectData } from '@/data/projects';
 import Badge from '@/components/ui/Badge';
 import CTAButton from '@/components/ui/CTAButton';
 import { useAppStore } from '@/store/useAppStore';
+import { loc } from '@/lib/i18n';
 
 interface ProjectModalProps {
   project: ProjectData;
@@ -118,7 +119,7 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
               {typeof project.timeline !== 'string' ? (isEn ? project.timeline.en : project.timeline.it) : project.timeline}
             </p>
             <h2 className="text-3xl font-semibold text-white">
-              {typeof project.title !== 'string' ? (isEn ? (project.title as any).en : (project.title as any).it) : project.title}
+              {loc(project.title, isEn)}
             </h2>
             <p className="text-base text-white/70">
               {isEn ? project.subtitle.en : project.subtitle.it}
