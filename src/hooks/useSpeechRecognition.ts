@@ -2,54 +2,81 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 
 interface UseSpeechRecognitionOptions {
-  onTranscript: (transcript: string) => void;
+  /** Trascrizione parziale, aggiornata live mentre l'utente parla. */
+  onInterim?: (text: string) => void;
+  /** Trascrizione finale (utterance conclusa). */
+  onFinal: (text: string) => void;
 }
 
-export function useSpeechRecognition({ onTranscript }: UseSpeechRecognitionOptions) {
+/**
+ * Riconoscimento vocale (Web Speech API) lingua-aware (it-IT / en-US).
+ * Espone risultati intermedi (per l'anteprima live) e finali (per l'auto-invio).
+ */
+export function useSpeechRecognition({ onInterim, onFinal }: UseSpeechRecognitionOptions) {
   const [isListening, setIsListening] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
-  const onTranscriptRef = useRef(onTranscript);
+  const onInterimRef = useRef(onInterim);
+  const onFinalRef = useRef(onFinal);
+
+  useEffect(() => { onInterimRef.current = onInterim; }, [onInterim]);
+  useEffect(() => { onFinalRef.current = onFinal; }, [onFinal]);
 
   useEffect(() => {
-    onTranscriptRef.current = onTranscript;
-  }, [onTranscript]);
+    if (typeof window === 'undefined') return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = false;
-        
-        recognitionRef.current.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          onTranscriptRef.current(transcript);
-        };
-        
-        recognitionRef.current.onend = () => {
-          setIsListening(false);
-        };
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = true;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (event: any) => {
+      let interim = '';
+      let final = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        if (res.isFinal) final += res[0].transcript;
+        else interim += res[0].transcript;
       }
-    }
+      if (interim) onInterimRef.current?.(interim);
+      if (final.trim()) onFinalRef.current(final.trim());
+    };
+    rec.onend = () => setIsListening(false);
+    rec.onerror = () => setIsListening(false);
+
+    recognitionRef.current = rec;
+    return () => {
+      try { rec.abort(); } catch {}
+    };
   }, []);
 
   const toggleListening = useCallback(() => {
-    if (!recognitionRef.current) return;
+    const rec = recognitionRef.current;
+    if (!rec) return;
     if (isListening) {
-      recognitionRef.current.stop();
+      rec.stop();
       setIsListening(false);
     } else {
       const language = useAppStore.getState().language;
-      recognitionRef.current.lang = language === 'en' ? 'en-US' : 'it-IT';
-      recognitionRef.current.start();
-      setIsListening(true);
+      rec.lang = language === 'en' ? 'en-US' : 'it-IT';
+      try {
+        rec.start();
+        setIsListening(true);
+      } catch {
+        // start() lancia se già attivo: ignora.
+      }
     }
   }, [isListening]);
 
   return {
     isListening,
     toggleListening,
-    hasSupport: typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+    hasSupport:
+      typeof window !== 'undefined' &&
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition),
   };
 }

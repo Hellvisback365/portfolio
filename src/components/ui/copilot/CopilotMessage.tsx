@@ -1,5 +1,5 @@
-import { Fragment, type ReactNode } from 'react';
-import { FiThumbsUp, FiThumbsDown } from 'react-icons/fi';
+import { type ReactNode } from 'react';
+import { FiThumbsUp, FiThumbsDown, FiSearch } from 'react-icons/fi';
 import ProjectCard from '@/components/ui/rag/ProjectCard';
 import SkillsRadar from '@/components/ui/rag/SkillsRadar';
 import type { UIMessage } from 'ai';
@@ -39,6 +39,20 @@ export default function CopilotMessage({
   const renderPart = (part: AnyPart, index: number): ReactNode => {
     const key = `${message.id}-${index}`;
     switch (part.type) {
+      // Traccia "reasoning" dell'agente: la ricerca nel portfolio.
+      // Gli altri tool (navigazione/widget) sono resi da data-uiAction.
+      case 'data-search': {
+        const q = (part.data as { query?: string } | undefined)?.query;
+        return (
+          <div
+            key={key + '-search'}
+            className="flex items-center gap-2 font-mono text-[10px] text-white/40"
+          >
+            <FiSearch className="h-3 w-3 shrink-0 text-accent-soft" />
+            <span className="truncate">{q ? `ricerca: «${q}»` : 'ricerca nel portfolio…'}</span>
+          </div>
+        );
+      }
       case 'text': {
         const clean = (part.text as string).trim();
         return clean ? (
@@ -48,7 +62,7 @@ export default function CopilotMessage({
         ) : null;
       }
       case 'data-uiAction': {
-        const embeddedAction = part.data as any;
+        const embeddedAction = part.data as { action?: string; target?: string } | undefined;
         if (!embeddedAction) return null;
 
         if (embeddedAction.action === 'showProject' && embeddedAction.target) {
@@ -74,7 +88,7 @@ export default function CopilotMessage({
         return null;
       }
       case 'data-sources': {
-        const sources = part.data as any[];
+        const sources = part.data as Array<{ title?: string; tag?: string }>;
         if (!sources || sources.length === 0) return null;
         return (
           <div key={key + '-sources'} className="mt-2 flex flex-wrap gap-1.5">
@@ -103,10 +117,11 @@ export default function CopilotMessage({
       {(message.parts as AnyPart[]).map((part, i) => renderPart(part, i))}
       {message.role === 'assistant' && (() => {
         const idx = messages.findIndex(m => m.id === message.id);
-        const prevMsg: any = messages[idx - 1];
-        const msg: any = message;
-        const userQ = prevMsg?.role === 'user' ? prevMsg.content || (prevMsg.parts || []).map((p: any) => p.text || '').join('') : 'Unknown';
-        const aiA = msg.content || (msg.parts || []).map((p: any) => p.text || '').join('');
+        const prevMsg = messages[idx - 1];
+        const partsText = (m: UIMessage | undefined) =>
+          (m?.parts ?? []).map((p) => (p.type === 'text' ? p.text : '')).join('');
+        const userQ = prevMsg?.role === 'user' ? (partsText(prevMsg) || 'Unknown') : 'Unknown';
+        const aiA = partsText(message);
         return (
           <div className="flex gap-2 pt-1 opacity-40 hover:opacity-100 transition-opacity">
             <button onClick={() => onFeedback(message.id, 1, aiA, userQ)} disabled={feedbackGiven[message.id]} className="hover:text-emerald-400 disabled:opacity-30"><FiThumbsUp className="w-3 h-3" /></button>

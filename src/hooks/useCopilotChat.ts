@@ -131,7 +131,7 @@ export function useCopilotChat() {
       let actionFound = false;
       for (const part of message.parts as AnyPart[]) {
         if (part.type === 'data-uiAction') {
-          const actionData = part.data as any;
+          const actionData = part.data as { action?: string; target?: string };
           actionFound = true;
           
           if (actionData.action === 'navigateToSection' && actionData.target) {

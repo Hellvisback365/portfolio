@@ -5,7 +5,8 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 interface CopilotInputProps {
   input: string;
   setInput: (value: string) => void;
-  onSubmit: () => void;
+  /** Accetta un testo esplicito (usato dall'auto-invio vocale); altrimenti usa l'input. */
+  onSubmit: (text?: string) => void;
   busy: boolean;
   copilotOpen: boolean;
 }
@@ -18,9 +19,26 @@ export default function CopilotInput({
   copilotOpen
 }: CopilotInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Testo già presente quando si avvia il dettato: la voce vi si concatena.
+  const baseRef = useRef('');
+
   const { isListening, toggleListening, hasSupport } = useSpeechRecognition({
-    onTranscript: (transcript) => setInput(input + (input ? ' ' : '') + transcript)
+    onInterim: (text) => {
+      setInput((baseRef.current ? baseRef.current + ' ' : '') + text);
+    },
+    onFinal: (text) => {
+      const full = ((baseRef.current ? baseRef.current + ' ' : '') + text).trim();
+      baseRef.current = '';
+      setInput(full);
+      // Auto-invio a fine frase: vera interazione vocale.
+      if (full) onSubmit(full);
+    },
   });
+
+  const handleMic = () => {
+    if (!isListening) baseRef.current = input.trim();
+    toggleListening();
+  };
 
   useEffect(() => {
     if (copilotOpen) textareaRef.current?.focus();
@@ -47,18 +65,19 @@ export default function CopilotInput({
             }
           }}
           rows={2}
-          placeholder="Scrivi una domanda…"
+          placeholder={isListening ? 'Sto ascoltando…' : 'Scrivi una domanda…'}
           aria-label="Messaggio per il copilot"
           className="max-h-32 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35 overscroll-contain"
         />
         {hasSupport && (
           <button
             type="button"
-            onClick={toggleListening}
+            onClick={handleMic}
             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
               isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-white/50 hover:bg-white/10 hover:text-white'
             }`}
-            aria-label="Microfono"
+            aria-label={isListening ? 'Ferma il microfono' : 'Microfono'}
+            aria-pressed={isListening}
           >
             <FiMic className="h-4 w-4" />
           </button>

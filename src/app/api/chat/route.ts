@@ -4,7 +4,6 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
   generateText,
-  stepCountIs,
   streamText,
   type UIMessage,
 } from 'ai';
@@ -15,32 +14,34 @@ import { getProviders } from '@/lib/rag/providers';
 import { parseLLMJSON } from '@/lib/rag/parse-llm-json';
 
 /**
- * Pipeline per richiesta (budget ~quello di una sola chiamata LLM,
- * perché router e retrieval lessicale corrono in parallelo):
+ * Copilot AGENTICO, affidabile su Groq (planner a output strutturato).
+ *
+ * NB: il function-calling nativo è ROTTO su Groq/Llama-3.3 (il modello emette
+ * `<function=nome{args}>` che Groq rifiuta, sia in streamText sia in generateText).
+ * Quindi l'agente NON usa l'API tool: pianifica via JSON strutturato — lo stesso
+ * meccanismo robusto del router originale, qui potenziato a multi-query.
  *
  *   body { messages, queryVector? }
  *        │
- *        ├─ router (llama-3.1-8b-instant, ~100 ms, timeout 1.2 s) ──┐
- *        │    intent: smalltalk | portfolio | navigate              │
- *        │    standalone: domanda riscritta self-contained          │
- *        │                                                          ├─ join
- *        └─ HybridRetriever: BM25 + cosine(queryVector) + RRF ──────┘
+ *        ├─ FASE 1 — Planner (8B, JSON, ~timeout 3.5s):
+ *        │     decide intent, 1-3 query di ricerca autonome (decomposizione) e
+ *        │     l'azione UI. Output validato con Zod, default sicuri.
  *        │
- *        ├─ writer.write('data-sources')  → chips fonti nella UI
- *        └─ streamText (llama-3.3-70b-versatile) + tools → merge
+ *        ├─ Esecuzione: per ogni query → data-search (traccia "reasoning") +
+ *        │     retrieval IBRIDA (BM25 + cosine + RRF); fonti deduplicate → data-sources.
+ *        │     uiAction → data-uiAction (pilota la scena 3D / widget in chat).
+ *        │
+ *        └─ FASE 2 — Risposta (streamText 70B, NESSUN tool): risposta in streaming
+ *              sul contesto raccolto.
  *
- * Il vecchio route faceva multi-query expansion (3 riscritture LLM in
- * serie) su un corpus di ~20 chunk e poi `messages.slice(-1)`:
- * +1–2 s di latenza per perdere lo storico. Qui lo storico (ultimi 8
- * messaggi) arriva intero al modello e il rewrite è un solo step
- * piccolo, non bloccante oltre il timeout.
+ * Le data part emesse sono le stesse di sempre → client e scena 3D invariati.
  */
 
 export const maxDuration = 30;
 
 const HISTORY_WINDOW = 8;
 const TOP_K = 10;
-const ROUTER_TIMEOUT_MS = 3500;
+const PLANNER_TIMEOUT_MS = 3500;
 
 // ── Validazione del body ──────────────────────────────────────────────
 const bodySchema = z.object({
@@ -52,17 +53,17 @@ const bodySchema = z.object({
     .nullish(),
 });
 
-const routerSchema = z.object({
-  intent: z.enum(['smalltalk', 'portfolio']),
-  standalone: z.string().describe('La domanda riscritta in forma autonoma, in italiano.'),
-  uiAction: z.enum(['none', 'navigateToSection', 'showProject', 'showSkillsRadar']).default('none').describe('Azione UI da eseguire.'),
-  uiActionTarget: z.string().optional().describe('Se uiAction è navigateToSection usa una tra about, skills, projects, contact. Se showProject usa il nome del progetto.'),
+const plannerSchema = z.object({
+  intent: z.enum(['smalltalk', 'portfolio']).default('portfolio'),
+  searches: z.array(z.string().min(1)).max(3).default([]),
+  uiAction: z
+    .enum(['none', 'navigateToSection', 'showProject', 'showSkillsRadar'])
+    .default('none'),
+  uiActionTarget: z.string().optional(),
 });
-
-export type RouterDecision = z.infer<typeof routerSchema>;
+type PlannerDecision = z.infer<typeof plannerSchema>;
 
 // ── Helpers ───────────────────────────────────────────────────────────
-
 function textOf(message: UIMessage): string {
   return (message.parts ?? [])
     .map((p) => (p.type === 'text' ? p.text : ''))
@@ -89,7 +90,36 @@ function recentDialogue(messages: UIMessage[], n = 6): string {
     .join('\n');
 }
 
-function buildSystemPrompt(sources: RetrievedChunk[]): string {
+function buildPlannerPrompt(history: UIMessage[]): string {
+  return `Sei il PIANIFICATORE del Copilot del portfolio di Vito Piccolini.
+Rispondi SOLO ED ESCLUSIVAMENTE con un JSON valido che rispetta questo schema:
+{
+  "intent": "portfolio" | "smalltalk",
+  "searches": ["query autonoma 1", "query autonoma 2"],
+  "uiAction": "navigateToSection" | "showProject" | "showSkillsRadar" | "none",
+  "uiActionTarget": "hero" | "about" | "projects" | "contact" | nome del progetto
+}
+
+REGOLE intent:
+- "smalltalk": saluti, convenevoli, chiacchiere → "searches": [], "uiAction": "none".
+- "portfolio": qualsiasi domanda su Vito, competenze, progetti, percorso, contatti.
+
+REGOLE searches (decomposizione agentica):
+- Genera da 1 a 3 query di ricerca AUTONOME (risolvi i riferimenti al contesto della conversazione).
+- Se la domanda ha più parti distinte (es. "parlami della tesi E mostrami TerraNode"), genera una query per ciascuna parte.
+- Query brevi e specifiche, in italiano.
+
+REGOLE uiAction (pilota SEMPRE la scena, tranne smalltalk):
+- "showSkillsRadar": competenze, stack, linguaggi, tecnologie.
+- "showProject": un progetto specifico → "uiActionTarget" = nome del progetto (es. TerraNode, Zenith, EnLexi, The Pulse).
+- "navigateToSection": altrimenti → "uiActionTarget" tra "hero" (chi è, info generali), "about" (percorso, formazione, esperienze), "projects" (lista progetti), "contact" (contatti).
+- "none": solo se intent = smalltalk.
+
+CONVERSAZIONE:
+${recentDialogue(history)}`;
+}
+
+function buildAnswerPrompt(sources: RetrievedChunk[]): string {
   const context =
     sources.length > 0
       ? sources
@@ -97,7 +127,7 @@ function buildSystemPrompt(sources: RetrievedChunk[]): string {
           .join('\n\n')
       : '(nessuna fonte recuperata per questa domanda)';
 
-  const SYSTEM_PROMPT = `
+  return `
 Sei il Copilot AI del portfolio di Vito Piccolini, un brillante sviluppatore AI/Software Engineer italiano.
 Il tuo scopo è assistere recruiter, aziende e colleghi nel comprendere le competenze e le esperienze di Vito.
 
@@ -118,10 +148,7 @@ CONTATTI PUBBLICI (puoi condividerli liberamente)
 - Email: vitopiccolini@live.it
 - LinkedIn: https://www.linkedin.com/in/vitopiccolini/
 - GitHub: https://github.com/Hellvisback365`;
-  return SYSTEM_PROMPT;
 }
-
-
 
 // ── Route ─────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
@@ -149,85 +176,62 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Body non valido.' }, { status: 400 });
   }
 
-
-
   const messages = parsed.messages as UIMessage[];
   const queryVector = parsed.queryVector ?? null;
-  const question = lastUserText(messages);
   const history = messages.slice(-HISTORY_WINDOW);
+  const question = lastUserText(history);
 
   const retriever = await getRetriever();
+  const modelMessages = await convertToModelMessages(history);
 
-  const routerPrompt = `Sei il router di sistema. Classifica l'intento dell'utente.
-Devi rispondere SOLO ED ESCLUSIVAMENTE con un JSON valido che rispetta questo schema:
-{
-  "intent": "portfolio" | "smalltalk",
-  "standalone": "La query riformulata senza contesto",
-  "uiAction": "navigateToSection" | "showProject" | "showSkillsRadar" | "none",
-  "uiActionTarget": "skills" | "projects" | "hero" | o il nome del progetto (se applicabile)
-}
-
-Regole per intent:
-- "smalltalk": saluti generici, chiacchiere.
-- "portfolio": qualsiasi domanda su Vito, competenze, progetti o carriera.
-
-Regole per standalone:
-Riscrivi la domanda dell'utente in modo che sia comprensibile da sola (coreference resolution).
-
-Regole per uiAction:
-Devi SEMPRE pilotare il sito verso la sezione più pertinente per qualsiasi domanda sul portfolio. Usa "none" SOLO per lo smalltalk.
-- "showProject": se la domanda riguarda un progetto specifico (es. TerraNode). uiActionTarget = nome del progetto.
-- "showSkillsRadar": se la domanda riguarda linguaggi, tecnologie, stack o competenze.
-- "navigateToSection": per qualsiasi altra domanda. uiActionTarget DEVE ESSERE uno tra: "hero" (info generali, studio, chi è), "about" (percorso, località), "projects" (lista progetti generica), "contact" (contatti, email).
-- "none": solo se intent = smalltalk.
-
-CONVERSAZIONE:
-${recentDialogue(history)}`;
-
-  // Esecuzione parallela: Router (LLM) e Retrieval Lessicale (BM25)
-  const routerPromise = generateText({
+  // ── FASE 1 — Planner (JSON strutturato, affidabile su Groq) ──
+  const plannerRes = await generateText({
     model: providers.router,
     temperature: 0,
-    prompt: routerPrompt,
-    abortSignal: AbortSignal.timeout(ROUTER_TIMEOUT_MS),
-  }).catch((err: any) => {
-    console.error('[Router] Fallito o andato in timeout:', err);
+    prompt: buildPlannerPrompt(history),
+    abortSignal: AbortSignal.timeout(PLANNER_TIMEOUT_MS),
+  }).catch((err: unknown) => {
+    console.error('[Copilot] Planner fallito o in timeout:', err);
     return null;
   });
 
-  // Avvio la ricerca lessicale (BM25) in parallelo al router LLM
-  const lexPromise = retriever.lexicalSearch(question);
-
-  let sources: RetrievedChunk[] = [];
-  const routerRes = await routerPromise;
-  
-  let routerState: RouterDecision = { intent: 'portfolio', standalone: question, uiAction: 'none' };
-  if (routerRes?.text) {
-    const parsedJson = parseLLMJSON<unknown>(routerRes.text, null);
-    const validated = routerSchema.safeParse(parsedJson);
-    if (validated.success) routerState = validated.data;
+  // Default sicuro: cerca la domanda dell'utente, nessuna azione UI.
+  let plan: PlannerDecision = {
+    intent: 'portfolio',
+    searches: question ? [question] : [],
+    uiAction: 'none',
+  };
+  if (plannerRes?.text) {
+    const validated = plannerSchema.safeParse(parseLLMJSON<unknown>(plannerRes.text, null));
+    if (validated.success) {
+      plan = validated.data;
+      // Se è portfolio ma il planner non ha proposto query, ripiega sulla domanda.
+      if (plan.intent === 'portfolio' && plan.searches.length === 0 && question) {
+        plan.searches = [question];
+      }
+    }
   }
-
-  if (routerState.intent !== 'smalltalk') {
-    const lexRank = await lexPromise;
-    sources = retriever.semanticAndFuse(lexRank, queryVector ?? null, TOP_K);
-  }
-
-  const result = streamText({
-    model: providers.chat,
-    system: buildSystemPrompt(sources),
-    messages: await convertToModelMessages(history),
-    temperature: 0.4,
-    stopWhen: stepCountIs(1),
-  });
 
   const stream = createUIMessageStream({
-    execute: ({ writer }) => {
+    execute: async ({ writer }) => {
       writer.write({ type: 'start' });
-      if (sources.length > 0) {
+
+      // Esecuzione delle ricerche pianificate (dedup per id).
+      const sourcesById = new Map<string, RetrievedChunk>();
+      if (plan.intent !== 'smalltalk') {
+        for (const q of plan.searches) {
+          writer.write({ type: 'data-search' as never, data: { query: q } });
+          const lexRank = retriever.lexicalSearch(q);
+          const found = retriever.semanticAndFuse(lexRank, queryVector, TOP_K);
+          for (const c of found) if (!sourcesById.has(c.id)) sourcesById.set(c.id, c);
+        }
+      }
+
+      const finalSources = [...sourcesById.values()].slice(0, TOP_K);
+      if (finalSources.length > 0) {
         writer.write({
-          type: 'data-sources' as any,
-          data: sources.map((s, i) => ({
+          type: 'data-sources' as never,
+          data: finalSources.map((s, i) => ({
             tag: `S${i + 1}`,
             id: s.id,
             title: s.title,
@@ -236,13 +240,22 @@ ${recentDialogue(history)}`;
           })),
         });
       }
-      
-      if (routerState.uiAction && routerState.uiAction !== 'none') {
+
+      // Azione UI decisa dal planner → pilota la scena 3D / widget in chat.
+      if (plan.uiAction !== 'none') {
         writer.write({
-          type: 'data-uiAction' as any,
-          data: { action: routerState.uiAction, target: routerState.uiActionTarget },
+          type: 'data-uiAction' as never,
+          data: { action: plan.uiAction, target: plan.uiActionTarget },
         });
       }
+
+      // ── FASE 2 — Risposta in streaming (NESSUN tool) ──
+      const result = streamText({
+        model: providers.chat,
+        system: buildAnswerPrompt(finalSources),
+        messages: modelMessages,
+        temperature: 0.4,
+      });
 
       writer.merge(result.toUIMessageStream({ sendStart: false }));
     },

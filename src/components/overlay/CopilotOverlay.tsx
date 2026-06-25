@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { FiMessageCircle, FiX, FiCpu } from 'react-icons/fi';
+import { FiMessageCircle, FiX, FiCpu, FiVolume2, FiVolumeX } from 'react-icons/fi';
 import { useAppStore } from '@/store/useAppStore';
 import type { EmbedderState } from '@/lib/rag/embedder';
 import { useCopilotChat } from '@/hooks/useCopilotChat';
+import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import CopilotMessage from '@/components/ui/copilot/CopilotMessage';
 import CopilotInput from '@/components/ui/copilot/CopilotInput';
 
@@ -62,6 +63,11 @@ export default function CopilotOverlay() {
     handleSuggestionClick
   } = useCopilotChat();
 
+  const { speak, cancel: cancelSpeech, supported: ttsSupported } = useSpeechSynthesis();
+  // Audio attivo di default: l'utente potrebbe non notare il toggle in alto.
+  const [voiceReplies, setVoiceReplies] = useState(true);
+  const lastSpokenRef = useRef<string | null>(null);
+
   // Auto-scroll in fondo a ogni aggiornamento.
   useEffect(() => {
     endRef.current?.scrollIntoView({
@@ -69,6 +75,37 @@ export default function CopilotOverlay() {
       block: 'end',
     });
   }, [messages, status, reduceMotion]);
+
+  // Lettura vocale: legge l'ultima risposta dell'assistente quando è completa.
+  useEffect(() => {
+    if (!voiceReplies || busy) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== 'assistant' || last.id === lastSpokenRef.current) return;
+    const parts = (last.parts ?? []) as Array<{ type: string; text?: string }>;
+    const text = parts.map((p) => (p.type === 'text' ? p.text ?? '' : '')).join(' ').trim();
+    if (text) {
+      lastSpokenRef.current = last.id;
+      speak(text, language);
+    }
+  }, [messages, busy, voiceReplies, speak, language]);
+
+  // Chiude la voce quando il pannello si chiude.
+  useEffect(() => {
+    if (!copilotOpen) cancelSpeech();
+  }, [copilotOpen, cancelSpeech]);
+
+  const toggleVoiceReplies = () => {
+    setVoiceReplies((on) => {
+      const next = !on;
+      if (next) {
+        // Non rileggere la risposta già a schermo: parti dalle prossime.
+        lastSpokenRef.current = messages[messages.length - 1]?.id ?? null;
+      } else {
+        cancelSpeech();
+      }
+      return next;
+    });
+  };
 
   const handleFeedback = async (messageId: string, score: number, aiResponseText: string, userQuestionText: string) => {
     if (feedbackGiven[messageId]) return;
@@ -84,8 +121,9 @@ export default function CopilotOverlay() {
     }
   };
 
-  const handleSubmit = () => {
-    if (submit(input)) {
+  const handleSubmit = (override?: string) => {
+    cancelSpeech();
+    if (submit(override ?? input)) {
       setInput('');
     }
   };
@@ -137,13 +175,31 @@ export default function CopilotOverlay() {
                 </span>
                 <EmbedderDot state={embedderState} isEn={isEn} />
               </div>
-              <button
-                onClick={() => setCopilotOpen(false)}
-                aria-label={isEn ? 'Close copilot' : 'Chiudi il copilot'}
-                className="rounded-full p-2 text-white/50 transition-colors hover:text-white"
-              >
-                <FiX className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-0.5">
+                {ttsSupported && (
+                  <button
+                    onClick={toggleVoiceReplies}
+                    aria-label={
+                      voiceReplies
+                        ? (isEn ? 'Disable voice replies' : 'Disattiva risposte vocali')
+                        : (isEn ? 'Enable voice replies' : 'Attiva risposte vocali')
+                    }
+                    aria-pressed={voiceReplies}
+                    className={`rounded-full p-2 transition-colors ${
+                      voiceReplies ? 'text-accent-soft' : 'text-white/50 hover:text-white'
+                    }`}
+                  >
+                    {voiceReplies ? <FiVolume2 className="h-4 w-4" /> : <FiVolumeX className="h-4 w-4" />}
+                  </button>
+                )}
+                <button
+                  onClick={() => setCopilotOpen(false)}
+                  aria-label={isEn ? 'Close copilot' : 'Chiudi il copilot'}
+                  className="rounded-full p-2 text-white/50 transition-colors hover:text-white"
+                >
+                  <FiX className="h-4 w-4" />
+                </button>
+              </div>
             </header>
 
             {/* Messaggi */}
