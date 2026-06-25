@@ -26,3 +26,5 @@ test*.tsx
 test-usechat.js
 temp_old_ragchat.tsx
 *.old
+.claude
+codebase.md
