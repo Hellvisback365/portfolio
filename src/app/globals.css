@@ -134,6 +134,34 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: rgb(100 168 255 / 0.45); }
 
+/* ─── Barra di avanzamento: scroll-driven CSS nativo (compositor) ─── */
+.scroll-progress {
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+@supports (animation-timeline: scroll()) {
+  .scroll-progress {
+    animation: scroll-progress-grow linear both;
+    animation-timeline: scroll(root);
+  }
+}
+@keyframes scroll-progress-grow {
+  to { transform: scaleX(1); }
+}
+
+/* ─── Reveal in entrata: scroll-driven CSS nativo (view-timeline) ─── */
+@supports (animation-timeline: view()) {
+  .reveal-up {
+    animation: reveal-up-kf linear both;
+    animation-timeline: view();
+    animation-range: entry 5% cover 22%;
+  }
+}
+@keyframes reveal-up-kf {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ─── iOS input zoom fix ─── */
 input, select, textarea { font-size: 16px; }
 

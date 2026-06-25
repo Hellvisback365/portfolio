@@ -21,7 +21,6 @@ const LABELS: Record<SectionId, string> = {
  */
 export default function NavigationOverlay() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
   const offsets = useRef<number[]>([]);
   const ticking = useRef(false);
   const lenis = useLenis();
@@ -45,8 +44,6 @@ export default function NavigationOverlay() {
       requestAnimationFrame(() => {
         ticking.current = false;
         const y = window.scrollY;
-        const limit = document.documentElement.scrollHeight - window.innerHeight;
-        setProgress(limit > 0 ? y / limit : 0);
         const threshold = y + window.innerHeight / 2;
         let current = 0;
         for (let i = 0; i < offsets.current.length; i++) {
@@ -93,12 +90,9 @@ export default function NavigationOverlay() {
 
   return (
     <>
-      {/* Barra di avanzamento */}
+      {/* Barra di avanzamento — scroll-driven CSS nativo (vedi globals.css) */}
       <div className="fixed left-0 right-0 top-0 z-40 h-px bg-white/5">
-        <div
-          className="h-full bg-accent transition-[width] duration-150 ease-out"
-          style={{ width: `${progress * 100}%` }}
-        />
+        <div className="scroll-progress h-full bg-accent" />
       </div>
 
       {/* Language Toggle */}

@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from 'framer-motion';
 import { useAppStore } from '@/store/useAppStore';
+import Magnetic from '@/components/ui/Magnetic';
 
 const STACK = ['Python', 'LangGraph', 'RAG ibrido · BM25 + FAISS', 'React · Next.js', 'n8n'];
 
@@ -13,7 +14,6 @@ const STACK = ['Python', 'LangGraph', 'RAG ibrido · BM25 + FAISS', 'React · Ne
 export default function HeroOverlay() {
   const setCopilotOpen = useAppStore((s) => s.setCopilotOpen);
   const language = useAppStore((s) => s.language);
-  const setLanguage = useAppStore((s) => s.setLanguage);
   const reduced = useReducedMotion();
 
   const isEn = language === 'en';
@@ -50,20 +50,24 @@ export default function HeroOverlay() {
             ))}
           </div>
 
-          <div className="flex flex-col gap-3 pt-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => setCopilotOpen(true)}
-              className="rounded-full bg-accent px-7 py-3 text-sm font-medium text-white transition-all hover:bg-accent-soft hover:shadow-[0_0_32px_rgb(10_132_255/0.45)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              {isEn ? 'Talk to my Copilot' : 'Parla con il mio copilot'}
-            </button>
-            <a
-              href="#projects"
-              className="rounded-full border border-line px-7 py-3 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-accent-soft/50 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              {isEn ? 'View Projects' : 'Vedi i progetti'}
-            </a>
+          <div className="flex flex-col items-center gap-3 pt-3 sm:flex-row">
+            <Magnetic>
+              <button
+                type="button"
+                onClick={() => setCopilotOpen(true)}
+                className="rounded-full bg-accent px-7 py-3 text-sm font-medium text-white transition-all hover:bg-accent-soft hover:shadow-[0_0_32px_rgb(10_132_255/0.45)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                {isEn ? 'Talk to my Copilot' : 'Parla con il mio copilot'}
+              </button>
+            </Magnetic>
+            <Magnetic>
+              <a
+                href="#projects"
+                className="rounded-full border border-line px-7 py-3 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-accent-soft/50 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                {isEn ? 'View Projects' : 'Vedi i progetti'}
+              </a>
+            </Magnetic>
           </div>
 
         <motion.div
